@@ -1,7 +1,16 @@
 import type { GameWithSound } from "../core/GameWithSound";
-import { RUN_ITEMS, RunItemDef } from "../data/runItems";
+import { RUN_ITEMS } from "../data/runItems";
+import type { RunItemDef } from "../data/runItems";
 
-export type RuntimeSupplyId = "magnet" | "shield" | "haste_potion" | "power_potion";
+export type RuntimeSupplyId =
+  | "magnet"
+  | "shield"
+  | "haste_potion"
+  | "power_potion"
+  | "health_pack"
+  | "regen_dew"
+  | "crit_potion"
+  | "frost_bomb";
 
 interface RuntimeSupplyDrop {
   id: RuntimeSupplyId;
@@ -41,8 +50,11 @@ export class RunSupplyRuntime {
   private lastBossKills = 0;
   private hpBeforeUpdate = 0;
   private shieldCharges = 0;
+  private regenHealBank = 0;
   private appliedDamageMult = 1;
   private appliedCooldownMult = 1;
+  private appliedCritChanceBonus = 0;
+  private appliedCritMultiplierBonus = 0;
 
   constructor(private game: GameWithSound) {}
 
@@ -62,6 +74,7 @@ export class RunSupplyRuntime {
     this.updateSpawning(dt);
     this.updateDrops(dt);
     this.updatePickupCollision();
+    this.applyOngoingEffects(dt);
     this.applyTemporaryStatMods();
   }
 
@@ -80,6 +93,7 @@ export class RunSupplyRuntime {
   private updateTimers(dt: number): void {
     for (const effect of this.effects) effect.remaining -= dt;
     this.effects = this.effects.filter((effect) => effect.remaining > 0);
+    if (this.shieldCharges > 0 && !this.hasEffect("shield")) this.shieldCharges = 0;
 
     for (const t of this.floatingTexts) {
       t.life -= dt;
@@ -92,13 +106,13 @@ export class RunSupplyRuntime {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnNearPlayer(this.pickSpawnId(), 180, 520);
-      this.spawnTimer = Math.max(3.2, 8.5 - this.game.waveNum * 0.18);
+      this.spawnTimer = Math.max(3.0, 8.2 - this.game.waveNum * 0.18);
     }
 
     if (this.game.kills > this.lastKills) {
       const diff = this.game.kills - this.lastKills;
       for (let i = 0; i < diff; i++) {
-        const chance = this.game.waveNum >= 6 ? 0.045 : 0.03;
+        const chance = this.game.waveNum >= 6 ? 0.052 : 0.034;
         if (Math.random() < chance) this.spawnNearPlayer(this.pickSpawnId(), 120, 420);
       }
       this.lastKills = this.game.kills;
@@ -106,7 +120,8 @@ export class RunSupplyRuntime {
 
     if (this.game.bossKills > this.lastBossKills) {
       this.spawnNearPlayer("shield", 80, 220);
-      this.spawnNearPlayer(Math.random() < 0.5 ? "haste_potion" : "power_potion", 100, 260);
+      this.spawnNearPlayer(this.pickBossBonusId(), 100, 260);
+      this.spawnNearPlayer(Math.random() < 0.55 ? "health_pack" : "regen_dew", 110, 280);
       this.lastBossKills = this.game.bossKills;
     }
   }
@@ -157,6 +172,32 @@ export class RunSupplyRuntime {
     if (id === "power_potion") {
       this.addOrRefreshEffect(id, label, color, 6);
       this.floatText(this.game.player.pos.x, this.game.player.pos.y - 42, "攻击提升", color);
+      return;
+    }
+
+    if (id === "health_pack") {
+      const heal = Math.max(18, Math.floor(this.game.player.maxHp * 0.24));
+      this.game.player.hp = Math.min(this.game.player.maxHp, this.game.player.hp + heal);
+      this.floatText(this.game.player.pos.x, this.game.player.pos.y - 42, `+${heal} HP`, color);
+      this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, color, 12, 3.4, 135));
+      return;
+    }
+
+    if (id === "regen_dew") {
+      this.regenHealBank = 0;
+      this.addOrRefreshEffect(id, label, color, 7);
+      this.floatText(this.game.player.pos.x, this.game.player.pos.y - 42, "持续回春", color);
+      return;
+    }
+
+    if (id === "crit_potion") {
+      this.addOrRefreshEffect(id, label, color, 7);
+      this.floatText(this.game.player.pos.x, this.game.player.pos.y - 42, "暴击提升", color);
+      return;
+    }
+
+    if (id === "frost_bomb") {
+      this.triggerFrostBomb(color);
     }
   }
 
@@ -188,6 +229,33 @@ export class RunSupplyRuntime {
     }
   }
 
+  private applyOngoingEffects(dt: number): void {
+    if (!this.hasEffect("regen_dew")) return;
+    const healPerSecond = Math.max(5, this.game.player.maxHp * 0.055);
+    this.regenHealBank += healPerSecond * dt;
+    const heal = Math.floor(this.regenHealBank);
+    if (heal <= 0) return;
+    this.regenHealBank -= heal;
+    this.game.player.hp = Math.min(this.game.player.maxHp, this.game.player.hp + heal);
+  }
+
+  private triggerFrostBomb(color: string): void {
+    const radius = 250 + Math.min(90, this.game.waveNum * 4);
+    let affected = 0;
+    for (const enemy of this.game.enemies) {
+      if (!enemy.alive) continue;
+      const dx = enemy.pos.x - this.game.player.pos.x;
+      const dy = enemy.pos.y - this.game.player.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius + enemy.radius) continue;
+      enemy.applySlow(0.12, 2.2);
+      affected++;
+    }
+
+    this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, color, 34, 4.5, 260));
+    this.floatText(this.game.player.pos.x, this.game.player.pos.y - 46, `冰霜爆发 ${affected}`, color);
+  }
+
   private addOrRefreshEffect(id: RuntimeSupplyId, label: string, color: string, duration: number): void {
     const existing = this.effects.find((effect) => effect.id === id);
     if (existing) {
@@ -202,15 +270,25 @@ export class RunSupplyRuntime {
   private applyTemporaryStatMods(): void {
     let damageMult = 1;
     let cooldownMult = 1;
+    let critChanceBonus = 0;
+    let critMultiplierBonus = 0;
 
     if (this.hasEffect("power_potion")) damageMult *= 1.42;
     if (this.hasEffect("haste_potion")) cooldownMult *= 0.58;
+    if (this.hasEffect("crit_potion")) {
+      critChanceBonus += 0.22;
+      critMultiplierBonus += 0.65;
+    }
 
     if (damageMult !== 1) this.game.player.damage = Math.max(1, Math.floor(this.game.player.damage * damageMult));
     if (cooldownMult !== 1) this.game.player.attackCooldown = Math.max(0.05, this.game.player.attackCooldown * cooldownMult);
+    if (critChanceBonus !== 0) this.game.player.critChance += critChanceBonus;
+    if (critMultiplierBonus !== 0) this.game.player.critMultiplier += critMultiplierBonus;
 
     this.appliedDamageMult = damageMult;
     this.appliedCooldownMult = cooldownMult;
+    this.appliedCritChanceBonus = critChanceBonus;
+    this.appliedCritMultiplierBonus = critMultiplierBonus;
   }
 
   private removeTemporaryStatMods(): void {
@@ -222,6 +300,14 @@ export class RunSupplyRuntime {
       this.game.player.attackCooldown = Math.max(0.05, this.game.player.attackCooldown / this.appliedCooldownMult);
       this.appliedCooldownMult = 1;
     }
+    if (this.appliedCritChanceBonus !== 0) {
+      this.game.player.critChance = Math.max(0, this.game.player.critChance - this.appliedCritChanceBonus);
+      this.appliedCritChanceBonus = 0;
+    }
+    if (this.appliedCritMultiplierBonus !== 0) {
+      this.game.player.critMultiplier = Math.max(1, this.game.player.critMultiplier - this.appliedCritMultiplierBonus);
+      this.appliedCritMultiplierBonus = 0;
+    }
   }
 
   private clearRuntimeOnlyEffects(): void {
@@ -230,6 +316,7 @@ export class RunSupplyRuntime {
     this.effects = [];
     this.floatingTexts = [];
     this.shieldCharges = 0;
+    this.regenHealBank = 0;
     this.lastKills = this.game.kills;
     this.lastBossKills = this.game.bossKills;
     this.spawnTimer = 5.5;
@@ -244,11 +331,28 @@ export class RunSupplyRuntime {
   }
 
   private pickSpawnId(): RuntimeSupplyId {
+    const hpRate = this.game.player.hp / Math.max(1, this.game.player.maxHp);
     const roll = Math.random();
-    if (roll < 0.34) return "magnet";
-    if (roll < 0.57) return "haste_potion";
-    if (roll < 0.8) return "power_potion";
-    return "shield";
+
+    if (hpRate < 0.38) {
+      if (roll < 0.32) return "health_pack";
+      if (roll < 0.48) return "regen_dew";
+      if (roll < 0.62) return "shield";
+    }
+
+    if (roll < 0.18) return "magnet";
+    if (roll < 0.34) return "haste_potion";
+    if (roll < 0.5) return "power_potion";
+    if (roll < 0.63) return "health_pack";
+    if (roll < 0.74) return "regen_dew";
+    if (roll < 0.84) return "crit_potion";
+    if (roll < 0.93) return "shield";
+    return "frost_bomb";
+  }
+
+  private pickBossBonusId(): RuntimeSupplyId {
+    const pool: RuntimeSupplyId[] = ["haste_potion", "power_potion", "crit_potion", "frost_bomb", "regen_dew"];
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
   private renderDrops(ctx: CanvasRenderingContext2D): void {
@@ -299,6 +403,24 @@ export class RunSupplyRuntime {
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, 72 + Math.sin(this.game.gameTime * 5) * 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.hasEffect("regen_dew")) {
+      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = this.colorFor("regen_dew");
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, this.game.player.radius + 22 + Math.sin(this.game.gameTime * 4) * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.hasEffect("crit_potion")) {
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = this.colorFor("crit_potion");
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, this.game.player.radius + 27, this.game.gameTime * 2, this.game.gameTime * 2 + Math.PI * 1.35);
       ctx.stroke();
     }
 
@@ -393,6 +515,10 @@ export class RunSupplyRuntime {
       case "shield": return "护盾";
       case "haste_potion": return "急速药剂";
       case "power_potion": return "攻击药剂";
+      case "health_pack": return "血包";
+      case "regen_dew": return "回春露";
+      case "crit_potion": return "暴击药剂";
+      case "frost_bomb": return "冰霜炸弹";
     }
   }
 
@@ -402,6 +528,10 @@ export class RunSupplyRuntime {
       case "shield": return "#80deea";
       case "haste_potion": return "#ffd54f";
       case "power_potion": return "#ff8a65";
+      case "health_pack": return "#66bb6a";
+      case "regen_dew": return "#81c784";
+      case "crit_potion": return "#ffeb3b";
+      case "frost_bomb": return "#90caf9";
     }
   }
 
