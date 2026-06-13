@@ -4,7 +4,7 @@ import { vec2, Vec2 } from "../utils/math";
 export class Camera {
   pos: Vec2 = vec2(0, 0);
   private target: Vec2 = vec2(0, 0);
-  private smoothFactor = 0.1; // 平滑跟随
+  private smoothFactor = 0.16; // 平滑跟随
 
   // 世界大小
   worldW: number;
@@ -18,6 +18,13 @@ export class Camera {
   follow(targetX: number, targetY: number): void {
     this.target.x = targetX;
     this.target.y = targetY;
+  }
+
+  snap(targetX: number, targetY: number): void {
+    this.target.x = targetX;
+    this.target.y = targetY;
+    this.pos.x = targetX;
+    this.pos.y = targetY;
   }
 
   update(): void {
