@@ -29,9 +29,24 @@ interface OffscreenThreat {
   screenY: number;
 }
 
+interface SpawnWarning {
+  angle: number;
+  label: string;
+  count: number;
+  role: "normal" | "elite" | "boss";
+  life: number;
+  maxLife: number;
+}
+
 export class Minimap {
+  private seenEnemies = new WeakSet<object>();
+  private spawnWarnings: SpawnWarning[] = [];
+  private lastRenderAt = 0;
+
   render(ctx: CanvasRenderingContext2D, data: MinimapData): void {
+    this.updateSpawnWarnings(data);
     this.renderOffscreenThreats(ctx, data);
+    this.renderSpawnWarnings(ctx);
 
     const size = 154;
     const pad = 16;
@@ -120,6 +135,106 @@ export class Minimap {
     ctx.fillStyle = "#ffb74d";
     ctx.fillText(`接近${parts.join(" / ")}`, ctx.canvas.width / 2, 158);
     ctx.restore();
+  }
+
+  private updateSpawnWarnings(data: MinimapData): void {
+    const now = performance.now() / 1000;
+    const dt = this.lastRenderAt <= 0 ? 0.016 : Math.min(0.08, now - this.lastRenderAt);
+    this.lastRenderAt = now;
+
+    for (const warning of this.spawnWarnings) warning.life -= dt;
+    this.spawnWarnings = this.spawnWarnings.filter((warning) => warning.life > 0);
+
+    const newcomers: MinimapEnemy[] = [];
+    for (const enemy of data.enemies) {
+      const key = enemy as object;
+      if (this.seenEnemies.has(key)) continue;
+      this.seenEnemies.add(key);
+      newcomers.push(enemy);
+    }
+
+    if (newcomers.length <= 0) return;
+
+    let avgX = 0;
+    let avgY = 0;
+    let role: "normal" | "elite" | "boss" = "normal";
+    for (const enemy of newcomers) {
+      avgX += enemy.pos.x - data.playerPos.x;
+      avgY += enemy.pos.y - data.playerPos.y;
+      if (enemy.role === "boss") role = "boss";
+      else if (enemy.role === "elite" && role !== "boss") role = "elite";
+    }
+
+    avgX /= newcomers.length;
+    avgY /= newcomers.length;
+
+    const angle = Math.atan2(avgY, avgX || 0.001);
+    const label = this.directionLabel(avgX, avgY);
+    const maxLife = role === "boss" ? 2.7 : role === "elite" ? 2.1 : 1.55;
+    this.spawnWarnings.push({
+      angle,
+      label,
+      count: newcomers.length,
+      role,
+      life: maxLife,
+      maxLife,
+    });
+
+    if (this.spawnWarnings.length > 4) this.spawnWarnings = this.spawnWarnings.slice(-4);
+  }
+
+  private renderSpawnWarnings(ctx: CanvasRenderingContext2D): void {
+    if (this.spawnWarnings.length <= 0) return;
+
+    ctx.save();
+
+    for (let i = 0; i < this.spawnWarnings.length; i++) {
+      const warning = this.spawnWarnings[i];
+      const alpha = Math.max(0, Math.min(1, warning.life / Math.min(warning.maxLife, 0.65)));
+      const edge = this.clampToScreenEdge(
+        ctx.canvas.width / 2 + Math.cos(warning.angle) * 9999,
+        ctx.canvas.height / 2 + Math.sin(warning.angle) * 9999,
+        ctx.canvas.width,
+        ctx.canvas.height,
+        64 + i * 18,
+      );
+
+      const color = warning.role === "boss" ? "#ffeb3b" : warning.role === "elite" ? "#ef5350" : "#ffb74d";
+      const title = warning.role === "boss" ? "Boss 波来袭" : warning.role === "elite" ? "精英敌潮出现" : "敌潮出现";
+      const pulse = warning.role === "boss" || warning.life > warning.maxLife - 0.55;
+
+      this.drawThreatArrow(ctx, edge.x, edge.y, warning.angle, warning.role === "boss" ? 24 : 18, color, alpha, pulse);
+
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = "center";
+      ctx.font = "bold 12px monospace";
+      const text = `${title} · ${warning.label} ×${warning.count}`;
+      const boxW = Math.min(250, Math.max(142, text.length * 12));
+      const tx = Math.max(boxW / 2 + 12, Math.min(ctx.canvas.width - boxW / 2 - 12, edge.x));
+      const ty = Math.max(78, Math.min(ctx.canvas.height - 78, edge.y + (edge.y < ctx.canvas.height / 2 ? 34 : -30)));
+
+      ctx.fillStyle = "rgba(0,0,0,0.56)";
+      ctx.fillRect(tx - boxW / 2, ty - 14, boxW, 24);
+      ctx.strokeStyle = warning.role === "boss" ? "rgba(255,235,59,0.72)" : "rgba(255,183,77,0.55)";
+      ctx.strokeRect(tx - boxW / 2, ty - 14, boxW, 24);
+      ctx.fillStyle = color;
+      ctx.fillText(text, tx, ty + 3);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  private directionLabel(dx: number, dy: number): string {
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+
+    if (ax > ay * 1.45) return dx >= 0 ? "右侧" : "左侧";
+    if (ay > ax * 1.45) return dy >= 0 ? "下方" : "上方";
+
+    const vertical = dy >= 0 ? "下" : "上";
+    const horizontal = dx >= 0 ? "右" : "左";
+    return `${vertical}${horizontal}`;
   }
 
   private renderOffscreenThreats(ctx: CanvasRenderingContext2D, data: MinimapData): void {
