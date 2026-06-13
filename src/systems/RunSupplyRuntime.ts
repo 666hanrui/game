@@ -38,8 +38,34 @@ interface FloatingSupplyText {
   maxLife: number;
 }
 
+interface SupplyParticle {
+  pos: { x: number; y: number };
+  vel: { x: number; y: number };
+  life: number;
+  maxLife: number;
+  size: number;
+  color: string;
+}
+
+interface SupplyVisual {
+  shortLabel: string;
+  hint: string;
+  shape: "diamond" | "hex" | "bolt" | "triangle" | "cross" | "circle" | "star" | "snow";
+}
+
 const WORLD_W = 2400;
 const WORLD_H = 2400;
+
+const SUPPLY_VISUALS: Record<RuntimeSupplyId, SupplyVisual> = {
+  magnet: { shortLabel: "吸", hint: "吸取", shape: "diamond" },
+  shield: { shortLabel: "盾", hint: "护盾", shape: "hex" },
+  haste_potion: { shortLabel: "速", hint: "急速", shape: "bolt" },
+  power_potion: { shortLabel: "攻", hint: "攻击", shape: "triangle" },
+  health_pack: { shortLabel: "血", hint: "回血", shape: "cross" },
+  regen_dew: { shortLabel: "春", hint: "回春", shape: "circle" },
+  crit_potion: { shortLabel: "暴", hint: "暴击", shape: "star" },
+  frost_bomb: { shortLabel: "冰", hint: "冰霜", shape: "snow" },
+};
 
 export class RunSupplyRuntime {
   private drops: RuntimeSupplyDrop[] = [];
@@ -360,110 +386,274 @@ export class RunSupplyRuntime {
       const sp = this.game.camera.worldToScreen(drop.x, drop.y, this.game.w, this.game.h);
       const item = this.getItem(drop.id);
       const color = item?.color ?? this.colorFor(drop.id);
-      const icon = item?.icon ?? "◆";
+      const visual = SUPPLY_VISUALS[drop.id];
       const pulse = 1 + Math.sin((drop.age + drop.seed) * 5) * 0.08;
       const fade = Math.min(1, Math.max(0.18, (drop.life - drop.age) / 4));
+      const bob = Math.sin((drop.age + drop.seed) * 2.8) * 2;
 
       ctx.save();
       ctx.globalAlpha = fade;
-      ctx.translate(sp.x, sp.y + Math.sin((drop.age + drop.seed) * 2.8) * 2);
+      ctx.translate(sp.x, sp.y + bob);
       ctx.scale(pulse, pulse);
 
-      const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 24);
-      glow.addColorStop(0, color + "aa");
-      glow.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(0, 0, 24, 0, Math.PI * 2);
-      ctx.fill();
+      this.drawDropGlow(ctx, color);
+      this.drawDropPlate(ctx, color, visual.shape, drop.age + drop.seed);
 
-      ctx.fillStyle = "rgba(10,10,18,0.78)";
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = color;
-      ctx.font = "bold 15px monospace";
+      ctx.fillStyle = "#07101f";
+      ctx.font = "bold 13px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(icon, 0, 5);
+      ctx.fillText(visual.shortLabel, 0, 5);
+
+      ctx.fillStyle = this.rgba(color, 0.95);
+      ctx.font = "bold 10px monospace";
+      ctx.fillText(visual.hint, 0, 30);
       ctx.restore();
     }
+  }
+
+  private drawDropGlow(ctx: CanvasRenderingContext2D, color: string): void {
+    const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 30);
+    glow.addColorStop(0, this.rgba(color, 0.76));
+    glow.addColorStop(0.5, this.rgba(color, 0.22));
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private drawDropPlate(ctx: CanvasRenderingContext2D, color: string, shape: SupplyVisual["shape"], time: number): void {
+    ctx.fillStyle = "rgba(8,13,24,0.86)";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+
+    if (shape === "diamond") {
+      ctx.moveTo(0, -17);
+      ctx.lineTo(17, 0);
+      ctx.lineTo(0, 17);
+      ctx.lineTo(-17, 0);
+      ctx.closePath();
+    } else if (shape === "hex") {
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
+        const x = Math.cos(a) * 18;
+        const y = Math.sin(a) * 18;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    } else if (shape === "triangle") {
+      ctx.moveTo(0, -18);
+      ctx.lineTo(17, 14);
+      ctx.lineTo(-17, 14);
+      ctx.closePath();
+    } else if (shape === "bolt") {
+      ctx.moveTo(-7, -19);
+      ctx.lineTo(10, -3);
+      ctx.lineTo(2, -2);
+      ctx.lineTo(9, 19);
+      ctx.lineTo(-10, 2);
+      ctx.lineTo(-2, 1);
+      ctx.closePath();
+    } else if (shape === "cross") {
+      ctx.moveTo(-6, -18);
+      ctx.lineTo(6, -18);
+      ctx.lineTo(6, -6);
+      ctx.lineTo(18, -6);
+      ctx.lineTo(18, 6);
+      ctx.lineTo(6, 6);
+      ctx.lineTo(6, 18);
+      ctx.lineTo(-6, 18);
+      ctx.lineTo(-6, 6);
+      ctx.lineTo(-18, 6);
+      ctx.lineTo(-18, -6);
+      ctx.lineTo(-6, -6);
+      ctx.closePath();
+    } else {
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    }
+
+    ctx.fill();
+    ctx.stroke();
+
+    if (shape === "star" || shape === "snow") {
+      ctx.strokeStyle = this.rgba(color, 0.72);
+      ctx.lineWidth = 1.4;
+      for (let i = 0; i < (shape === "star" ? 5 : 6); i++) {
+        const a = time * 0.35 + (i / (shape === "star" ? 5 : 6)) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * 5, Math.sin(a) * 5);
+        ctx.lineTo(Math.cos(a) * 24, Math.sin(a) * 24);
+        ctx.stroke();
+      }
+    }
+
+    ctx.strokeStyle = this.rgba(color, 0.42);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 23 + Math.sin(time * 2.5) * 2, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   private renderPlayerAuras(ctx: CanvasRenderingContext2D): void {
     const sp = this.game.camera.worldToScreen(this.game.player.pos.x, this.game.player.pos.y, this.game.w, this.game.h);
     ctx.save();
 
-    if (this.hasEffect("magnet")) {
-      ctx.globalAlpha = 0.18;
-      ctx.strokeStyle = this.colorFor("magnet");
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, 72 + Math.sin(this.game.gameTime * 5) * 5, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    if (this.hasEffect("regen_dew")) {
-      ctx.globalAlpha = 0.2;
-      ctx.strokeStyle = this.colorFor("regen_dew");
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, this.game.player.radius + 22 + Math.sin(this.game.gameTime * 4) * 4, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    if (this.hasEffect("crit_potion")) {
-      ctx.globalAlpha = 0.18;
-      ctx.strokeStyle = this.colorFor("crit_potion");
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, this.game.player.radius + 27, this.game.gameTime * 2, this.game.gameTime * 2 + Math.PI * 1.35);
-      ctx.stroke();
-    }
-
-    if (this.shieldCharges > 0) {
-      ctx.globalAlpha = 0.36;
-      ctx.strokeStyle = this.colorFor("shield");
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(sp.x, sp.y, this.game.player.radius + 13 + Math.sin(this.game.gameTime * 6) * 2, 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    if (this.hasEffect("magnet")) this.renderMagnetAura(ctx, sp.x, sp.y);
+    if (this.hasEffect("regen_dew")) this.renderRegenAura(ctx, sp.x, sp.y);
+    if (this.hasEffect("crit_potion")) this.renderCritAura(ctx, sp.x, sp.y);
+    if (this.shieldCharges > 0) this.renderShieldAura(ctx, sp.x, sp.y);
 
     ctx.restore();
   }
 
+  private renderMagnetAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const color = this.colorFor("magnet");
+    const t = this.game.gameTime;
+    const radius = 78 + Math.sin(t * 5) * 5;
+
+    const glow = ctx.createRadialGradient(x, y, 12, x, y, radius + 26);
+    glow.addColorStop(0, this.rgba(color, 0.06));
+    glow.addColorStop(0.7, this.rgba(color, 0.13));
+    glow.addColorStop(1, "rgba(66,165,245,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = this.rgba(color, 0.36);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([12, 10]);
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = this.rgba(color, 0.22);
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 10; i++) {
+      const a = t * 1.4 + (i / 10) * Math.PI * 2;
+      const outer = radius + 12;
+      const inner = radius - 12;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a) * outer, y + Math.sin(a) * outer);
+      ctx.lineTo(x + Math.cos(a) * inner, y + Math.sin(a) * inner);
+      ctx.stroke();
+    }
+  }
+
+  private renderRegenAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const color = this.colorFor("regen_dew");
+    ctx.strokeStyle = this.rgba(color, 0.34);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, this.game.player.radius + 24 + Math.sin(this.game.gameTime * 4) * 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  private renderCritAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const color = this.colorFor("crit_potion");
+    ctx.strokeStyle = this.rgba(color, 0.34);
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(x, y, this.game.player.radius + 29, this.game.gameTime * 2, this.game.gameTime * 2 + Math.PI * 1.35);
+    ctx.stroke();
+  }
+
+  private renderShieldAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const color = this.colorFor("shield");
+    const r = this.game.player.radius + 15 + Math.sin(this.game.gameTime * 6) * 2;
+
+    ctx.strokeStyle = this.rgba(color, 0.58);
+    ctx.lineWidth = 3.4;
+    this.hexPath(ctx, x, y, r + 3);
+    ctx.stroke();
+
+    ctx.strokeStyle = this.rgba("#ffffff", 0.28);
+    ctx.lineWidth = 1.4;
+    this.hexPath(ctx, x, y, r + 8);
+    ctx.stroke();
+
+    ctx.fillStyle = this.rgba(color, 0.9);
+    for (let i = 0; i < this.shieldCharges; i++) {
+      const a = -Math.PI / 2 + (i - (this.shieldCharges - 1) / 2) * 0.28;
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * (r + 17), y + Math.sin(a) * (r + 17), 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   private renderEffectBar(ctx: CanvasRenderingContext2D): void {
     if (this.effects.length <= 0) return;
-    const x = Math.max(270, this.game.w - 250);
-    let y = 110;
+    const panelW = Math.min(242, Math.max(196, this.game.w * 0.24));
+    const x = Math.max(12, this.game.w - panelW - 16);
+    let y = 104;
 
     ctx.save();
     ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(0,0,0,0.36)";
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.lineWidth = 1;
+    this.roundRect(ctx, x, y - 27, panelW, 22, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.62)";
+    ctx.font = "bold 11px monospace";
+    ctx.fillText("局内补给", x + 10, y - 12);
+
     for (const effect of this.effects) {
       const pct = Math.max(0, Math.min(1, effect.remaining / effect.duration));
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.strokeStyle = effect.color;
-      ctx.lineWidth = 1;
-      this.roundRect(ctx, x, y, 218, 24, 8);
+      const visual = SUPPLY_VISUALS[effect.id];
+      const rowH = 32;
+
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.strokeStyle = this.rgba(effect.color, 0.76);
+      ctx.lineWidth = 1.2;
+      this.roundRect(ctx, x, y, panelW, rowH, 10);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = effect.color + "66";
-      this.roundRect(ctx, x + 4, y + 17, 210 * pct, 3, 2);
+
+      ctx.fillStyle = this.rgba(effect.color, 0.16);
+      this.roundRect(ctx, x + 4, y + 4, 26, 24, 8);
       ctx.fill();
+      ctx.strokeStyle = this.rgba(effect.color, 0.56);
+      ctx.lineWidth = 1;
+      this.roundRect(ctx, x + 4, y + 4, 26, 24, 8);
+      ctx.stroke();
+
       ctx.fillStyle = effect.color;
       ctx.font = "bold 11px monospace";
-      ctx.fillText(effect.label, x + 10, y + 15);
-      ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.textAlign = "right";
-      ctx.fillText(`${effect.remaining.toFixed(1)}s`, x + 206, y + 15);
+      ctx.textAlign = "center";
+      ctx.fillText(visual.shortLabel, x + 17, y + 21);
+
       ctx.textAlign = "left";
-      y += 30;
+      ctx.fillStyle = "rgba(255,255,255,0.82)";
+      ctx.font = "bold 11px monospace";
+      ctx.fillText(effect.label, x + 38, y + 14);
+
+      ctx.fillStyle = this.rgba(effect.color, 0.72);
+      this.roundRect(ctx, x + 38, y + 22, (panelW - 84) * pct, 4, 2);
+      ctx.fill();
+
+      if (effect.id === "shield") this.drawShieldChargePips(ctx, x + panelW - 70, y + 16, effect.color);
+
+      ctx.fillStyle = "rgba(255,255,255,0.62)";
+      ctx.font = "10px monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(`${effect.remaining.toFixed(1)}s`, x + panelW - 8, y + 19);
+      y += rowH + 7;
     }
     ctx.restore();
+  }
+
+  private drawShieldChargePips(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i < this.shieldCharges ? color : "rgba(255,255,255,0.12)";
+      ctx.beginPath();
+      ctx.arc(x + i * 8, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   private renderFloatingTexts(ctx: CanvasRenderingContext2D): void {
@@ -473,14 +663,16 @@ export class RunSupplyRuntime {
     for (const t of this.floatingTexts) {
       const sp = this.game.camera.worldToScreen(t.x, t.y, this.game.w, this.game.h);
       ctx.globalAlpha = Math.max(0, t.life / t.maxLife);
+      ctx.fillStyle = "rgba(0,0,0,0.42)";
+      ctx.fillText(t.text, sp.x + 1, sp.y + 1);
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, sp.x, sp.y);
     }
     ctx.restore();
   }
 
-  private makeBurst(x: number, y: number, color: string, count: number, size: number, force: number) {
-    const particles = [];
+  private makeBurst(x: number, y: number, color: string, count: number, size: number, force: number): SupplyParticle[] {
+    const particles: SupplyParticle[] = [];
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const speed = force * (0.25 + Math.random() * 0.75);
@@ -539,17 +731,39 @@ export class RunSupplyRuntime {
     return Math.max(min, Math.min(max, value));
   }
 
-  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  private rgba(hex: string, alpha: number): string {
+    const clean = hex.replace("#", "");
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  private hexPath(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    if (w <= 0 || h <= 0) return;
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.arcTo(x + w, y, x + w, y + rr, rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+    ctx.lineTo(x + rr, y + h);
+    ctx.arcTo(x, y + h, x, y + h - rr, rr);
+    ctx.lineTo(x, y + rr);
+    ctx.arcTo(x, y, x + rr, y, rr);
     ctx.closePath();
   }
 }
