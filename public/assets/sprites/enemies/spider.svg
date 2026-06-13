@@ -1,22 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="Spider enemy sprite">
   <title>Spider Enemy</title>
-  <defs><radialGradient id="g" cx="45%" cy="35%" r="70%"><stop offset="0%" stop-color="#d7ccc8"/><stop offset="50%" stop-color="#8d6e63"/><stop offset="100%" stop-color="#3e2723"/></radialGradient></defs>
-  <circle cx="256" cy="256" r="220" fill="#8d6e63" opacity="0.16"/>
-  <g stroke="#4e342e" stroke-width="14" stroke-linecap="round" fill="none">
-    <path d="M184 242 L102 199 L64 134"/>
-    <path d="M183 279 L95 296 L45 352"/>
-    <path d="M328 242 L410 199 L448 134"/>
-    <path d="M329 279 L417 296 L467 352"/>
-    <path d="M203 196 L157 114"/>
-    <path d="M309 196 L355 114"/>
-    <path d="M205 324 L168 410"/>
-    <path d="M307 324 L344 410"/>
+  <defs>
+    <radialGradient id="body" cx="45%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#d7ccc8"/>
+      <stop offset="50%" stop-color="#8d6e63"/>
+      <stop offset="100%" stop-color="#3e2723"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="62%">
+      <stop offset="0%" stop-color="#8d6e63" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#8d6e63" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+  <g stroke="#4e342e" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M182 229 L97 183 L54 109"/>
+    <path d="M176 257 L79 247 L27 291"/>
+    <path d="M184 289 L92 319 L43 392"/>
+    <path d="M330 229 L415 183 L458 109"/>
+    <path d="M336 257 L433 247 L485 291"/>
+    <path d="M328 289 L420 319 L469 392"/>
+    <path d="M215 188 L173 104"/>
+    <path d="M297 188 L339 104"/>
+    <path d="M215 324 L178 414"/>
+    <path d="M297 324 L334 414"/>
   </g>
-  <path d="M256 116 L372 183 L372 317 L256 384 L140 317 L140 183 Z" fill="url(#g)" stroke="#4e342e" stroke-width="10"/>
-  <circle cx="216" cy="241" r="16" fill="#fff8e1"/>
-  <circle cx="296" cy="241" r="16" fill="#fff8e1"/>
-  <circle cx="216" cy="241" r="8" fill="#2b140f"/>
-  <circle cx="296" cy="241" r="8" fill="#2b140f"/>
-  <path d="M218 310 C246 329 266 329 294 310" stroke="#2b140f" stroke-width="9" stroke-linecap="round" fill="none" opacity="0.62"/>
-  <path d="M190 169 C225 146 287 146 322 169" stroke="#efebe9" stroke-width="9" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M256 105 L382 178 L382 324 L256 397 L130 324 L130 178 Z" fill="url(#body)" stroke="#4e342e" stroke-width="12"/>
+  <path d="M186 177 C226 146 286 146 326 177" stroke="#efebe9" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.36"/>
+  <circle cx="217" cy="239" r="18" fill="#fff8e1"/>
+  <circle cx="295" cy="239" r="18" fill="#fff8e1"/>
+  <circle cx="217" cy="239" r="9" fill="#2b140f"/>
+  <circle cx="295" cy="239" r="9" fill="#2b140f"/>
+  <path d="M216 313 C244 333 268 333 296 313" stroke="#2b140f" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.62"/>
+  <path d="M256 124 V388" stroke="#efebe9" stroke-width="5" opacity="0.22"/>
+  <path d="M141 190 L371 322" stroke="#efebe9" stroke-width="5" opacity="0.16"/>
+  <path d="M371 190 L141 322" stroke="#efebe9" stroke-width="5" opacity="0.16"/>
 </svg>
