@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Expedition camp main UI wireframe">
+  <title>远征营地主界面草图</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#07101f"/>
+      <stop offset="58%" stop-color="#101827"/>
+      <stop offset="100%" stop-color="#1b1020"/>
+    </linearGradient>
+    <radialGradient id="fire" cx="50%" cy="52%" r="50%">
+      <stop offset="0%" stop-color="#fff3e0" stop-opacity="0.92"/>
+      <stop offset="35%" stop-color="#ffca28" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ff7043" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#17233a" stop-opacity="0.94"/>
+      <stop offset="100%" stop-color="#0c1324" stop-opacity="0.94"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="820" cy="485" r="260" fill="url(#fire)"/>
+
+  <g font-family="monospace">
+    <rect x="36" y="26" width="1528" height="64" rx="18" fill="url(#panel)" stroke="rgba(255,255,255,0.14)"/>
+    <text x="70" y="66" fill="#ffca28" font-size="30" font-weight="700">远征营地</text>
+    <text x="310" y="64" fill="#90caf9" font-size="18">异种残核 124</text>
+    <text x="500" y="64" fill="#b388ff" font-size="18">裂土印记 18</text>
+    <text x="690" y="64" fill="#ffd54f" font-size="18">王骸晶核 2</text>
+    <text x="870" y="64" fill="#80deea" font-size="18">异种核心 1</text>
+    <text x="1400" y="64" fill="rgba(255,255,255,0.55)" font-size="16">仓库 / 设置</text>
+  </g>
+
+  <g font-family="monospace" filter="url(#shadow)">
+    <rect x="36" y="112" width="270" height="660" rx="22" fill="url(#panel)" stroke="rgba(255,255,255,0.14)"/>
+    <text x="70" y="155" fill="#e1f5fe" font-size="22" font-weight="700">营地模块</text>
+    <g font-size="18" font-weight="700">
+      <rect x="62" y="182" width="218" height="46" rx="14" fill="rgba(255,202,40,0.16)" stroke="#ffca28"/>
+      <text x="86" y="212" fill="#ffca28">▲ 远征入口</text>
+      <rect x="62" y="240" width="218" height="42" rx="13" fill="rgba(206,147,216,0.1)" stroke="rgba(255,255,255,0.12)"/>
+      <text x="86" y="267" fill="#ce93d8">✦ 天赋殿堂</text>
+      <rect x="62" y="294" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="321" fill="#ffcc80">⚒ 道具工坊</text>
+      <rect x="62" y="348" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="375" fill="#81c784">✚ 药房</text>
+      <rect x="62" y="402" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="429" fill="#e1f5fe">☰ 任务系统</text>
+      <rect x="62" y="456" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="483" fill="#b3e5fc">◇ 合成系统</text>
+      <rect x="62" y="510" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="537" fill="#90caf9">▣ 材料仓库</text>
+      <rect x="62" y="564" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="591" fill="#ff8a65">◎ 土地收复地图</text>
+      <rect x="62" y="618" width="218" height="42" rx="13" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+      <text x="86" y="645" fill="#b0bec5">? 图鉴与异种档案</text>
+    </g>
+    <text x="72" y="714" fill="rgba(255,255,255,0.48)" font-size="14">补给 ≠ 宝箱材料</text>
+    <text x="72" y="740" fill="rgba(255,255,255,0.38)" font-size="13">宝箱只进入长期成长</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="340" y="112" width="820" height="660" rx="28" fill="rgba(10,18,32,0.72)" stroke="rgba(255,255,255,0.12)"/>
+    <path d="M420 690 C560 580 620 460 815 464 C1010 468 1060 575 1090 690 Z" fill="rgba(255,202,40,0.08)" stroke="rgba(255,202,40,0.22)"/>
+    <circle cx="760" cy="486" r="74" fill="rgba(255,143,0,0.18)" stroke="#ffca28" stroke-width="4"/>
+    <path d="M740 518 C730 485 760 465 751 430 C785 461 807 487 784 526 Z" fill="#ff8f00"/>
+    <path d="M762 516 C756 494 780 481 774 456 C800 480 811 501 793 526 Z" fill="#fff3e0" opacity="0.88"/>
+    <text x="760" y="606" text-anchor="middle" fill="#ffca28" font-family="monospace" font-size="22" font-weight="700">营地篝火 / 中央视觉区</text>
+
+    <g font-family="monospace" font-size="16" font-weight="700">
+      <rect x="422" y="174" width="168" height="92" rx="18" fill="rgba(206,147,216,0.12)" stroke="#ce93d8"/>
+      <text x="506" y="213" text-anchor="middle" fill="#ce93d8">天赋殿堂</text>
+      <text x="506" y="240" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="13">槽位 / 解锁</text>
+      <rect x="640" y="152" width="168" height="92" rx="18" fill="rgba(255,204,128,0.12)" stroke="#ffcc80"/>
+      <text x="724" y="191" text-anchor="middle" fill="#ffcc80">道具工坊</text>
+      <text x="724" y="218" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="13">补给池强化</text>
+      <rect x="858" y="174" width="168" height="92" rx="18" fill="rgba(129,199,132,0.12)" stroke="#81c784"/>
+      <text x="942" y="213" text-anchor="middle" fill="#81c784">药房</text>
+      <text x="942" y="240" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="13">药剂研究</text>
+
+      <rect x="438" y="590" width="168" height="92" rx="18" fill="rgba(144,202,249,0.12)" stroke="#90caf9"/>
+      <text x="522" y="629" text-anchor="middle" fill="#90caf9">材料仓库</text>
+      <text x="522" y="656" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="13">可带出材料</text>
+      <rect x="694" y="642" width="168" height="92" rx="18" fill="rgba(179,229,252,0.12)" stroke="#b3e5fc"/>
+      <text x="778" y="681" text-anchor="middle" fill="#b3e5fc">合成系统</text>
+      <text x="778" y="708" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="13">蓝图 / 残页</text>
+      <rect x="922" y="590" width="168" height="92" rx="18" fill="rgba(255,138,101,0.12)" stroke="#ff8a65"/>
+      <text x="1006" y="629" text-anchor="middle" fill="#ff8a65">收复地图</text>
+      <text x="1006" y="656" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="13">区域进度</text>
+    </g>
+  </g>
+
+  <g font-family="monospace" filter="url(#shadow)">
+    <rect x="1192" y="112" width="372" height="660" rx="22" fill="url(#panel)" stroke="rgba(255,255,255,0.14)"/>
+    <text x="1226" y="155" fill="#e1f5fe" font-size="22" font-weight="700">远征情报</text>
+    <rect x="1224" y="184" width="308" height="128" rx="16" fill="rgba(255,202,40,0.08)" stroke="rgba(255,202,40,0.32)"/>
+    <text x="1248" y="222" fill="#ffca28" font-size="19" font-weight="700">破碎平原</text>
+    <text x="1248" y="252" fill="rgba(255,255,255,0.66)" font-size="15">推荐难度：正常</text>
+    <text x="1248" y="280" fill="rgba(255,255,255,0.66)" font-size="15">天赋槽：1 / 3</text>
+
+    <text x="1226" y="358" fill="#ff8a65" font-size="18" font-weight="700">可能特殊怪</text>
+    <text x="1248" y="390" fill="rgba(255,255,255,0.68)" font-size="15">爆炸怪 / 治疗怪 / 精英</text>
+
+    <text x="1226" y="444" fill="#90caf9" font-size="18" font-weight="700">可能材料掉落</text>
+    <text x="1248" y="476" fill="rgba(255,255,255,0.68)" font-size="15">异种残核、腐化骨片</text>
+    <text x="1248" y="504" fill="rgba(255,255,255,0.68)" font-size="15">裂土印记、兽血琥珀</text>
+
+    <text x="1226" y="558" fill="#ce93d8" font-size="18" font-weight="700">当前任务</text>
+    <text x="1248" y="590" fill="rgba(255,255,255,0.68)" font-size="15">清剿 300 个异种</text>
+    <text x="1248" y="618" fill="rgba(255,255,255,0.68)" font-size="15">奖励：裂土印记 x2</text>
+
+    <rect x="1224" y="670" width="308" height="64" rx="20" fill="rgba(255,202,40,0.2)" stroke="#ffca28" stroke-width="3"/>
+    <text x="1378" y="710" text-anchor="middle" fill="#ffca28" font-size="24" font-weight="700">开始远征</text>
+  </g>
+
+  <g font-family="monospace">
+    <rect x="36" y="804" width="1528" height="58" rx="18" fill="rgba(0,0,0,0.28)" stroke="rgba(255,255,255,0.1)"/>
+    <text x="70" y="840" fill="rgba(255,255,255,0.5)" font-size="16">提示：局内补给用于本局战斗；宝箱只产出可带出材料，用于天赋、合成、职业解锁与区域收复。</text>
+  </g>
+</svg>
