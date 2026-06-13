@@ -21,6 +21,23 @@ export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "weap
 const WORLD_W = 2400;
 const WORLD_H = 2400;
 
+interface Particle {
+  pos: Vec2;
+  vel: Vec2;
+  life: number;
+  maxLife: number;
+  size: number;
+  color: string;
+}
+
+interface FloatingText {
+  pos: Vec2;
+  text: string;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
 export class Game {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -35,6 +52,8 @@ export class Game {
   enemies: Enemy[] = [];
   projectiles: Projectile[] = [];
   pickups: Pickup[] = [];
+  particles: Particle[] = [];
+  floatingTexts: FloatingText[] = [];
 
   wave: WaveSystem;
   combat: CombatSystem;
@@ -61,6 +80,8 @@ export class Game {
 
   private xpSpawnTimer = 0;
   private xpSpawnInterval = 3.0;
+  private bannerText = "";
+  private bannerTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -119,6 +140,8 @@ export class Game {
     this.enemies = [];
     this.projectiles = [];
     this.pickups = [];
+    this.particles = [];
+    this.floatingTexts = [];
     this.selectedRace = null;
     this.selectedSchool = null;
     this.selectedWeapon = null;
@@ -129,6 +152,8 @@ export class Game {
     this.shootTimer = 0;
     this.gameTime = 0;
     this.xpSpawnTimer = 0;
+    this.bannerText = "";
+    this.bannerTimer = 0;
     this.xp.reset();
     this.phase = "menu";
   }
@@ -152,6 +177,8 @@ export class Game {
   private selectWeapon(weapon: Weapon): void {
     this.selectedWeapon = weapon;
     this.upgradePanel.generateChoices(this.selectedSchool?.id as SkillSchool, this.appliedSkillIds, this.selectedWeapon.id);
+    this.bannerText = `${weapon.name} 已就绪`;
+    this.bannerTimer = 1.4;
     this.phase = "upgrade";
   }
 
@@ -159,6 +186,8 @@ export class Game {
     this.appliedSkills.push(skill);
     this.appliedSkillIds.push(skill.id);
     this.applyAllMods();
+    this.addText(this.player.pos.x, this.player.pos.y - 34, `获得：${skill.name}`, "#ffeb3b", 1.1);
+    this.spawnParticles(this.player.pos.x, this.player.pos.y, "#ffeb3b", 18, 4, 210);
     this.phase = "playing";
   }
 
@@ -168,6 +197,44 @@ export class Game {
 
   private skillCount(id: string): number {
     return this.appliedSkillIds.filter((skillId) => skillId === id).length;
+  }
+
+  private addText(x: number, y: number, text: string, color: string, life = 0.75): void {
+    this.floatingTexts.push({ pos: vec2(x, y), text, color, life, maxLife: life });
+  }
+
+  private spawnParticles(x: number, y: number, color: string, count = 10, size = 3, force = 140): void {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const speed = randRange(force * 0.2, force);
+      const life = randRange(0.22, 0.55);
+      this.particles.push({
+        pos: vec2(x, y),
+        vel: vec2(Math.cos(a) * speed, Math.sin(a) * speed),
+        life,
+        maxLife: life,
+        size: randRange(size * 0.55, size * 1.3),
+        color,
+      });
+    }
+  }
+
+  private updateFeedback(dt: number): void {
+    for (const p of this.particles) {
+      p.life -= dt;
+      p.pos.x += p.vel.x * dt;
+      p.pos.y += p.vel.y * dt;
+      p.vel.x *= 0.9;
+      p.vel.y *= 0.9;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
+
+    for (const t of this.floatingTexts) {
+      t.life -= dt;
+      t.pos.y -= 34 * dt;
+    }
+    this.floatingTexts = this.floatingTexts.filter((t) => t.life > 0);
+    if (this.bannerTimer > 0) this.bannerTimer -= dt;
   }
 
   private applyAllMods(): void {
@@ -218,6 +285,12 @@ export class Game {
     const spdMult = this.wave.getSpeedMultiplier(this.waveNum);
     const roles = this.wave.getRolesForWave(this.waveNum);
     for (const role of roles) this.enemies.push(new Enemy(WORLD_W, WORLD_H, hpMult, spdMult, role));
+    if (this.wave.isBossWave(this.waveNum)) {
+      this.bannerText = `Boss 来袭 · 第 ${this.waveNum} 波`;
+      this.bannerTimer = 2.2;
+    } else {
+      this.addText(this.player.pos.x, this.player.pos.y - 52, `第 ${this.waveNum} 波`, "#90caf9", 1.1);
+    }
   }
 
   private spawnMapXP(): void {
@@ -376,11 +449,14 @@ export class Game {
       if (!e.alive || e === exclude) continue;
       if (distance(vec2(x, y), e.pos) > radius) continue;
       const defeated = e.takeDamage(damage);
+      this.addText(e.pos.x, e.pos.y - e.radius, `-${damage}`, "#ffb74d");
+      this.spawnParticles(e.pos.x, e.pos.y, "#ff7043", 5, 2.5, 120);
       if (defeated) this.onKill(e);
     }
   }
 
   update(dt: number): void {
+    this.updateFeedback(dt);
     if (this.phase === "menu" || this.phase === "school_choice" || this.phase === "weapon_choice") return;
 
     if (this.phase === "upgrade") {
@@ -424,6 +500,8 @@ export class Game {
           const dmg = isCrit ? Math.floor(p.damage * this.player.critMultiplier) : p.damage;
           const defeated = this.combat.dealDamage(e, dmg);
           p.alive = false;
+          this.addText(e.pos.x, e.pos.y - e.radius, `${isCrit ? "暴击 " : ""}-${dmg}`, isCrit ? "#ffeb3b" : "#fff");
+          this.spawnParticles(e.pos.x, e.pos.y, isCrit ? "#ffeb3b" : "#fff9c4", isCrit ? 12 : 7, isCrit ? 4 : 2.5, isCrit ? 180 : 110);
 
           if (this.hasSkill("frost_arrow")) e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
           if (this.hasSkill("fireball")) this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
@@ -454,20 +532,34 @@ export class Game {
       if (!p.alive || !p.fromEnemy) continue;
       if (distance(p.pos, this.player.pos) < this.player.radius + p.hitRadius) {
         this.combat.dealDamageToPlayer(this.player, p.damage, now);
+        this.addText(this.player.pos.x, this.player.pos.y - 28, `-${p.damage}`, "#ef5350");
+        this.spawnParticles(this.player.pos.x, this.player.pos.y, "#ef5350", 8, 3, 120);
         p.alive = false;
       }
     }
 
     for (const e of this.enemies) {
       if (!e.alive) continue;
-      if (this.combat.enemyTouchesPlayer(e, this.player)) this.combat.dealDamageToPlayer(this.player, e.damage, now);
+      if (this.combat.enemyTouchesPlayer(e, this.player)) {
+        const before = this.player.hp;
+        this.combat.dealDamageToPlayer(this.player, e.damage, now);
+        if (this.player.hp < before) {
+          this.addText(this.player.pos.x, this.player.pos.y - 28, `-${e.damage}`, "#ef5350");
+          this.spawnParticles(this.player.pos.x, this.player.pos.y, "#ef5350", 10, 3, 140);
+        }
+      }
     }
 
     for (const pk of this.pickups) {
       if (!pk.alive) continue;
       if (distance(this.player.pos, pk.pos) < this.player.radius + 15) {
-        if (pk.type === "xp") this.xp.addXP(pk.value);
-        else this.player.hp = Math.min(this.player.maxHp, this.player.hp + pk.value);
+        if (pk.type === "xp") {
+          this.xp.addXP(pk.value);
+          this.addText(pk.pos.x, pk.pos.y - 12, `+${pk.value} XP`, "#42a5f5");
+        } else {
+          this.player.hp = Math.min(this.player.maxHp, this.player.hp + pk.value);
+          this.addText(pk.pos.x, pk.pos.y - 12, `+${pk.value} HP`, "#66bb6a");
+        }
         pk.alive = false;
       }
     }
@@ -476,6 +568,8 @@ export class Game {
       const oldMaxHp = this.player.maxHp;
       this.applyAllMods();
       if (this.player.maxHp > oldMaxHp) this.player.hp = Math.min(this.player.maxHp, this.player.hp + (this.player.maxHp - oldMaxHp));
+      this.addText(this.player.pos.x, this.player.pos.y - 48, `升级 Lv.${this.xp.level}`, "#ffeb3b", 1.2);
+      this.spawnParticles(this.player.pos.x, this.player.pos.y, "#ffeb3b", 28, 4, 240);
 
       if (!this.selectedSchool) this.phase = "school_choice";
       else if (!this.selectedWeapon) { this.weaponPanel.setSchool(this.selectedSchool.id as SkillSchool); this.phase = "weapon_choice"; }
@@ -495,20 +589,31 @@ export class Game {
     const reward = enemy.rewardMultiplier;
     const xpValue = Math.floor(this.xp.xpPerKill * reward);
     this.xp.addXP(xpValue);
+    this.addText(enemy.pos.x, enemy.pos.y - enemy.radius - 16, `+${xpValue} XP`, "#42a5f5");
+    this.spawnParticles(enemy.pos.x, enemy.pos.y, enemy.role === "boss" ? "#ffd54f" : enemy.role === "elite" ? "#ef5350" : "#81c784", enemy.role === "boss" ? 45 : enemy.role === "elite" ? 26 : 14, enemy.role === "boss" ? 6 : 4, enemy.role === "boss" ? 320 : 210);
     this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
 
     const healChance = enemy.role === "boss" ? 1 : enemy.role === "elite" ? 0.55 : 0.12;
     if (Math.random() < healChance) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", enemy.role === "boss" ? 55 : 18));
 
+    if (enemy.role === "boss") {
+      this.bannerText = "Boss 已击败！";
+      this.bannerTimer = 2.0;
+    }
+
     if (this.hasSkill("bloodlust")) {
       const heal = Math.max(1, Math.floor(this.player.maxHp * 0.08 * this.skillCount("bloodlust")));
       this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+      this.addText(this.player.pos.x, this.player.pos.y - 32, `嗜血 +${heal}`, "#66bb6a");
     }
 
     if (this.hasSkill("chain_lightning")) {
       const target = this.findNearestEnemy(enemy.pos.x, enemy.pos.y, 280);
       if (target) {
-        const defeated = target.takeDamage(28 + this.skillCount("chain_lightning") * 12);
+        const damage = 28 + this.skillCount("chain_lightning") * 12;
+        const defeated = target.takeDamage(damage);
+        this.addText(target.pos.x, target.pos.y - target.radius, `⚡-${damage}`, "#ce93d8");
+        this.spawnParticles(target.pos.x, target.pos.y, "#ce93d8", 12, 3, 190);
         if (defeated) this.onKill(target);
       }
     }
@@ -526,6 +631,7 @@ export class Game {
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(0, 0, this.w, this.h);
       this.upgradePanel.render(ctx, this.w, this.h);
+      this.renderScreenFeedback();
       return;
     }
     if (this.phase === "result") {
@@ -581,6 +687,28 @@ export class Game {
       e.renderAt(ctx, sp.x, sp.y, this.assets.get("enemies", e.assetId));
     }
 
+    for (const fx of this.particles) {
+      const sp = toScreen(fx.pos.x, fx.pos.y);
+      const alpha = Math.max(0, fx.life / fx.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = fx.color;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, fx.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    for (const text of this.floatingTexts) {
+      const sp = toScreen(text.pos.x, text.pos.y);
+      const alpha = Math.max(0, text.life / text.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = text.color;
+      ctx.font = "bold 12px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(text.text, sp.x, sp.y);
+    }
+    ctx.globalAlpha = 1;
+
     const psp = toScreen(this.player.pos.x, this.player.pos.y);
     const color = this.selectedRace?.color ?? "#4fc3f7";
     this.player.renderAt(
@@ -611,5 +739,24 @@ export class Game {
       ctx.fillStyle = "rgba(255,255,255,0.4)";
       ctx.fillText(this.appliedSkills.map((s) => s.name).join(" · "), 16, this.h - 16);
     }
+
+    this.renderScreenFeedback();
+  }
+
+  private renderScreenFeedback(): void {
+    if (this.bannerTimer <= 0 || !this.bannerText) return;
+    const ctx = this.ctx;
+    const alpha = Math.min(1, this.bannerTimer / 0.35);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = "center";
+    ctx.font = "bold 26px monospace";
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(this.w / 2 - 210, 82, 420, 48);
+    ctx.strokeStyle = "rgba(255,213,79,0.75)";
+    ctx.strokeRect(this.w / 2 - 210, 82, 420, 48);
+    ctx.fillStyle = "#ffeb3b";
+    ctx.fillText(this.bannerText, this.w / 2, 113);
+    ctx.restore();
   }
 }
