@@ -14,6 +14,7 @@ import { HUD } from "../ui/HUD";
 import { UpgradePanel, RacePanel, SchoolPanel, WeaponPanel } from "../ui/UpgradePanel";
 import { MetaUpgradePanel } from "../ui/MetaUpgradePanel";
 import { PausePanel } from "../ui/PausePanel";
+import { Minimap } from "../ui/Minimap";
 import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
@@ -72,6 +73,7 @@ export class Game {
   weaponPanel: WeaponPanel;
   metaPanel: MetaUpgradePanel;
   pausePanel: PausePanel;
+  minimap: Minimap;
 
   phase: GamePhase = "menu";
 
@@ -129,6 +131,7 @@ export class Game {
     this.weaponPanel = new WeaponPanel();
     this.metaPanel = new MetaUpgradePanel();
     this.pausePanel = new PausePanel();
+    this.minimap = new Minimap();
   }
 
   resize(): void {
@@ -876,6 +879,18 @@ export class Game {
       goals: this.goals.getGoals(this.goalStats()),
       soulCrystals: this.totalSoulCrystals,
     });
+
+    this.minimap.render(ctx, {
+      worldW: WORLD_W,
+      worldH: WORLD_H,
+      screenW: this.w,
+      screenH: this.h,
+      cameraPos: this.camera.pos,
+      playerPos: this.player.pos,
+      enemies: this.enemies,
+      pickups: this.pickups,
+    });
+    this.minimap.renderBoundaryWarning(ctx, this.player.pos, WORLD_W, WORLD_H);
 
     if (this.appliedSkills.length > 0) {
       ctx.textAlign = "left";
