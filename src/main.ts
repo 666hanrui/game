@@ -36,19 +36,31 @@ function main(): void {
     }
   }, true);
 
+  function resetAccidentalFirstWave(): void {
+    game.enemies = [];
+    game.projectiles = [];
+    game.pickups = [];
+    game.particles = [];
+    game.floatingTexts = [];
+    game.waveNum = 0;
+    game.kills = 0;
+    game.bossKills = 0;
+    game.shootTimer = 0;
+  }
+
+  function reapplyGameStats(): void {
+    // applyAllMods 是 Game 内部方法；这里作为临时开局流程守卫调用。
+    // 后续应该把 Game.ts 的 selectRace / selectWeapon 流程正式重构掉。
+    (game as unknown as { applyAllMods?: () => void }).applyAllMods?.();
+    game.player.hp = Math.min(game.player.hp, game.player.maxHp);
+  }
+
   function enforceOpeningFlow(): void {
     // Game.ts 旧流程里选完种族会直接开始战斗。
     // 但当前设计必须是：种族 -> 体系 -> 武器 -> 正式开局。
     if (game.phase === "playing" && game.selectedRace && !game.selectedSchool) {
-      game.enemies = [];
-      game.projectiles = [];
-      game.pickups = [];
-      game.particles = [];
-      game.floatingTexts = [];
-      game.waveNum = 0;
-      game.kills = 0;
-      game.bossKills = 0;
-      game.shootTimer = 0;
+      resetAccidentalFirstWave();
+      reapplyGameStats();
       game.phase = "school_choice";
       return;
     }
@@ -56,6 +68,7 @@ function main(): void {
     // 选完武器后，Game.ts 旧流程会先进入 upgrade。
     // 开局第一把不应该先弹升级牌，应该先正式进入第 1 波。
     if (game.phase === "upgrade" && game.selectedRace && game.selectedSchool && game.selectedWeapon && game.waveNum === 0) {
+      reapplyGameStats();
       game.startNextWave();
       game.phase = "playing";
     }
