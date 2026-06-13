@@ -1,13 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="Skeleton enemy sprite">
   <title>Skeleton Enemy</title>
-  <defs><radialGradient id="g" cx="45%" cy="35%" r="72%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#cfd8dc"/><stop offset="100%" stop-color="#607d8b"/></radialGradient></defs>
-  <circle cx="256" cy="256" r="220" fill="#cfd8dc" opacity="0.16"/>
-  <path d="M256 88 L392 224 L256 414 L120 224 Z" fill="url(#g)" stroke="#78909c" stroke-width="10"/>
-  <path d="M174 225 C174 177 211 145 256 145 C301 145 338 177 338 225 C338 263 314 290 288 303 V350 H224 V303 C198 290 174 263 174 225 Z" fill="#eceff1" stroke="#607d8b" stroke-width="8"/>
-  <circle cx="219" cy="230" r="25" fill="#263238" opacity="0.86"/>
-  <circle cx="293" cy="230" r="25" fill="#263238" opacity="0.86"/>
-  <path d="M256 251 L238 292 H274 Z" fill="#455a64" opacity="0.72"/>
-  <path d="M218 322 H294" stroke="#455a64" stroke-width="8" stroke-linecap="round"/>
-  <path d="M235 315 V343M256 315 V346M277 315 V343" stroke="#78909c" stroke-width="6" stroke-linecap="round"/>
-  <path d="M188 178 C221 151 291 151 324 178" stroke="#ffffff" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.62"/>
+  <defs>
+    <radialGradient id="body" cx="45%" cy="35%" r="72%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="55%" stop-color="#cfd8dc"/>
+      <stop offset="100%" stop-color="#607d8b"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="62%">
+      <stop offset="0%" stop-color="#cfd8dc" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#cfd8dc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 76 L406 224 L256 436 L106 224 Z" fill="url(#body)" stroke="#78909c" stroke-width="12"/>
+    <path d="M172 228 C172 174 211 138 256 138 C301 138 340 174 340 228 C340 266 314 292 292 304 L292 354 L220 354 L220 304 C198 292 172 266 172 228 Z" fill="#eceff1" stroke="#607d8b" stroke-width="9"/>
+    <circle cx="218" cy="232" r="27" fill="#263238" opacity="0.88"/>
+    <circle cx="294" cy="232" r="27" fill="#263238" opacity="0.88"/>
+    <path d="M256 252 L235 297 L277 297 Z" fill="#455a64" opacity="0.76"/>
+    <path d="M216 324 H296" stroke="#455a64" stroke-width="9"/>
+    <path d="M233 316 V347 M256 316 V351 M279 316 V347" stroke="#78909c" stroke-width="6"/>
+    <path d="M188 178 C222 149 290 149 324 178" stroke="#ffffff" stroke-width="9" fill="none" opacity="0.62"/>
+    <path d="M144 224 L108 224 M404 224 L368 224" stroke="#ffffff" stroke-width="9" opacity="0.35"/>
+    <path d="M211 382 L180 423 M301 382 L332 423" stroke="#78909c" stroke-width="11" opacity="0.65"/>
+  </g>
 </svg>
