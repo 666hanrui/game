@@ -36,6 +36,31 @@ function main(): void {
     }
   }, true);
 
+  function enforceOpeningFlow(): void {
+    // Game.ts 旧流程里选完种族会直接开始战斗。
+    // 但当前设计必须是：种族 -> 体系 -> 武器 -> 正式开局。
+    if (game.phase === "playing" && game.selectedRace && !game.selectedSchool) {
+      game.enemies = [];
+      game.projectiles = [];
+      game.pickups = [];
+      game.particles = [];
+      game.floatingTexts = [];
+      game.waveNum = 0;
+      game.kills = 0;
+      game.bossKills = 0;
+      game.shootTimer = 0;
+      game.phase = "school_choice";
+      return;
+    }
+
+    // 选完武器后，Game.ts 旧流程会先进入 upgrade。
+    // 开局第一把不应该先弹升级牌，应该先正式进入第 1 波。
+    if (game.phase === "upgrade" && game.selectedRace && game.selectedSchool && game.selectedWeapon && game.waveNum === 0) {
+      game.startNextWave();
+      game.phase = "playing";
+    }
+  }
+
   let lastTime = performance.now();
 
   function loop(now: number): void {
@@ -48,8 +73,10 @@ function main(): void {
       if (action === "start") showHubCamp = false;
     }
 
+    enforceOpeningFlow();
     runSupply.beforeGameUpdate();
     game.update(dt);
+    enforceOpeningFlow();
     runSupply.afterGameUpdate(dt);
 
     if (lastPhase === "result" && game.phase === "menu") showHubCamp = true;
