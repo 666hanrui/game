@@ -31,7 +31,16 @@ export class Player {
     return new Projectile(this.pos.x, this.pos.y, aimDir.x * 600, aimDir.y * 600, false, this.damage);
   }
 
-  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, aimDir: Vec2, color: string, weaponId = "bow"): void {
+  renderAt(
+    ctx: CanvasRenderingContext2D,
+    sx: number,
+    sy: number,
+    aimDir: Vec2,
+    color: string,
+    weaponId = "bow",
+    raceSprite?: HTMLImageElement | null,
+    weaponSprite?: HTMLImageElement | null,
+  ): void {
     const angle = Math.atan2(aimDir.y, aimDir.x);
 
     const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, this.radius + 18);
@@ -49,24 +58,26 @@ export class Player {
     ctx.lineTo(sx + Math.cos(angle) * 48, sy + Math.sin(angle) * 48);
     ctx.stroke();
 
-    this.renderWeapon(ctx, sx, sy, angle, weaponId);
+    this.renderWeapon(ctx, sx, sy, angle, weaponId, weaponSprite);
 
-    // 身体
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(sx, sy, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    if (raceSprite) {
+      const size = this.radius * 2.65;
+      ctx.drawImage(raceSprite, sx - size / 2, sy - size / 2, size, size);
+    } else {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
 
-    // 头部/高光，让角色更像 Q 版小人
-    ctx.fillStyle = "rgba(255,255,255,0.28)";
-    ctx.beginPath();
-    ctx.arc(sx - this.radius * 0.35, sy - this.radius * 0.35, this.radius * 0.35, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.28)";
+      ctx.beginPath();
+      ctx.arc(sx - this.radius * 0.35, sy - this.radius * 0.35, this.radius * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // 方向指示器
     const tipX = sx + Math.cos(angle) * (this.radius + 3);
     const tipY = sy + Math.sin(angle) * (this.radius + 3);
     ctx.fillStyle = "#fff";
@@ -78,7 +89,19 @@ export class Player {
     ctx.fill();
   }
 
-  private renderWeapon(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, weaponId: string): void {
+  private renderWeapon(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, weaponId: string, weaponSprite?: HTMLImageElement | null): void {
+    if (weaponSprite) {
+      const x = sx + Math.cos(angle) * (this.radius + 12);
+      const y = sy + Math.sin(angle) * (this.radius + 12);
+      const size = weaponId === "staff" ? 30 : weaponId === "spear" ? 34 : 26;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.drawImage(weaponSprite, -size / 2, -size / 2, size, size);
+      ctx.restore();
+      return;
+    }
+
     if (weaponId === "wand") return this.renderWand(ctx, sx, sy, angle, 18, "#ce93d8");
     if (weaponId === "staff") return this.renderWand(ctx, sx, sy, angle, 28, "#ab47bc");
     if (weaponId === "flying_blade") return this.renderBladeHands(ctx, sx, sy, angle);
