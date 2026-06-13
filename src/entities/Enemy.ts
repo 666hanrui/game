@@ -229,6 +229,8 @@ export class Enemy {
       ctx.stroke();
     }
 
+    this.renderRoleMarker(ctx, sx, sy);
+
     ctx.fillStyle = "rgba(0,0,0,0.52)";
     ctx.font = `${this.role === "boss" ? 14 : 10}px monospace`;
     ctx.textAlign = "center";
@@ -253,6 +255,99 @@ export class Enemy {
         ctx.fillRect(sx - bw / 2, py + bh + 2, bw * armorPct, 2);
       }
     }
+  }
+
+  private renderRoleMarker(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+    if (this.role === "basic") return;
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    if (this.role === "fast") {
+      ctx.strokeStyle = "rgba(255,238,88,0.95)";
+      ctx.lineWidth = 3;
+      const r = this.radius + 5;
+      for (const dir of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sx + dir * r, sy - 10);
+        ctx.lineTo(sx + dir * (r + 10), sy);
+        ctx.lineTo(sx + dir * r, sy + 10);
+        ctx.stroke();
+      }
+    } else if (this.role === "tank") {
+      ctx.strokeStyle = "rgba(207,216,220,0.9)";
+      ctx.lineWidth = 4;
+      const r = this.radius + 6;
+      ctx.strokeRect(sx - r, sy - r, r * 2, r * 2);
+      ctx.beginPath();
+      ctx.moveTo(sx - r, sy);
+      ctx.lineTo(sx + r, sy);
+      ctx.moveTo(sx, sy - r);
+      ctx.lineTo(sx, sy + r);
+      ctx.stroke();
+    } else if (this.role === "ranged") {
+      ctx.strokeStyle = "rgba(144,202,249,0.95)";
+      ctx.lineWidth = 3;
+      const r = this.radius + 7;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.moveTo(sx - r - 5, sy);
+      ctx.lineTo(sx - r + 7, sy);
+      ctx.moveTo(sx + r - 7, sy);
+      ctx.lineTo(sx + r + 5, sy);
+      ctx.moveTo(sx, sy - r - 5);
+      ctx.lineTo(sx, sy - r + 7);
+      ctx.moveTo(sx, sy + r - 7);
+      ctx.lineTo(sx, sy + r + 5);
+      ctx.stroke();
+    } else if (this.role === "elite") {
+      ctx.strokeStyle = "rgba(239,83,80,0.95)";
+      ctx.fillStyle = "rgba(239,83,80,0.35)";
+      ctx.lineWidth = 3;
+      const r = this.radius + 10;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - r - 7);
+      ctx.lineTo(sx + 8, sy - r + 5);
+      ctx.lineTo(sx, sy - r + 1);
+      ctx.lineTo(sx - 8, sy - r + 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(sx - r - 6, sy);
+      ctx.lineTo(sx - r + 7, sy - 8);
+      ctx.lineTo(sx - r + 3, sy);
+      ctx.lineTo(sx - r + 7, sy + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(sx + r + 6, sy);
+      ctx.lineTo(sx + r - 7, sy - 8);
+      ctx.lineTo(sx + r - 3, sy);
+      ctx.lineTo(sx + r - 7, sy + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (this.role === "boss") {
+      ctx.strokeStyle = "rgba(255,213,79,0.98)";
+      ctx.fillStyle = "rgba(255,213,79,0.22)";
+      ctx.lineWidth = 5;
+      const r = this.radius + 14;
+      ctx.beginPath();
+      ctx.moveTo(sx - r, sy - r * 0.68);
+      ctx.lineTo(sx - r * 0.55, sy - r * 1.05);
+      ctx.lineTo(sx, sy - r * 0.72);
+      ctx.lineTo(sx + r * 0.55, sy - r * 1.05);
+      ctx.lineTo(sx + r, sy - r * 0.68);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   private roleColor(base: string): string {
