@@ -1,28 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="Spirit race sprite">
   <title>Spirit Race</title>
   <defs>
-    <radialGradient id="g" cx="50%" cy="45%" r="61%">
-      <stop offset="0%" stop-color="#f3e5f5" stop-opacity="0.98"/>
-      <stop offset="52%" stop-color="#ce93d8" stop-opacity="0.72"/>
+    <radialGradient id="glow" cx="50%" cy="43%" r="62%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.94"/>
+      <stop offset="48%" stop-color="#ce93d8" stop-opacity="0.68"/>
       <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="b" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#f3c8ff"/>
-      <stop offset="55%" stop-color="#ce93d8"/>
-      <stop offset="100%" stop-color="#6a1b9a"/>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8e8ff" stop-opacity="0.86"/>
+      <stop offset="58%" stop-color="#ce93d8" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#6a1b9a" stop-opacity="0.22"/>
     </linearGradient>
   </defs>
-  <circle cx="256" cy="256" r="224" fill="url(#g)"/>
-  <path d="M184 379c-38-35-59-80-59-128 0-75 55-134 131-134s131 59 131 134c0 48-21 93-59 128-23-18-47-18-72 0-24-18-48-18-72 0z" fill="url(#b)" stroke="#f8e8ff" stroke-width="8" opacity="0.88"/>
-  <path d="M177 173c43-47 115-49 158-2" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
-  <circle cx="221" cy="252" r="11" fill="#240631" opacity="0.82"/>
-  <circle cx="291" cy="252" r="11" fill="#240631" opacity="0.82"/>
-  <path d="M226 312c21 13 39 13 60 0" fill="none" stroke="#240631" stroke-width="8" stroke-linecap="round" opacity="0.58"/>
-  <path d="M137 363c-34 23-57 52-69 88" fill="none" stroke="#e1bee7" stroke-width="14" stroke-linecap="round" opacity="0.58"/>
-  <path d="M374 363c34 23 57 52 69 88" fill="none" stroke="#e1bee7" stroke-width="14" stroke-linecap="round" opacity="0.58"/>
-  <path d="M229 90c-4 43-21 76-51 99 49-12 82-40 99-84z" fill="#ffffff" opacity="0.52"/>
-  <path d="M303 97c22 39 52 62 91 68-36 12-72 8-108-11z" fill="#ffffff" opacity="0.42"/>
-  <circle cx="159" cy="135" r="8" fill="#f3e5f5" opacity="0.85"/>
-  <circle cx="395" cy="228" r="6" fill="#f3e5f5" opacity="0.78"/>
-  <circle cx="111" cy="269" r="5" fill="#f3e5f5" opacity="0.7"/>
+  <circle cx="256" cy="256" r="224" fill="url(#glow)"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="256" cy="398" rx="74" ry="25" fill="#6a1b9a" opacity="0.16"/>
+    <path d="M168 361 C132 323 119 275 135 228 C154 173 201 138 256 138 C311 138 358 173 377 228 C393 275 380 323 344 361 C324 348 306 348 288 374 C271 348 241 348 224 374 C206 348 188 348 168 361 Z" fill="url(#body)" stroke="#f8e8ff" stroke-width="9" opacity="0.9"/>
+    <path d="M183 199 C215 158 297 158 329 199" fill="none" stroke="#ffffff" stroke-width="9" opacity="0.62"/>
+    <circle cx="226" cy="245" r="12" fill="#240631" opacity="0.76"/>
+    <circle cx="286" cy="245" r="12" fill="#240631" opacity="0.76"/>
+    <path d="M231 302 C250 315 262 315 281 302" fill="none" stroke="#240631" stroke-width="8" opacity="0.52"/>
+    <path d="M128 327 C84 351 61 388 55 438" fill="none" stroke="#e1bee7" stroke-width="14" opacity="0.5"/>
+    <path d="M384 327 C428 351 451 388 457 438" fill="none" stroke="#e1bee7" stroke-width="14" opacity="0.5"/>
+    <path d="M229 81 C221 128 191 159 142 174 C197 183 245 154 281 91 Z" fill="#ffffff" opacity="0.45"/>
+    <path d="M307 91 C333 129 367 150 409 154 C366 174 323 164 280 124 Z" fill="#ffffff" opacity="0.32"/>
+    <circle cx="150" cy="132" r="8" fill="#f3e5f5" opacity="0.85"/>
+    <circle cx="391" cy="219" r="6" fill="#f3e5f5" opacity="0.78"/>
+    <circle cx="117" cy="270" r="5" fill="#f3e5f5" opacity="0.7"/>
+  </g>
 </svg>
