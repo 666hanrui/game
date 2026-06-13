@@ -3,13 +3,25 @@ import { School, SCHOOLS, getSchool } from "../data/schools";
 import { Race, RACES } from "../data/races";
 import { Weapon, getWeaponsBySchool, getWeapon } from "../data/weapons";
 
+interface AssetLike {
+  get(group: string, id: string | null | undefined): HTMLImageElement | null;
+}
+
+interface CardMeta {
+  name: string;
+  icon: string;
+  color: string;
+  assetGroup?: string;
+  assetId?: string;
+}
+
 // 升级面板：显示 3 张技能卡，处理点击选择
 export class UpgradePanel {
   cards: Skill[] = [];
   selected: Skill | null = null;
 
-  private cardW = 190;
-  private cardH = 250;
+  private cardW = 198;
+  private cardH = 272;
   private gap = 18;
   private cardRects: { x: number; y: number; w: number; h: number; skill: Skill }[] = [];
   private ownedIds: string[] = [];
@@ -68,7 +80,7 @@ export class UpgradePanel {
     return null;
   }
 
-  render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  render(ctx: CanvasRenderingContext2D, w: number, h: number, assets?: AssetLike): void {
     this.cardRects = [];
 
     const totalW = 3 * this.cardW + 2 * this.gap;
@@ -91,6 +103,7 @@ export class UpgradePanel {
       const meta = this.getSkillMeta(skill);
       const level = this.ownedIds.filter((id) => id === skill.id).length;
       const levelText = skill.maxLevel === 1 ? "唯一" : `Lv.${level + 1}/${skill.maxLevel}`;
+      const sprite = assets?.get(meta.assetGroup ?? "", meta.assetId);
 
       this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, skill });
 
@@ -113,21 +126,24 @@ export class UpgradePanel {
       ctx.fillStyle = "rgba(255,255,255,0.55)";
       ctx.fillText(levelText, cx + this.cardW - 12, cy + 28);
 
+      this.drawIconBubble(ctx, cx + this.cardW / 2, cy + 65, 43, meta.color, sprite, meta.icon);
+
       ctx.fillStyle = "#fff";
       ctx.font = "bold 16px monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(skill.name, cx + 12, cy + 56);
+      ctx.textAlign = "center";
+      ctx.fillText(skill.name, cx + this.cardW / 2, cy + 108);
 
       ctx.strokeStyle = "#333";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx + 12, cy + 68);
-      ctx.lineTo(cx + this.cardW - 12, cy + 68);
+      ctx.moveTo(cx + 12, cy + 122);
+      ctx.lineTo(cx + this.cardW - 12, cy + 122);
       ctx.stroke();
 
       ctx.fillStyle = "#aaa";
       ctx.font = "12px monospace";
-      this.wrapText(ctx, skill.description, cx + 12, cy + 90, this.cardW - 24, 17);
+      ctx.textAlign = "left";
+      this.wrapText(ctx, skill.description, cx + 12, cy + 145, this.cardW - 24, 17);
 
       ctx.fillStyle = this.getRarityColor(skill.rarity);
       ctx.font = "11px monospace";
@@ -147,10 +163,10 @@ export class UpgradePanel {
     ctx.fillText("点击选择  ·  键盘 1/2/3 快速选择", w / 2, startY + this.cardH + 48);
   }
 
-  private getSkillMeta(skill: Skill): { name: string; icon: string; color: string } {
+  private getSkillMeta(skill: Skill): CardMeta {
     if (skill.weapon) {
       const weapon = getWeapon(skill.weapon);
-      if (weapon) return { name: weapon.name, icon: weapon.icon, color: weapon.color };
+      if (weapon) return { name: weapon.name, icon: weapon.icon, color: weapon.color, assetGroup: "weapons", assetId: weapon.id };
     }
     if (skill.school === "neutral") return { name: "通用强化", icon: "✦", color: "#b0bec5" };
     const s = getSchool(skill.school);
@@ -162,6 +178,33 @@ export class UpgradePanel {
       case "epic": return "#ce93d8";
       case "rare": return "#42a5f5";
       default: return "#81c784";
+    }
+  }
+
+  private drawIconBubble(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string, img: HTMLImageElement | null | undefined, fallback: string): void {
+    const glow = ctx.createRadialGradient(x, y, 2, x, y, size * 0.9);
+    glow.addColorStop(0, color + "aa");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.65, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255,255,255,0.07)";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    if (img) {
+      ctx.drawImage(img, x - size * 0.32, y - size * 0.32, size * 0.64, size * 0.64);
+    } else {
+      ctx.fillStyle = color;
+      ctx.font = "bold 24px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(fallback, x, y + 8);
     }
   }
 
@@ -198,8 +241,8 @@ export class UpgradePanel {
 }
 
 export class RacePanel {
-  private cardW = 150;
-  private cardH = 178;
+  private cardW = 160;
+  private cardH = 210;
   private gap = 18;
   private cardRects: { x: number; y: number; w: number; h: number; race: Race }[] = [];
 
@@ -210,7 +253,7 @@ export class RacePanel {
     return null;
   }
 
-  render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  render(ctx: CanvasRenderingContext2D, w: number, h: number, assets?: AssetLike): void {
     this.cardRects = [];
     const cols = Math.min(3, RACES.length);
     const rows = Math.ceil(RACES.length / cols);
@@ -246,34 +289,55 @@ export class RacePanel {
       ctx.fillStyle = race.color;
       ctx.font = "bold 17px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(race.name, cx + this.cardW / 2, cy + 30);
+      ctx.fillText(race.name, cx + this.cardW / 2, cy + 28);
+
+      this.drawRacePortrait(ctx, cx + this.cardW / 2, cy + 66, race.color, assets?.get("races", race.id), race.name.slice(0, 1));
 
       ctx.fillStyle = "#aaa";
       ctx.font = "10px monospace";
-      ctx.fillText(race.description, cx + this.cardW / 2, cy + 52);
+      ctx.fillText(race.description, cx + this.cardW / 2, cy + 105);
 
       ctx.fillStyle = "rgba(255,255,255,0.55)";
       ctx.font = "10px monospace";
-      ctx.fillText(`成长：${this.growthLabel(race.growth)}`, cx + this.cardW / 2, cy + 76);
+      ctx.fillText(`成长：${this.growthLabel(race.growth)}`, cx + this.cardW / 2, cy + 126);
 
       ctx.textAlign = "left";
       ctx.fillStyle = "#888";
       ctx.font = "9px monospace";
-      ctx.fillText(`生命 x${race.hpMod}`, cx + 12, cy + 102);
-      ctx.fillText(`速度 x${race.spdMod}`, cx + 12, cy + 118);
-      ctx.fillText(`伤害 x${race.dmgMod}`, cx + 12, cy + 134);
-      ctx.fillText(`体型 x${race.radiusMod}`, cx + 12, cy + 150);
+      ctx.fillText(`生命 x${race.hpMod}`, cx + 14, cy + 151);
+      ctx.fillText(`速度 x${race.spdMod}`, cx + 14, cy + 167);
+      ctx.fillText(`伤害 x${race.dmgMod}`, cx + 14, cy + 183);
+      ctx.fillText(`体型 x${race.radiusMod}`, cx + 14, cy + 199);
 
       ctx.textAlign = "right";
       ctx.fillStyle = race.color;
       ctx.font = "9px monospace";
-      ctx.fillText(race.talentName, cx + this.cardW - 12, cy + 150);
+      ctx.fillText(race.talentName, cx + this.cardW - 14, cy + 199);
     }
 
     ctx.textAlign = "center";
     ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.font = "12px monospace";
     ctx.fillText("点击选择", w / 2, sy + totalH + 34);
+  }
+
+  private drawRacePortrait(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, img: HTMLImageElement | null | undefined, fallback: string): void {
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    if (img) {
+      ctx.drawImage(img, x - 24, y - 24, 48, 48);
+    } else {
+      ctx.fillStyle = color;
+      ctx.font = "bold 22px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(fallback, x, y + 8);
+    }
   }
 
   private growthLabel(growth: Race["growth"]): string {
@@ -334,7 +398,7 @@ export class SchoolPanel {
       const cx = sx + i * (this.cardW + this.gap);
       const cy = sy;
       this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, school });
-      this.drawCard(ctx, cx, cy, this.cardW, this.cardH, school.color, school.icon + " " + school.name, school.description, school.theme);
+      this.drawCard(ctx, cx, cy, this.cardW, this.cardH, school.color, school.icon, school.name, school.description, school.theme);
     }
 
     ctx.fillStyle = "rgba(255,255,255,0.3)";
@@ -342,23 +406,28 @@ export class SchoolPanel {
     ctx.fillText("点击选择体系", w / 2, sy + this.cardH + 40);
   }
 
-  private drawCard(ctx: CanvasRenderingContext2D, x: number, y: number, cw: number, ch: number, color: string, title: string, desc: string, theme: string): void {
+  private drawCard(ctx: CanvasRenderingContext2D, x: number, y: number, cw: number, ch: number, color: string, icon: string, title: string, desc: string, theme: string): void {
     ctx.fillStyle = "#1a1a2e";
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     this.roundRect(ctx, x, y, cw, ch, 8);
     ctx.fill();
     ctx.stroke();
+
     ctx.fillStyle = color;
-    ctx.font = "bold 18px monospace";
+    ctx.font = "bold 20px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(title, x + cw / 2, y + 34);
+    ctx.fillText(icon, x + cw / 2, y + 30);
+
+    ctx.fillStyle = color;
+    ctx.font = "bold 17px monospace";
+    ctx.fillText(title, x + cw / 2, y + 55);
     ctx.fillStyle = "#aaa";
     ctx.font = "12px monospace";
-    ctx.fillText(desc, x + cw / 2, y + 62);
+    ctx.fillText(desc, x + cw / 2, y + 80);
     ctx.fillStyle = "#777";
     ctx.font = "10px monospace";
-    this.wrapTextCenter(ctx, theme, x + cw / 2, y + 90, cw - 24, 15);
+    this.wrapTextCenter(ctx, theme, x + cw / 2, y + 105, cw - 24, 15);
   }
 
   private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -394,8 +463,8 @@ export class SchoolPanel {
 }
 
 export class WeaponPanel {
-  private cardW = 210;
-  private cardH = 150;
+  private cardW = 220;
+  private cardH = 174;
   private gap = 16;
   private cardRects: { x: number; y: number; w: number; h: number; weapon: Weapon }[] = [];
   private weapons: Weapon[] = [];
@@ -411,7 +480,7 @@ export class WeaponPanel {
     return null;
   }
 
-  render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  render(ctx: CanvasRenderingContext2D, w: number, h: number, assets?: AssetLike): void {
     this.cardRects = [];
     const count = Math.max(1, this.weapons.length);
     const cols = Math.min(3, count);
@@ -437,7 +506,7 @@ export class WeaponPanel {
       const cx = (w - rowW) / 2 + col * (this.cardW + this.gap);
       const cy = sy + row * (this.cardH + this.gap);
       this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, weapon });
-      this.drawWeapon(ctx, cx, cy, weapon);
+      this.drawWeapon(ctx, cx, cy, weapon, assets?.get("weapons", weapon.id));
     }
 
     ctx.fillStyle = "rgba(255,255,255,0.3)";
@@ -445,23 +514,46 @@ export class WeaponPanel {
     ctx.fillText("点击选择武器", w / 2, sy + totalH + 38);
   }
 
-  private drawWeapon(ctx: CanvasRenderingContext2D, x: number, y: number, weapon: Weapon): void {
+  private drawWeapon(ctx: CanvasRenderingContext2D, x: number, y: number, weapon: Weapon, img?: HTMLImageElement | null): void {
     ctx.fillStyle = "#1a1a2e";
     ctx.strokeStyle = weapon.color;
     ctx.lineWidth = 2;
     this.roundRect(ctx, x, y, this.cardW, this.cardH, 8);
     ctx.fill();
     ctx.stroke();
+
     ctx.fillStyle = weapon.color;
-    ctx.font = "bold 18px monospace";
+    ctx.font = "bold 17px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(weapon.icon + " " + weapon.name, x + this.cardW / 2, y + 34);
+    ctx.fillText(weapon.name, x + this.cardW / 2, y + 28);
+
+    this.drawWeaponIcon(ctx, x + this.cardW / 2, y + 66, weapon, img);
+
     ctx.fillStyle = "#aaa";
     ctx.font = "12px monospace";
-    ctx.fillText(weapon.description, x + this.cardW / 2, y + 62);
+    ctx.fillText(weapon.description, x + this.cardW / 2, y + 104);
     ctx.fillStyle = "#777";
     ctx.font = "10px monospace";
-    this.wrapTextCenter(ctx, weapon.theme, x + this.cardW / 2, y + 90, this.cardW - 24, 15);
+    this.wrapTextCenter(ctx, weapon.theme, x + this.cardW / 2, y + 128, this.cardW - 24, 15);
+  }
+
+  private drawWeaponIcon(ctx: CanvasRenderingContext2D, x: number, y: number, weapon: Weapon, img?: HTMLImageElement | null): void {
+    const glow = ctx.createRadialGradient(x, y, 2, x, y, 36);
+    glow.addColorStop(0, weapon.color + "99");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, 34, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (img) {
+      ctx.drawImage(img, x - 24, y - 24, 48, 48);
+    } else {
+      ctx.fillStyle = weapon.color;
+      ctx.font = "bold 28px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(weapon.icon, x, y + 9);
+    }
   }
 
   private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
