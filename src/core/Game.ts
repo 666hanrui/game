@@ -1,0 +1,395 @@
+import { Player } from "../entities/Player";
+import { Enemy } from "../entities/Enemy";
+import { Projectile } from "../entities/Projectile";
+import { Pickup } from "../entities/Pickup";
+import { Input } from "./Input";
+import { Camera } from "./Camera";
+import { WaveSystem } from "../systems/WaveSystem";
+import { CombatSystem } from "../systems/CombatSystem";
+import { XPLevelSystem } from "../systems/XPLevelSystem";
+import { HUD } from "../ui/HUD";
+import { UpgradePanel, RacePanel, SchoolPanel } from "../ui/UpgradePanel";
+import { Race, getRace, RACES } from "../data/races";
+import { School } from "../data/schools";
+import { Skill, SkillSchool } from "../data/skills";
+import { distance, randRange, vec2 } from "../utils/math";
+
+export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "result";
+
+// 世界大小
+const WORLD_W = 2400;
+const WORLD_H = 2400;
+
+export class Game {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  input: Input;
+  camera: Camera;
+
+  w: number;
+  h: number;
+
+  player: Player;
+  enemies: Enemy[] = [];
+  projectiles: Projectile[] = [];
+  pickups: Pickup[] = [];
+
+  wave: WaveSystem;
+  combat: CombatSystem;
+  xp: XPLevelSystem;
+  hud: HUD;
+
+  upgradePanel: UpgradePanel;
+  racePanel: RacePanel;
+  schoolPanel: SchoolPanel;
+
+  phase: GamePhase = "menu";
+
+  selectedRace: Race | null = null;
+  selectedSchool: School | null = null;
+  appliedSkills: Skill[] = [];
+  appliedSkillIds: string[] = [];
+
+  kills = 0;
+  waveNum = 0;
+  shootTimer = 0;
+  gameTime = 0;
+
+  // 地图经验刷新
+  private xpSpawnTimer = 0;
+  private xpSpawnInterval = 3.0; // 每 3 秒刷一个
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d")!;
+
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+
+    this.input = new Input(canvas);
+    this.canvas.addEventListener("click", (e) => this.onClick(e));
+
+    // 玩家出生在世界中心
+    const cx = WORLD_W / 2;
+    const cy = WORLD_H / 2;
+
+    this.camera = new Camera(WORLD_W, WORLD_H);
+    this.camera.follow(cx, cy);
+
+    this.player = new Player(cx, cy);
+    this.wave = new WaveSystem();
+    this.combat = new CombatSystem();
+    this.xp = new XPLevelSystem();
+    this.hud = new HUD();
+    this.upgradePanel = new UpgradePanel();
+    this.racePanel = new RacePanel();
+    this.schoolPanel = new SchoolPanel();
+  }
+
+  resize(): void {
+    this.w = window.innerWidth;
+    this.h = window.innerHeight;
+    this.canvas.width = this.w;
+    this.canvas.height = this.h;
+  }
+
+  private onClick(e: MouseEvent): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+
+    if (this.phase === "menu") {
+      const race = this.racePanel.handleClick(cx, cy);
+      if (race) this.selectRace(race);
+      return;
+    }
+    if (this.phase === "school_choice") {
+      const school = this.schoolPanel.handleClick(cx, cy);
+      if (school) this.selectSchool(school);
+      return;
+    }
+    if (this.phase === "upgrade") {
+      const skill = this.upgradePanel.handleClick(cx, cy);
+      if (skill) this.applySkill(skill);
+      return;
+    }
+  }
+
+  private selectRace(race: Race): void {
+    this.selectedRace = race;
+    this.player.maxHp = Math.floor(100 * race.hpMod);
+    this.player.hp = this.player.maxHp;
+    this.player.speed = Math.floor(260 * race.spdMod);
+    this.player.damage = Math.floor(25 * race.dmgMod);
+    this.xp.xpPerKill = Math.floor(20 * race.xpMod);
+    if (race.id === "elf") this.player.radius = 13;
+    this.startNextWave();
+    this.phase = "playing";
+  }
+
+  private selectSchool(school: School): void {
+    this.selectedSchool = school;
+    this.phase = "upgrade";
+    this.upgradePanel.generateChoices(school.id as SkillSchool, this.appliedSkillIds);
+  }
+
+  private applySkill(skill: Skill): void {
+    this.appliedSkills.push(skill);
+    this.appliedSkillIds.push(skill.id);
+    this.applyAllMods();
+    this.phase = "playing";
+  }
+
+  private applyAllMods(): void {
+    const race = this.selectedRace ?? RACES[0];
+    let hp = Math.floor(100 * race.hpMod);
+    let spd = Math.floor(260 * race.spdMod);
+    let dmg = Math.floor(25 * race.dmgMod);
+    let cooldown = 0.4;
+    let projExtra = 0;
+    let critChance = 0;
+    let critMult = 1.5;
+
+    for (const skill of this.appliedSkills) {
+      if (skill.mods.maxHp) hp += skill.mods.maxHp;
+      if (skill.mods.speed) spd += skill.mods.speed;
+      if (skill.mods.damage) dmg += skill.mods.damage;
+      if (skill.mods.attackCooldown) cooldown += skill.mods.attackCooldown;
+      if (skill.mods.projectileCount) projExtra += skill.mods.projectileCount;
+      if (skill.mods.critChance) critChance += skill.mods.critChance;
+      if (skill.mods.critMultiplier) critMult += skill.mods.critMultiplier;
+    }
+
+    this.player.maxHp = hp;
+    this.player.hp = Math.min(this.player.hp, hp);
+    this.player.speed = spd;
+    this.player.damage = dmg;
+    this.player.attackCooldown = Math.max(0.08, cooldown);
+    this.player.projectileExtra = projExtra;
+    this.player.critChance = critChance;
+    this.player.critMultiplier = critMult;
+    this.xp.xpPerKill = Math.floor(20 * race.xpMod);
+  }
+
+  startNextWave(): void {
+    this.waveNum++;
+    const count = this.wave.getEnemyCount(this.waveNum);
+    const hpMult = this.wave.getHPMultiplier(this.waveNum);
+    const spdMult = this.wave.getSpeedMultiplier(this.waveNum);
+    for (let i = 0; i < count; i++) {
+      this.enemies.push(new Enemy(WORLD_W, WORLD_H, hpMult, spdMult));
+    }
+  }
+
+  // 地图上随机生成经验宝石
+  private spawnMapXP(): void {
+    const x = randRange(60, WORLD_W - 60);
+    const y = randRange(60, WORLD_H - 60);
+    this.pickups.push(new Pickup(x, y, "xp", 30));
+  }
+
+  // ---- 主更新 ----
+  update(dt: number): void {
+    if (this.phase === "menu") return;
+    if (this.phase === "school_choice") return;
+
+    if (this.phase === "upgrade") {
+      if (this.input.isKeyDown("1") && this.upgradePanel.cards.length >= 1) this.applySkill(this.upgradePanel.cards[0]);
+      else if (this.input.isKeyDown("2") && this.upgradePanel.cards.length >= 2) this.applySkill(this.upgradePanel.cards[1]);
+      else if (this.input.isKeyDown("3") && this.upgradePanel.cards.length >= 3) this.applySkill(this.upgradePanel.cards[2]);
+      return;
+    }
+
+    if (this.phase !== "playing") return;
+
+    this.gameTime += dt;
+    this.input.update();
+    this.player.update(dt, this.input, WORLD_W, WORLD_H);
+
+    // 地图经验刷新
+    this.xpSpawnTimer -= dt;
+    if (this.xpSpawnTimer <= 0) {
+      this.spawnMapXP();
+      this.xpSpawnTimer = this.xpSpawnInterval;
+    }
+
+    // 射击
+    this.shootTimer -= dt;
+    if (this.input.state.shooting && this.shootTimer <= 0) {
+      const proj = this.player.shoot(this.input.state.aimDir);
+      this.projectiles.push(proj);
+      for (let i = 0; i < this.player.projectileExtra; i++) {
+        const angle = (i + 1) * 0.15 * (i % 2 === 0 ? 1 : -1);
+        const cos = Math.cos(angle), sin = Math.sin(angle);
+        const spreadDir = {
+          x: this.input.state.aimDir.x * cos - this.input.state.aimDir.y * sin,
+          y: this.input.state.aimDir.x * sin + this.input.state.aimDir.y * cos,
+        };
+        this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, spreadDir.x * 600, spreadDir.y * 600, false, this.player.damage));
+      }
+      this.shootTimer = this.player.attackCooldown;
+    }
+
+    for (const p of this.projectiles) p.update(dt);
+    this.projectiles = this.projectiles.filter((p) => p.alive);
+    for (const e of this.enemies) e.update(dt, this.player.pos);
+    for (const pk of this.pickups) pk.update(dt);
+    this.pickups = this.pickups.filter((pk) => pk.alive);
+
+    // 弹射物 vs 敌人
+    for (const p of this.projectiles) {
+      if (!p.alive || p.fromEnemy) continue;
+      for (const e of this.enemies) {
+        if (!e.alive) continue;
+        if (this.combat.projectileHitsEnemy(p, e)) {
+          const dmg = this.player.critChance > 0 && Math.random() < this.player.critChance
+            ? Math.floor(this.player.damage * this.player.critMultiplier) : this.player.damage;
+          const killed = this.combat.dealDamage(e, dmg);
+          p.alive = false;
+          if (killed) this.onKill(e);
+          break;
+        }
+      }
+    }
+
+    // 敌人 vs 玩家
+    const now = performance.now() / 1000;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      if (this.combat.enemyTouchesPlayer(e, this.player)) {
+        this.combat.dealDamageToPlayer(this.player, e.damage, now);
+      }
+    }
+
+    // 捡掉落
+    for (const pk of this.pickups) {
+      if (!pk.alive) continue;
+      if (distance(this.player.pos, pk.pos) < this.player.radius + 15) {
+        if (pk.type === "xp") this.xp.addXP(pk.value);
+        else this.player.hp = Math.min(this.player.maxHp, this.player.hp + pk.value);
+        pk.alive = false;
+      }
+    }
+
+    // 升级
+    if (this.xp.checkLevelUp()) {
+      if (!this.selectedSchool) {
+        this.phase = "school_choice";
+      } else {
+        this.upgradePanel.generateChoices(this.selectedSchool.id as SkillSchool, this.appliedSkillIds);
+        this.phase = "upgrade";
+      }
+    }
+
+    // Camera 跟随
+    this.camera.follow(this.player.pos.x, this.player.pos.y);
+    this.camera.update();
+
+    this.enemies = this.enemies.filter((e) => e.alive);
+    if (this.enemies.length === 0) this.startNextWave();
+    if (this.player.hp <= 0) this.phase = "result";
+  }
+
+  private onKill(enemy: Enemy): void {
+    this.kills++;
+  }
+
+  // ---- 渲染 ----
+  render(): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#111118";
+    ctx.fillRect(0, 0, this.w, this.h);
+
+    if (this.phase === "menu") { this.racePanel.render(ctx, this.w, this.h); return; }
+    if (this.phase === "school_choice") { this.schoolPanel.render(ctx, this.w, this.h); return; }
+    if (this.phase === "upgrade") {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, 0, this.w, this.h);
+      this.upgradePanel.render(ctx, this.w, this.h);
+      return;
+    }
+    if (this.phase === "result") {
+      ctx.fillStyle = "rgba(0,0,0,0.8)";
+      ctx.fillRect(0, 0, this.w, this.h);
+      ctx.fillStyle = "#ef5350";
+      ctx.font = "bold 32px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("你战败了", this.w / 2, this.h / 2 - 20);
+      ctx.fillStyle = "#ccc";
+      ctx.font = "14px monospace";
+      ctx.fillText(`击杀 ${this.kills}  ·  波次 ${this.waveNum}  ·  等级 ${this.xp.level}`, this.w / 2, this.h / 2 + 20);
+      ctx.fillText("刷新页面重新开始", this.w / 2, this.h / 2 + 44);
+      return;
+    }
+
+    // --- 游戏画面（世界坐标 → 屏幕坐标）---
+    const toScreen = (wx: number, wy: number) => this.camera.worldToScreen(wx, wy, this.w, this.h);
+
+    // 网格（世界坐标）
+    ctx.strokeStyle = "#1c1c28";
+    ctx.lineWidth = 0.5;
+    const gridSize = 60;
+    // 只绘制可见区域内的网格
+    const visLeft = this.camera.pos.x - this.w / 2;
+    const visTop = this.camera.pos.y - this.h / 2;
+    const sx = Math.floor(visLeft / gridSize) * gridSize;
+    const sy = Math.floor(visTop / gridSize) * gridSize;
+    for (let wx = sx; wx < visLeft + this.w + gridSize; wx += gridSize) {
+      const p1 = toScreen(wx, visTop);
+      const p2 = toScreen(wx, visTop + this.h + gridSize);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+    for (let wy = sy; wy < visTop + this.h + gridSize; wy += gridSize) {
+      const p1 = toScreen(visLeft, wy);
+      const p2 = toScreen(visLeft + this.w + gridSize, wy);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+
+    // 世界边界
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 2;
+    const tl = toScreen(0, 0);
+    const br = toScreen(WORLD_W, WORLD_H);
+    ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+    // 实体（世界坐标 → 渲染时用屏幕坐标）
+    for (const pk of this.pickups) {
+      const sp = toScreen(pk.pos.x, pk.pos.y);
+      pk.renderAt(ctx, sp.x, sp.y);
+    }
+    for (const p of this.projectiles) {
+      const sp = toScreen(p.pos.x, p.pos.y);
+      p.renderAt(ctx, sp.x, sp.y);
+    }
+    for (const e of this.enemies) {
+      const sp = toScreen(e.pos.x, e.pos.y);
+      e.renderAt(ctx, sp.x, sp.y);
+    }
+
+    // 玩家
+    const psp = toScreen(this.player.pos.x, this.player.pos.y);
+    const color = this.selectedRace?.color ?? "#4fc3f7";
+    this.player.renderAt(ctx, psp.x, psp.y, this.input.state.aimDir, color);
+
+    // 摇杆 UI（屏幕坐标）
+    this.input.renderSticks(ctx);
+
+    // HUD（屏幕坐标）
+    this.hud.render(ctx, {
+      hp: this.player.hp, maxHp: this.player.maxHp,
+      xp: this.xp.xp, xpToNext: this.xp.xpToNext, level: this.xp.level,
+      wave: this.waveNum, kills: this.kills,
+      raceName: this.selectedRace?.name,
+      schoolName: this.selectedSchool?.name,
+      schoolIcon: this.selectedSchool?.icon,
+    });
+
+    // 技能一览
+    if (this.appliedSkills.length > 0) {
+      ctx.textAlign = "left";
+      ctx.font = "10px monospace";
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.fillText(this.appliedSkills.map((s) => s.name).join(" · "), 16, this.h - 16);
+    }
+  }
+}

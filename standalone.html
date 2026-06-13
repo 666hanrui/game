@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>弓矢肉鸽 · Phase 1</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+"use strict";
+
+// ============ utils/math ============
+function vec2(x, y) { return { x, y }; }
+function add(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
+function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+function scale(v, s) { return { x: v.x * s, y: v.y * s }; }
+function length(v) { return Math.sqrt(v.x * v.x + v.y * v.y); }
+function normalize(v) {
+  const len = length(v);
+  if (len === 0) return { x: 0, y: 0 };
+  return { x: v.x / len, y: v.y / len };
+}
+function distance(a, b) { return length(sub(a, b)); }
+function direction(from, to) { return normalize(sub(to, from)); }
+function randRange(min, max) { return min + Math.random() * (max - min); }
+function circleCollide(aPos, aRad, bPos, bRad) { return distance(aPos, bPos) < aRad + bRad; }
+
+// ============ systems/WaveSystem ============
+class WaveSystem {
+  getEnemyCount(wave) { return 3 + (wave - 1) * 2; }
+  getHPMultiplier(wave) { return Math.pow(1.12, wave); }
+  getSpeedMultiplier(wave) { return 1.0 + (wave - 1) * 0.04; }
+}
+
+// ============ systems/CombatSystem ============
+class CombatSystem {
+  projectileHitsEnemy(p, e) { return p.alive && e.alive && distance(p.pos, e.pos) < e.radius + 5; }
+  dealDamage(enemy, dmg) { return enemy.takeDamage(dmg); }
+  enemyTouchesPlayer(enemy, player) { return enemy.alive && distance(enemy.pos, player.pos) < enemy.radius + player.radius; }
+  dealDamageToPlayer(player, dmg, now) {
+    if (now < player.invulnerableUntil) return;
+    player.hp -= dmg;
+    player.invulnerableUntil = now + 0.5;
+    if (player.hp < 0) player.hp = 0;
+  }
+}
+
+// ============ systems/XPLevelSystem ============
+class XPLevelSystem {
+  constructor() { this.xp = 0; this.xpToNext = 100; this.xpPerKill = 20; this.level = 1; this.baseXP = 100; this.growthFactor = 1.25; }
+  addXP(amount) { this.xp += amount; }
+  checkLevelUp() {
+    if (this.xp >= this.xpToNext) {
+      this.xp -= this.xpToNext;
+      this.level++;
+      this.xpToNext = Math.floor(this.baseXP * Math.pow(this.growthFactor, this.level - 1));
+      return true;
+    }
+    return false;
+  }
+}
+
+// ============ entities/Projectile ============
+class Projectile {
+  constructor(x, y, vx, vy, fromEnemy, damage) {
+    this.pos = vec2(x, y);
+    this.vel = vec2(vx, vy);
+    this.fromEnemy = fromEnemy;
+    this.damage = damage;
+    this.alive = true;
+    this.life = 0;
+    this.maxLife = 3;
+  }
+  update(dt) {
+    this.pos.x += this.vel.x * dt;
+    this.pos.y += this.vel.y * dt;
+    this.life += dt;
+    if (this.life > this.maxLife) { this.alive = false; return; }
+    if (this.life > 0.2) {
+      const m = 50;
+      if (this.pos.x < -m || this.pos.x > window.innerWidth + m || this.pos.y < -m || this.pos.y > window.innerHeight + m) {
+        this.alive = false;
+      }
+    }
+  }
+  render(ctx) {
+    ctx.fillStyle = this.fromEnemy ? "#ef5350" : "#ffeb3b";
+    ctx.beginPath();
+    ctx.arc(this.pos.x, this.pos.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    const s = Math.sqrt(this.vel.x * this.vel.x + this.vel.y * this.vel.y);
+    if (s > 0) {
+      const tl = 10, dx = (this.vel.x / s) * tl, dy = (this.vel.y / s) * tl;
+      ctx.strokeStyle = this.fromEnemy ? "rgba(239,83,80,0.3)" : "rgba(255,235,59,0.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(this.pos.x, this.pos.y);
+      ctx.lineTo(this.pos.x - dx, this.pos.y - dy);
+      ctx.stroke();
+    }
+  }
+}
+
+// ============ entities/Player ============
+class Player {
+  constructor(x, y) {
+    this.pos = vec2(x, y);
+    this.radius = 16;
+    this.speed = 260;
+    this.hp = 100;
+    this.maxHp = 100;
+    this.damage = 25;
+    this.attackCooldown = 0.4;
+    this.invulnerableUntil = 0;
+  }
+  update(dt, input, worldW, worldH) {
+    const m = input.state.moveDir;
+    this.pos.x += m.x * this.speed * dt;
+    this.pos.y += m.y * this.speed * dt;
+    this.pos.x = Math.max(this.radius, Math.min(worldW - this.radius, this.pos.x));
+    this.pos.y = Math.max(this.radius, Math.min(worldH - this.radius, this.pos.y));
+  }
+  shoot(aimPos) {
+    const d = direction(this.pos, aimPos);
+    return new Projectile(this.pos.x, this.pos.y, d.x * 600, d.y * 600, false, this.damage);
+  }
+  render(ctx, aimPos) {
+    const { x, y } = this.pos;
+    const aimDir = normalize(sub(aimPos, this.pos));
+    const aimLen = length(sub(aimPos, this.pos));
+    const le = vec2(x + aimDir.x * Math.min(aimLen, 120), y + aimDir.y * Math.min(aimLen, 120));
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(le.x, le.y);
+    ctx.stroke();
+    ctx.fillStyle = "#4fc3f7";
+    ctx.beginPath();
+    ctx.arc(x, y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#81d4fa";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const ba = Math.atan2(aimDir.y, aimDir.x);
+    ctx.strokeStyle = "#ffcc80";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(ba) * 10, y + Math.sin(ba) * 10, 12, ba - 0.6, ba + 0.6);
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(ba) * (this.radius + 8), y + Math.sin(ba) * (this.radius + 8), 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ============ entities/Enemy ============
+class Enemy {
+  constructor(worldW, worldH, hpMult, spdMult) {
+    const s = Math.floor(Math.random() * 4), m = 60;
+    if (s === 0) this.pos = vec2(randRange(m, worldW - m), -m);
+    else if (s === 1) this.pos = vec2(worldW + m, randRange(m, worldH - m));
+    else if (s === 2) this.pos = vec2(randRange(m, worldW - m), worldH + m);
+    else this.pos = vec2(-m, randRange(m, worldH - m));
+    this.radius = 14;
+    this.hp = 50 * hpMult;
+    this.maxHp = this.hp;
+    this.speed = randRange(60, 110) * spdMult;
+    this.damage = 10;
+    this.alive = true;
+    this.hitFlash = 0;
+  }
+  update(dt, playerPos, worldW, worldH) {
+    if (!this.alive) return;
+    const d = direction(this.pos, playerPos);
+    this.pos.x += d.x * this.speed * dt;
+    this.pos.y += d.y * this.speed * dt;
+    this.pos.x = Math.max(this.radius, Math.min(worldW - this.radius, this.pos.x));
+    this.pos.y = Math.max(this.radius, Math.min(worldH - this.radius, this.pos.y));
+    if (this.hitFlash > 0) this.hitFlash -= dt;
+  }
+  takeDamage(dmg) {
+    this.hp -= dmg;
+    this.hitFlash = 0.08;
+    if (this.hp <= 0) { this.alive = false; return true; }
+    return false;
+  }
+  render(ctx) {
+    const { x, y } = this.pos;
+    ctx.fillStyle = this.hitFlash > 0 ? "#ffffff" : "#ef5350";
+    ctx.beginPath();
+    ctx.arc(x, y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#e57373";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if (this.hp < this.maxHp) {
+      const bw = 30, bh = 4, by = y - this.radius - 8, pct = this.hp / this.maxHp;
+      ctx.fillStyle = "#333";
+      ctx.fillRect(x - bw / 2, by, bw, bh);
+      ctx.fillStyle = "#ef5350";
+      ctx.fillRect(x - bw / 2, by, bw * pct, bh);
+    }
+  }
+}
+
+// ============ entities/Pickup ============
+class Pickup {
+  constructor(x, y, type, value) {
+    this.pos = vec2(x, y);
+    this.type = type;
+    this.value = value;
+    this.alive = true;
+    this.life = 0;
+    this.floatOffset = 0;
+  }
+  update(dt) {
+    this.life += dt;
+    this.floatOffset = Math.sin(this.life * 3) * 3;
+    if (this.life > 30) this.alive = false;
+  }
+  render(ctx) {
+    const yy = this.pos.y + this.floatOffset;
+    if (this.type === "xp") {
+      ctx.fillStyle = "#42a5f5";
+      ctx.beginPath();
+      ctx.arc(this.pos.x, yy, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#90caf9";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = "#e3f2fd";
+      ctx.beginPath();
+      ctx.arc(this.pos.x - 2, yy - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = "#66bb6a";
+      const s = 7;
+      ctx.fillRect(this.pos.x - s / 2, yy - s * 1.5, s, s * 3);
+      ctx.fillRect(this.pos.x - s * 1.5, yy - s / 2, s * 3, s);
+    }
+  }
+}
+
+// ============ ui/HUD ============
+class HUD {
+  render(ctx, data) {
+    const pad = 16, bw = 200, bh = 14;
+    const hpPct = Math.max(0, data.hp / data.maxHp);
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(pad, pad - 2, bw + 4, bh + 4);
+    ctx.fillStyle = "#333";
+    ctx.fillRect(pad + 2, pad, bw, bh);
+    ctx.fillStyle = hpPct > 0.3 ? "#66bb6a" : "#ef5350";
+    ctx.fillRect(pad + 2, pad, bw * hpPct, bh);
+    ctx.fillStyle = "#fff";
+    ctx.font = "11px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("HP " + Math.ceil(data.hp) + " / " + data.maxHp, pad + 6, pad + 11);
+    const xpY = pad + bh + 6;
+    const xpPct = Math.min(1, data.xp / data.xpToNext);
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(pad, xpY - 2, bw + 4, bh + 4);
+    ctx.fillStyle = "#333";
+    ctx.fillRect(pad + 2, xpY, bw, bh);
+    ctx.fillStyle = "#42a5f5";
+    ctx.fillRect(pad + 2, xpY, bw * xpPct, bh);
+    ctx.fillStyle = "#fff";
+    ctx.fillText("Lv." + data.level + "  XP " + data.xp + " / " + data.xpToNext, pad + 6, xpY + 11);
+    const rx = ctx.canvas.width - pad;
+    ctx.textAlign = "right";
+    ctx.font = "13px monospace";
+    ctx.fillStyle = "#ccc";
+    ctx.fillText("波次 " + data.wave, rx, pad + 14);
+    ctx.fillText("击杀 " + data.kills, rx, pad + 32);
+    ctx.textAlign = "center";
+    ctx.font = "11px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillText("WASD 移动 · 鼠标瞄准 · 按住左键射击", ctx.canvas.width / 2, ctx.canvas.height - 20);
+  }
+}
+
+// ============ core/Input ============
+class Input {
+  constructor(canvas) {
+    this.keys = new Set();
+    this.canvas = canvas;
+    this.state = { moveDir: vec2(0, 0), aimPos: vec2(0, 0), mouseDown: false };
+    window.addEventListener("keydown", (e) => this.keys.add(e.key.toLowerCase()));
+    window.addEventListener("keyup", (e) => this.keys.delete(e.key.toLowerCase()));
+    canvas.addEventListener("mousemove", (e) => {
+      const r = canvas.getBoundingClientRect();
+      this.state.aimPos = vec2(e.clientX - r.left, e.clientY - r.top);
+    });
+    canvas.addEventListener("mousedown", (e) => { if (e.button === 0) this.state.mouseDown = true; });
+    canvas.addEventListener("mouseup", (e) => { if (e.button === 0) this.state.mouseDown = false; });
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+  update() {
+    let dx = 0, dy = 0;
+    if (this.keys.has("w") || this.keys.has("arrowup")) dy -= 1;
+    if (this.keys.has("s") || this.keys.has("arrowdown")) dy += 1;
+    if (this.keys.has("a") || this.keys.has("arrowleft")) dx -= 1;
+    if (this.keys.has("d") || this.keys.has("arrowright")) dx += 1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    this.state.moveDir = len > 0 ? vec2(dx / len, dy / len) : vec2(0, 0);
+  }
+  isKeyDown(key) { return this.keys.has(key.toLowerCase()); }
+}
+
+// ============ core/Game ============
+class Game {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+    this.input = new Input(canvas);
+    this.player = new Player(this.w / 2, this.h / 2);
+    this.enemies = [];
+    this.projectiles = [];
+    this.pickups = [];
+    this.wave = new WaveSystem();
+    this.combat = new CombatSystem();
+    this.xp = new XPLevelSystem();
+    this.hud = new HUD();
+    this.phase = "playing";
+    this.kills = 0;
+    this.waveNum = 0;
+    this.shootTimer = 0;
+    this.startNextWave();
+  }
+  resize() {
+    this.w = window.innerWidth;
+    this.h = window.innerHeight;
+    this.canvas.width = this.w;
+    this.canvas.height = this.h;
+  }
+  startNextWave() {
+    this.waveNum++;
+    const c = this.wave.getEnemyCount(this.waveNum);
+    const hm = this.wave.getHPMultiplier(this.waveNum);
+    const sm = this.wave.getSpeedMultiplier(this.waveNum);
+    for (let i = 0; i < c; i++) this.enemies.push(new Enemy(this.w, this.h, hm, sm));
+  }
+  update(dt) {
+    if (this.phase === "upgrade") {
+      if (this.input.isKeyDown("e") || this.input.isKeyDown(" ")) this.phase = "playing";
+      return;
+    }
+    if (this.phase !== "playing") return;
+    this.input.update();
+    this.player.update(dt, this.input, this.w, this.h);
+    this.shootTimer -= dt;
+    if (this.input.state.mouseDown && this.shootTimer <= 0) {
+      this.projectiles.push(this.player.shoot(this.input.state.aimPos));
+      this.shootTimer = this.player.attackCooldown;
+    }
+    for (const p of this.projectiles) p.update(dt);
+    this.projectiles = this.projectiles.filter((p) => p.alive);
+    for (const e of this.enemies) e.update(dt, this.player.pos, this.w, this.h);
+    for (const pk of this.pickups) pk.update(dt);
+    this.pickups = this.pickups.filter((pk) => pk.alive);
+    for (const p of this.projectiles) {
+      if (!p.alive || p.fromEnemy) continue;
+      for (const e of this.enemies) {
+        if (!e.alive) continue;
+        if (this.combat.projectileHitsEnemy(p, e)) {
+          const killed = this.combat.dealDamage(e, this.player.damage);
+          p.alive = false;
+          if (killed) {
+            this.kills++;
+            this.pickups.push(new Pickup(e.pos.x, e.pos.y, "xp", this.xp.xpPerKill));
+            if (Math.random() < 0.15) this.pickups.push(new Pickup(e.pos.x, e.pos.y, "health", 20));
+          }
+          break;
+        }
+      }
+    }
+    const now = performance.now() / 1000;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      if (this.combat.enemyTouchesPlayer(e, this.player)) this.combat.dealDamageToPlayer(this.player, e.damage, now);
+    }
+    for (const pk of this.pickups) {
+      if (!pk.alive) continue;
+      if (distance(this.player.pos, pk.pos) < this.player.radius + 15) {
+        if (pk.type === "xp") this.xp.addXP(pk.value);
+        else this.player.hp = Math.min(this.player.maxHp, this.player.hp + pk.value);
+        pk.alive = false;
+      }
+    }
+    if (this.xp.checkLevelUp()) this.phase = "upgrade";
+    this.enemies = this.enemies.filter((e) => e.alive);
+    if (this.enemies.length === 0) this.startNextWave();
+    if (this.player.hp <= 0) this.phase = "result";
+  }
+  render() {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#111118";
+    ctx.fillRect(0, 0, this.w, this.h);
+    if (this.phase === "upgrade") {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, 0, this.w, this.h);
+      ctx.fillStyle = "#ffeb3b";
+      ctx.font = "bold 28px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("⬆ 升级 Lv." + this.xp.level, this.w / 2, this.h / 2 - 20);
+      ctx.fillStyle = "#ccc";
+      ctx.font = "14px monospace";
+      ctx.fillText("技能选择面板 (Phase 2) —— 按 E 继续", this.w / 2, this.h / 2 + 20);
+      return;
+    }
+    if (this.phase === "result") {
+      ctx.fillStyle = "rgba(0,0,0,0.8)";
+      ctx.fillRect(0, 0, this.w, this.h);
+      ctx.fillStyle = "#ef5350";
+      ctx.font = "bold 32px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("你战败了", this.w / 2, this.h / 2 - 20);
+      ctx.fillStyle = "#ccc";
+      ctx.font = "14px monospace";
+      ctx.fillText("击杀 " + this.kills + "  ·  波次 " + this.waveNum + "  ·  等级 " + this.xp.level, this.w / 2, this.h / 2 + 20);
+      ctx.fillText("刷新页面重新开始", this.w / 2, this.h / 2 + 44);
+      return;
+    }
+    ctx.strokeStyle = "#1e1e2a";
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x < this.w; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, this.h); ctx.stroke(); }
+    for (let y = 0; y < this.h; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.w, y); ctx.stroke(); }
+    for (const pk of this.pickups) pk.render(ctx);
+    for (const p of this.projectiles) p.render(ctx);
+    for (const e of this.enemies) e.render(ctx);
+    this.player.render(ctx, this.input.state.aimPos);
+    this.hud.render(ctx, {
+      hp: this.player.hp, maxHp: this.player.maxHp,
+      xp: this.xp.xp, xpToNext: this.xp.xpToNext, level: this.xp.level,
+      wave: this.waveNum, kills: this.kills
+    });
+  }
+}
+
+// ============ main ============
+(function main() {
+  const canvas = document.getElementById("game");
+  if (!canvas) return console.error("找不到 #game canvas");
+  const game = new Game(canvas);
+  let lastTime = performance.now();
+  function loop(now) {
+    let dt = (now - lastTime) / 1000;
+    if (dt > 0.1) dt = 0.1;
+    lastTime = now;
+    game.update(dt);
+    game.render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
