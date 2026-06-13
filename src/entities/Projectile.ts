@@ -38,14 +38,25 @@ export class Projectile {
     if (this.life > this.maxLife) this.alive = false;
   }
 
-  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, sprite?: HTMLImageElement | null): void {
     const angle = Math.atan2(this.vel.y, this.vel.x);
+    if (sprite) return this.renderSprite(ctx, sx, sy, angle, sprite);
     if (this.kind === "magic") return this.renderOrb(ctx, sx, sy, "#ce93d8", "#f3e5f5", 6);
     if (this.kind === "heavy_magic") return this.renderOrb(ctx, sx, sy, "#ab47bc", "#e1bee7", 9);
     if (this.kind === "energy") return this.renderEnergy(ctx, sx, sy, angle);
     if (this.kind === "blade") return this.renderBlade(ctx, sx, sy, angle);
     if (this.kind === "drone") return this.renderOrb(ctx, sx, sy, "#42a5f5", "#e3f2fd", 5);
     return this.renderArrow(ctx, sx, sy, angle);
+  }
+
+  private renderSprite(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, sprite: HTMLImageElement): void {
+    const size = Math.max(16, this.hitRadius * 3.4);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+    if (this.fromEnemy) ctx.globalAlpha = 0.9;
+    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+    ctx.restore();
   }
 
   private renderArrow(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
