@@ -12,13 +12,14 @@ import { GoalSystem, GoalStats } from "../systems/GoalSystem";
 import { MetaProgress } from "../systems/MetaProgress";
 import { HUD } from "../ui/HUD";
 import { UpgradePanel, RacePanel, SchoolPanel, WeaponPanel } from "../ui/UpgradePanel";
+import { MetaUpgradePanel } from "../ui/MetaUpgradePanel";
 import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
 import { Weapon } from "../data/weapons";
 import { distance, randRange, vec2, Vec2 } from "../utils/math";
 
-export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "weapon_choice" | "result";
+export type GamePhase = "menu" | "meta_upgrade" | "playing" | "upgrade" | "school_choice" | "weapon_choice" | "result";
 
 const WORLD_W = 2400;
 const WORLD_H = 2400;
@@ -68,6 +69,7 @@ export class Game {
   racePanel: RacePanel;
   schoolPanel: SchoolPanel;
   weaponPanel: WeaponPanel;
+  metaPanel: MetaUpgradePanel;
 
   phase: GamePhase = "menu";
 
@@ -91,6 +93,7 @@ export class Game {
   private bannerTimer = 0;
   private resultSettled = false;
   private goalCompleteBannerShown = false;
+  private menuMetaButton = { x: 0, y: 0, w: 138, h: 38 };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -121,6 +124,7 @@ export class Game {
     this.racePanel = new RacePanel();
     this.schoolPanel = new SchoolPanel();
     this.weaponPanel = new WeaponPanel();
+    this.metaPanel = new MetaUpgradePanel();
   }
 
   resize(): void {
@@ -136,10 +140,37 @@ export class Game {
     const cy = e.clientY - rect.top;
 
     if (this.phase === "result") { this.restart(); return; }
-    if (this.phase === "menu") { const race = this.racePanel.handleClick(cx, cy); if (race) this.selectRace(race); return; }
+
+    if (this.phase === "meta_upgrade") {
+      const action = this.metaPanel.handleClick(cx, cy, this.meta);
+      this.totalSoulCrystals = this.meta.getSoulCrystals();
+      if (action === "back") this.phase = "menu";
+      if (action === "buy") {
+        this.bannerText = "强化已更新";
+        this.bannerTimer = 0.9;
+      }
+      return;
+    }
+
+    if (this.phase === "menu") {
+      if (this.hitMetaButton(cx, cy)) {
+        this.totalSoulCrystals = this.meta.getSoulCrystals();
+        this.phase = "meta_upgrade";
+        return;
+      }
+      const race = this.racePanel.handleClick(cx, cy);
+      if (race) this.selectRace(race);
+      return;
+    }
+
     if (this.phase === "school_choice") { const school = this.schoolPanel.handleClick(cx, cy); if (school) this.selectSchool(school); return; }
     if (this.phase === "weapon_choice") { const weapon = this.weaponPanel.handleClick(cx, cy); if (weapon) this.selectWeapon(weapon); return; }
     if (this.phase === "upgrade") { const skill = this.upgradePanel.handleClick(cx, cy); if (skill) this.applySkill(skill); return; }
+  }
+
+  private hitMetaButton(cx: number, cy: number): boolean {
+    const r = this.menuMetaButton;
+    return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
   }
 
   private restart(): void {
@@ -179,7 +210,6 @@ export class Game {
     this.selectedRace = race;
     this.applyAllMods();
     this.player.hp = this.player.maxHp;
-    this.xp.xpPerKill = Math.floor(20 * race.xpMod);
     this.startNextWave();
     this.phase = "playing";
   }
@@ -275,11 +305,12 @@ export class Game {
 
   private applyAllMods(): void {
     const race = this.selectedRace ?? RACES[0];
+    const meta = this.meta.getBonuses();
     const raceLevel = Math.max(0, this.xp.level - 1);
 
-    let hp = Math.floor((100 + race.hpGrowth * raceLevel) * race.hpMod);
-    let spd = Math.floor((260 + race.speedGrowth * raceLevel) * race.spdMod);
-    let dmg = Math.floor((25 + race.dmgGrowth * raceLevel) * race.dmgMod);
+    let hp = Math.floor((100 + race.hpGrowth * raceLevel) * race.hpMod) + meta.maxHp;
+    let spd = Math.floor((260 + race.speedGrowth * raceLevel) * race.spdMod) + meta.speed;
+    let dmg = Math.floor((25 + race.dmgGrowth * raceLevel) * race.dmgMod) + meta.damage;
     let cooldown = 0.4;
     let projExtra = 0;
     let critChance = 0;
@@ -312,7 +343,7 @@ export class Game {
     this.player.projectileExtra = projExtra;
     this.player.critChance = critChance;
     this.player.critMultiplier = critMult;
-    this.xp.xpPerKill = Math.floor(20 * race.xpMod);
+    this.xp.xpPerKill = Math.floor(20 * race.xpMod * meta.xpMultiplier);
   }
 
   startNextWave(): void {
@@ -493,7 +524,7 @@ export class Game {
 
   update(dt: number): void {
     this.updateFeedback(dt);
-    if (this.phase === "menu" || this.phase === "school_choice" || this.phase === "weapon_choice") return;
+    if (this.phase === "menu" || this.phase === "meta_upgrade" || this.phase === "school_choice" || this.phase === "weapon_choice") return;
 
     if (this.phase === "upgrade") {
       if (this.input.isKeyDown("1") && this.upgradePanel.cards.length >= 1) this.applySkill(this.upgradePanel.cards[0]);
@@ -671,7 +702,18 @@ export class Game {
     ctx.fillStyle = "#111118";
     ctx.fillRect(0, 0, this.w, this.h);
 
-    if (this.phase === "menu") { this.racePanel.render(ctx, this.w, this.h, this.assets); return; }
+    if (this.phase === "menu") {
+      this.totalSoulCrystals = this.meta.getSoulCrystals();
+      this.racePanel.render(ctx, this.w, this.h, this.assets);
+      this.renderMetaButton();
+      this.renderScreenFeedback();
+      return;
+    }
+    if (this.phase === "meta_upgrade") {
+      this.metaPanel.render(ctx, this.w, this.h, this.meta);
+      this.renderScreenFeedback();
+      return;
+    }
     if (this.phase === "school_choice") { this.schoolPanel.render(ctx, this.w, this.h); return; }
     if (this.phase === "weapon_choice") { this.weaponPanel.render(ctx, this.w, this.h, this.assets); return; }
     if (this.phase === "upgrade") {
@@ -703,7 +745,7 @@ export class Game {
 
       ctx.fillStyle = "rgba(255,255,255,0.42)";
       ctx.font = "12px monospace";
-      ctx.fillText("魂晶已保存到本地，后续可用于局外升级", this.w / 2, this.h / 2 + 58);
+      ctx.fillText("魂晶已保存到本地，可在主菜单进入局外强化", this.w / 2, this.h / 2 + 58);
       ctx.fillText("点击任意位置重新开始", this.w / 2, this.h / 2 + 84);
       return;
     }
@@ -803,6 +845,30 @@ export class Game {
     }
 
     this.renderScreenFeedback();
+  }
+
+  private renderMetaButton(): void {
+    const ctx = this.ctx;
+    this.menuMetaButton = { x: this.w - 166, y: 22, w: 144, h: 40 };
+    const r = this.menuMetaButton;
+    ctx.fillStyle = "rgba(206,147,216,0.12)";
+    ctx.strokeStyle = "rgba(206,147,216,0.75)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect?.(r.x, r.y, r.w, r.h, 8);
+    if (!ctx.roundRect) {
+      ctx.rect(r.x, r.y, r.w, r.h);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ce93d8";
+    ctx.font = "bold 13px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`局外强化`, r.x + r.w / 2, r.y + 17);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.font = "10px monospace";
+    ctx.fillText(`魂晶 ${this.totalSoulCrystals}`, r.x + r.w / 2, r.y + 31);
   }
 
   private renderScreenFeedback(): void {
