@@ -55,6 +55,7 @@ export class GameWithSound extends Game {
   private buildEffects = new BuildEffectOverlay();
   private buildPowerTimer = 0;
   private maceImpactTimer = 0;
+  private diamondPowerTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -80,6 +81,7 @@ export class GameWithSound extends Game {
     this.updateMaceShots(before.playerShots, dt);
     this.updateSpecialEnemies(dt);
     this.updateBossPatterns(dt);
+    this.updateDiamondPowers(dt);
     this.updateBuildPower(dt);
     const after = this.snapshot();
     this.updateSounds(before, after);
@@ -116,6 +118,151 @@ export class GameWithSound extends Game {
       bossKills: this.bossKills,
       skills: this.appliedSkills,
     });
+  }
+
+  private updateDiamondPowers(dt: number): void {
+    if (this.phase !== "playing" || !this.selectedWeapon) return;
+    const diamond = this.diamondCount();
+    if (diamond <= 0) return;
+
+    this.applyDiamondPassiveAuras(diamond);
+    this.diamondPowerTimer -= dt;
+    if (this.diamondPowerTimer > 0) return;
+
+    const weaponId = this.selectedWeapon.id;
+    if (weaponId === "bow") {
+      this.triggerDiamondBow(diamond);
+      this.diamondPowerTimer = Math.max(0.48, 1.05 - diamond * 0.09);
+    } else if (this.isMagicWeapon(weaponId)) {
+      this.triggerDiamondMagic(diamond);
+      this.diamondPowerTimer = Math.max(0.5, 1.18 - diamond * 0.08);
+    } else if (this.isTechWeapon(weaponId)) {
+      this.triggerDiamondTech(diamond);
+      this.diamondPowerTimer = Math.max(0.42, 0.95 - diamond * 0.07);
+    } else if (weaponId === "mace") {
+      this.triggerDiamondMace(diamond);
+      this.diamondPowerTimer = Math.max(0.62, 1.35 - diamond * 0.08);
+    } else if (this.isMartialWeapon(weaponId)) {
+      this.triggerDiamondMartial(diamond);
+      this.diamondPowerTimer = Math.max(0.46, 1.02 - diamond * 0.07);
+    }
+  }
+
+  private applyDiamondPassiveAuras(diamond: number): void {
+    if (this.hasDiamondSkill("frost_arrow")) {
+      const radius = 190 + diamond * 28;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive) continue;
+        if (this.distToPlayer(enemy) <= radius + enemy.radius) enemy.applySlow(0.72 - Math.min(0.22, diamond * 0.03), 0.34);
+      }
+    }
+
+    if (this.hasDiamondSpecial("armor_break") || this.hasDiamondSkill("bone_crusher")) {
+      const radius = 150 + diamond * 24;
+      for (const enemy of this.enemies) {
+        if (!enemy.alive) continue;
+        if (this.distToPlayer(enemy) <= radius + enemy.radius) enemy.breakArmor(1 + diamond);
+      }
+    }
+  }
+
+  private triggerDiamondBow(diamond: number): void {
+    const targets = this.getPriorityTargets(2 + diamond, 980);
+    const spread = this.hasDiamondSkill("multi_arrow") ? 0.38 : 0.24;
+    const perTarget = 3 + diamond + (this.hasDiamondSkill("multi_arrow") ? 2 : 0);
+    const speed = 820 + diamond * 25;
+    const damage = Math.max(6, Math.floor(this.player.damage * (0.48 + diamond * 0.035)));
+
+    if (targets.length <= 0) {
+      this.fireArrowRain(8 + diamond * 3);
+      return;
+    }
+
+    for (const target of targets) {
+      const base = Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x);
+      for (let i = 0; i < perTarget; i++) {
+        const offset = (i - (perTarget - 1) / 2) * spread / Math.max(1, perTarget - 1);
+        const angle = base + offset;
+        const sx = this.player.pos.x + Math.cos(angle + Math.PI / 2) * (i - perTarget / 2) * 4;
+        const sy = this.player.pos.y + Math.sin(angle + Math.PI / 2) * (i - perTarget / 2) * 4;
+        this.projectiles.push(new Projectile(sx, sy, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "arrow"));
+      }
+
+      if (this.hasDiamondSkill("fireball")) {
+        const angle = base + 0.06;
+        this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * 650, Math.sin(angle) * 650, false, Math.floor(damage * 1.15), "heavy_magic"));
+      }
+    }
+  }
+
+  private triggerDiamondMagic(diamond: number): void {
+    const targets = this.getPriorityTargets(2 + diamond, 900);
+    const count = 10 + diamond * 4 + (this.hasDiamondSkill("wand_chain") || this.hasDiamondSkill("orb_count") ? 4 : 0);
+    const kind: ProjectileKind = this.selectedWeapon?.id === "staff" || this.hasDiamondSkill("staff_power") ? "heavy_magic" : "magic";
+    const speed = kind === "heavy_magic" ? 500 : 610;
+    const damage = Math.max(7, Math.floor(this.player.damage * (0.42 + diamond * 0.045)));
+    const offset = this.gameTime * 0.8;
+
+    for (let i = 0; i < count; i++) {
+      const angle = offset + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, kind));
+    }
+
+    for (const target of targets) {
+      const base = Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x);
+      for (const offsetAngle of [-0.18, 0, 0.18]) {
+        const angle = base + offsetAngle;
+        this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * (speed + 80), Math.sin(angle) * (speed + 80), false, Math.floor(damage * 0.9), kind));
+      }
+    }
+  }
+
+  private triggerDiamondTech(diamond: number): void {
+    const targets = this.getPriorityTargets(3 + diamond, 1050);
+    if (targets.length <= 0) return;
+
+    const kind: ProjectileKind = this.selectedWeapon?.id === "drone_core" || this.hasDiamondSkill("drone") ? "drone" : "energy";
+    const speed = kind === "drone" ? 780 : 880;
+    const damage = Math.max(6, Math.floor(this.player.damage * (0.38 + diamond * 0.05)));
+    const shots = Math.min(18, targets.length * (2 + diamond));
+
+    for (let i = 0; i < shots; i++) {
+      const target = targets[i % targets.length];
+      const dx = target.pos.x - this.player.pos.x;
+      const dy = target.pos.y - this.player.pos.y;
+      const base = Math.atan2(dy, dx) + (i - shots / 2) * 0.018;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(base) * speed, Math.sin(base) * speed, false, damage, kind));
+    }
+  }
+
+  private triggerDiamondMace(diamond: number): void {
+    this.applyMaceShockwave(true);
+    const count = 10 + diamond * 4 + (this.hasDiamondSpecial("earthquake") ? 4 : 0);
+    const speed = 420;
+    const damage = Math.max(9, Math.floor(this.player.damage * (0.32 + diamond * 0.055)));
+    const offset = this.gameTime * 1.4;
+    for (let i = 0; i < count; i++) {
+      const angle = offset + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "hammer"));
+    }
+  }
+
+  private triggerDiamondMartial(diamond: number): void {
+    const targets = this.getPriorityTargets(1 + diamond, 860);
+    const spear = this.selectedWeapon?.id === "spear";
+    const count = spear ? 4 + diamond : 8 + diamond * 2;
+    const speed = spear ? 900 : 720;
+    const damage = Math.max(7, Math.floor(this.player.damage * (spear ? 0.55 : 0.42)));
+    const base = targets[0]
+      ? Math.atan2(targets[0].pos.y - this.player.pos.y, targets[0].pos.x - this.player.pos.x)
+      : Math.atan2(this.input.state.aimDir.y, this.input.state.aimDir.x);
+
+    for (let i = 0; i < count; i++) {
+      const angle = spear
+        ? base + (i - (count - 1) / 2) * 0.11
+        : base + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, spear ? "arrow" : "blade"));
+    }
   }
 
   private updateSpecialEnemies(dt: number): void {
@@ -417,18 +564,24 @@ export class GameWithSound extends Game {
   }
 
   private findBuildTarget(): Enemy | null {
-    let best: Enemy | null = null;
-    let bestD = Infinity;
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const d = this.dist2(e.pos.x, e.pos.y);
-      const weight = e.role === "healer" || e.role === "summoner" ? d * 0.32 : e.role === "boss" ? d * 0.35 : e.role === "elite" ? d * 0.55 : e.role === "bomber" ? d * 0.68 : d;
-      if (weight < bestD) {
-        bestD = weight;
-        best = e;
-      }
-    }
-    return best;
+    return this.getPriorityTargets(1, 1200)[0] ?? null;
+  }
+
+  private getPriorityTargets(limit: number, maxDist: number): Enemy[] {
+    return this.enemies
+      .filter((e) => e.alive && this.distToPlayer(e) <= maxDist)
+      .sort((a, b) => this.targetWeight(a) - this.targetWeight(b))
+      .slice(0, limit);
+  }
+
+  private targetWeight(enemy: Enemy): number {
+    const d = this.dist2(enemy.pos.x, enemy.pos.y);
+    if (enemy.role === "healer" || enemy.role === "summoner") return d * 0.26;
+    if (enemy.role === "bomber") return d * 0.42;
+    if (enemy.role === "boss") return d * 0.35;
+    if (enemy.role === "elite") return d * 0.55;
+    if (enemy.role === "ranged") return d * 0.7;
+    return d;
   }
 
   private distToPlayer(enemy: Enemy): number {
@@ -453,6 +606,14 @@ export class GameWithSound extends Game {
 
   private countSpecial(special: string): number {
     return this.appliedSkills.filter((s) => s.special === special).length;
+  }
+
+  private hasDiamondSkill(id: string): boolean {
+    return this.appliedSkills.some((s) => s.id === id && s.rarity === "diamond");
+  }
+
+  private hasDiamondSpecial(special: string): boolean {
+    return this.appliedSkills.some((s) => s.special === special && s.rarity === "diamond");
   }
 
   private diamondCount(): number {
