@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Tech Reactor Icon</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="60%"><stop offset="0%" stop-color="#e0f7fa"/><stop offset="55%" stop-color="#4dd0e1" stop-opacity="0.72"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <path d="M256 88 L384 256 L256 424 L128 256 Z" fill="#4dd0e1" stroke="#e0f7fa" stroke-width="10"/>
+  <path d="M256 132 L340 256 L256 380 L172 256 Z" fill="#003b46" opacity="0.32"/>
+  <circle cx="256" cy="256" r="54" fill="#e0f7fa" opacity="0.82"/>
+  <circle cx="256" cy="256" r="24" fill="#00acc1"/>
+  <path d="M106 256 H164M348 256 H406M256 106 V164M256 348 V406" stroke="#e0f7fa" stroke-width="12" stroke-linecap="round" opacity="0.76"/>
+  <path d="M151 151 L193 193M361 151 L319 193M151 361 L193 319M361 361 L319 319" stroke="#80deea" stroke-width="9" stroke-linecap="round" opacity="0.55"/>
+</svg>
