@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Health Gem</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="65%"><stop offset="0%" stop-color="#e8f5e9"/><stop offset="55%" stop-color="#66bb6a" stop-opacity="0.78"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient><linearGradient id="b" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#e8f5e9"/><stop offset="50%" stop-color="#66bb6a"/><stop offset="100%" stop-color="#1b5e20"/></linearGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <path d="M256 80 L402 256 L256 432 L110 256 Z" fill="url(#b)" stroke="#a5d6a7" stroke-width="10"/>
+  <circle cx="256" cy="256" r="88" fill="#ffffff" opacity="0.18"/>
+  <path d="M256 169 V343M169 256 H343" stroke="#ffffff" stroke-width="35" stroke-linecap="round"/>
+  <path d="M256 80 L204 256 L256 432 L308 256 Z" fill="#ffffff" opacity="0.14"/>
+  <circle cx="221" cy="201" r="24" fill="#ffffff" opacity="0.46"/>
+</svg>
