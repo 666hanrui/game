@@ -4,6 +4,7 @@ import { Projectile, ProjectileKind } from "../entities/Projectile";
 import type { Enemy } from "../entities/Enemy";
 import { DIFFICULTIES, DifficultyId, getCurrentDifficulty, getCurrentDifficultyId, setCurrentDifficulty } from "../systems/DifficultySystem";
 import { LuckyUpgradePanel } from "../ui/LuckyUpgradePanel";
+import { StatsPanel } from "../ui/StatsPanel";
 
 interface GameSoundSnapshot {
   hp: number;
@@ -39,6 +40,7 @@ export class GameWithSound extends Game {
   private bossTimers = new WeakMap<object, BossPatternTimers>();
   private queuedEnemyShots: QueuedEnemyShot[] = [];
   private difficultyRects: { x: number; y: number; w: number; h: number; id: DifficultyId }[] = [];
+  private statsPanel = new StatsPanel();
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -68,6 +70,21 @@ export class GameWithSound extends Game {
   render(): void {
     super.render();
     if (this.phase === "menu") this.renderDifficultySelector();
+    if (this.phase === "playing" || this.phase === "paused") this.renderStatsPanel();
+  }
+
+  private renderStatsPanel(): void {
+    this.statsPanel.render(this.ctx, {
+      player: this.player,
+      race: this.selectedRace,
+      school: this.selectedSchool,
+      weapon: this.selectedWeapon,
+      level: this.xp.level,
+      wave: this.waveNum,
+      kills: this.kills,
+      bossKills: this.bossKills,
+      skills: this.appliedSkills,
+    });
   }
 
   private handleDifficultyClick(e: MouseEvent): void {
