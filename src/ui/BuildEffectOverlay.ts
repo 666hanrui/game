@@ -29,6 +29,7 @@ export class BuildEffectOverlay {
 
     ctx.save();
     if (this.isMagic(data.weaponId)) this.renderMagic(ctx, p.x, p.y, data, score);
+    else if (data.weaponId === "mace") this.renderMace(ctx, p.x, p.y, data, score);
     else if (this.isMartial(data.weaponId)) this.renderMartial(ctx, p.x, p.y, data, score);
     else if (this.isTech(data.weaponId)) this.renderTech(ctx, p.x, p.y, data, score);
     else if (data.weaponId === "bow") this.renderBow(ctx, p.x, p.y, data, score);
@@ -36,7 +37,8 @@ export class BuildEffectOverlay {
   }
 
   private buildScore(data: BuildEffectData): number {
-    return data.skills.length + data.player.projectileExtra * 1.4 + data.player.critChance * 10 + Math.max(0, data.player.damage - 40) / 18;
+    const diamond = data.skills.filter((s) => s.rarity === "diamond").length;
+    return data.skills.length + data.player.projectileExtra * 1.4 + data.player.critChance * 10 + Math.max(0, data.player.damage - 40) / 18 + diamond * 3;
   }
 
   private renderMagic(ctx: CanvasRenderingContext2D, x: number, y: number, data: BuildEffectData, score: number): void {
@@ -108,6 +110,47 @@ export class BuildEffectOverlay {
       ctx.beginPath();
       ctx.ellipse(x, y, 92 + Math.sin(t * 4) * 5, 34, Math.sin(t) * 0.25, 0, Math.PI * 2);
       ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  private renderMace(ctx: CanvasRenderingContext2D, x: number, y: number, data: BuildEffectData, score: number): void {
+    const t = data.time;
+    const diamond = data.skills.filter((s) => s.rarity === "diamond").length;
+    const quake = data.skills.filter((s) => s.special === "earthquake" || s.special === "armor_break").length;
+    const rings = Math.min(5, 1 + quake + diamond + Math.floor(score / 8));
+
+    for (let i = 0; i < rings; i++) {
+      const r = 42 + i * 24 + ((t * 42 + i * 18) % 34);
+      ctx.globalAlpha = Math.max(0.06, 0.2 - i * 0.025);
+      ctx.strokeStyle = i % 2 === 0 ? "#bc8f5a" : "#d7a86e";
+      ctx.lineWidth = diamond > 0 ? 4 : 3;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r, r * 0.46, Math.sin(t * 0.7) * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const cracks = Math.min(10, 3 + Math.floor(score / 3));
+    for (let i = 0; i < cracks; i++) {
+      const a = t * 0.32 + i * (Math.PI * 2 / cracks);
+      const len = 38 + Math.min(80, score * 5);
+      const start = 20 + Math.sin(t * 2 + i) * 6;
+      ctx.globalAlpha = 0.16;
+      ctx.strokeStyle = "#8d6e63";
+      ctx.lineWidth = diamond > 0 ? 3 : 2;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a) * start, y + Math.sin(a) * start * 0.55);
+      ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len * 0.55);
+      ctx.stroke();
+    }
+
+    if (score >= 10 || diamond > 0) {
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = "rgba(188,143,90,0.22)";
+      ctx.beginPath();
+      ctx.arc(x, y, 16 + Math.sin(t * 6) * 3, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     ctx.globalAlpha = 1;
