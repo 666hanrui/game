@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Basic Shot</title>
+  <defs><radialGradient id="g" cx="55%" cy="50%" r="60%"><stop offset="0%" stop-color="#fffde7"/><stop offset="58%" stop-color="#ffeb3b" stop-opacity="0.78"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <path d="M110 256 C165 219 287 218 402 256 C287 294 165 293 110 256 Z" fill="#ffeb3b" stroke="#fff9c4" stroke-width="10"/>
+  <circle cx="390" cy="256" r="34" fill="#fff9c4"/>
+  <path d="M115 256 H322" stroke="#fffde7" stroke-width="9" stroke-linecap="round" opacity="0.78"/>
+  <path d="M109 230 C159 248 159 264 109 282" fill="none" stroke="#fff9c4" stroke-width="9" stroke-linecap="round" opacity="0.45"/>
+</svg>
