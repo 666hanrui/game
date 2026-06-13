@@ -1,4 +1,4 @@
-import { Game } from "./core/Game";
+import { GameWithSound } from "./core/GameWithSound";
 
 function main(): void {
   const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -7,7 +7,7 @@ function main(): void {
     return;
   }
 
-  const game = new Game(canvas);
+  const game = new GameWithSound(canvas);
 
   let lastTime = performance.now();
 
