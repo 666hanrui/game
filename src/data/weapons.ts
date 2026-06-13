@@ -39,6 +39,15 @@ export const WEAPONS: Weapon[] = [
     theme: "直线穿透和距离控制，适合硬朗的古武路线",
   },
   {
+    id: "mace",
+    school: "martial",
+    name: "狼牙棒",
+    icon: "✹",
+    color: "#bc8f5a",
+    description: "重击 · 破甲 · 震地",
+    theme: "慢攻速高冲击的钝器路线，靠破甲、击退和震地处理高护甲怪群",
+  },
+  {
     id: "wand",
     school: "magic",
     name: "魔杖",
