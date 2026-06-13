@@ -101,29 +101,37 @@ export class StatsPanel {
     const projectile = data.player.projectileExtra;
     const damage = data.player.damage;
     const crit = data.player.critChance;
+    const diamond = data.skills.filter((s) => s.rarity === "diamond").length;
+    const armorBreak = data.skills.filter((s) => s.special === "armor_break" || s.special === "earthquake").length;
 
     if (!weaponId) return { label: "待成型", color: "#90a4ae" };
 
     if (weaponId === "wand" || weaponId === "staff" || weaponId === "orb") {
-      if (skillCount >= 8 || projectile >= 5) return { label: "魔法暴走", color: "#ce93d8" };
+      if (skillCount >= 8 || projectile >= 5 || diamond >= 1) return { label: "魔法暴走", color: "#ce93d8" };
       if (skillCount >= 4) return { label: "奥术成型", color: "#ba68c8" };
       return { label: "法术起步", color: "#9575cd" };
     }
 
     if (weaponId === "bow") {
-      if (projectile >= 7) return { label: "箭雨成型", color: "#81c784" };
+      if (projectile >= 7 || diamond >= 1) return { label: "箭雨成型", color: "#81c784" };
       if (projectile >= 3) return { label: "多重射击", color: "#aed581" };
       return { label: "弓术起步", color: "#c5e1a5" };
     }
 
+    if (weaponId === "mace") {
+      if (armorBreak >= 3 || diamond >= 1 || damage >= 150) return { label: "碎甲震地", color: "#bc8f5a" };
+      if (skillCount >= 5 || armorBreak >= 1) return { label: "重击成型", color: "#d7a86e" };
+      return { label: "钝器起步", color: "#e0c097" };
+    }
+
     if (weaponId === "flying_blade" || weaponId === "spear") {
-      if (damage >= 120 || crit >= 0.35) return { label: "剑气/枪芒", color: "#ffb74d" };
+      if (damage >= 120 || crit >= 0.35 || diamond >= 1) return { label: "剑气/枪芒", color: "#ffb74d" };
       if (skillCount >= 5) return { label: "武技成型", color: "#ffcc80" };
       return { label: "冷兵器起步", color: "#ffe0b2" };
     }
 
     if (weaponId === "drone_core" || weaponId === "energy_core") {
-      if (skillCount >= 8 || projectile >= 5) return { label: "科技军团", color: "#4dd0e1" };
+      if (skillCount >= 8 || projectile >= 5 || diamond >= 1) return { label: "科技军团", color: "#4dd0e1" };
       if (skillCount >= 4) return { label: "自动火力", color: "#80deea" };
       return { label: "科技起步", color: "#b2ebf2" };
     }
