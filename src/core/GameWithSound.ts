@@ -3,6 +3,7 @@ import { SoundSystem } from "../systems/SoundSystem";
 import { Projectile, ProjectileKind } from "../entities/Projectile";
 import type { Enemy } from "../entities/Enemy";
 import { DIFFICULTIES, DifficultyId, getCurrentDifficulty, getCurrentDifficultyId, setCurrentDifficulty } from "../systems/DifficultySystem";
+import { LuckyUpgradePanel } from "../ui/LuckyUpgradePanel";
 
 interface GameSoundSnapshot {
   hp: number;
@@ -41,6 +42,7 @@ export class GameWithSound extends Game {
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
+    this.upgradePanel = new LuckyUpgradePanel() as unknown as typeof this.upgradePanel;
 
     const unlock = () => this.sound.unlock();
     canvas.addEventListener("pointerdown", unlock);
@@ -86,8 +88,6 @@ export class GameWithSound extends Game {
   }
 
   private addDifficultyToast(text: string): void {
-    // 用父类已有的屏幕状态不方便直接插入，这里用一个轻量文本漂浮在玩家位置附近，
-    // 下一帧菜单会重绘，难度按钮本身也会高亮，足够提示玩家选择生效。
     console.log(text);
   }
 
@@ -156,38 +156,14 @@ export class GameWithSound extends Game {
     const enteredGameplay = before.phase !== after.phase && after.phase === "playing";
     const inOrEnteringGameplay = after.phase === "playing" || enteredGameplay;
 
-    if (after.bossCount > before.bossCount) {
-      this.sound.bossSpawn();
-    }
-
-    if (after.bossKills > before.bossKills) {
-      this.sound.bossDefeated();
-      return;
-    }
-
-    if (after.level > before.level) {
-      this.sound.levelUp();
-    }
-
-    if (after.hp < before.hp) {
-      this.sound.playerHurt();
-    }
-
-    if (after.hp > before.hp && after.hp <= after.maxHp && after.level === before.level) {
-      this.sound.pickupHP();
-    }
-
-    if (after.kills > before.kills) {
-      this.sound.kill();
-    }
-
-    if (after.xp > before.xp && after.kills === before.kills && after.level === before.level) {
-      this.sound.pickupXP();
-    }
-
-    if (inOrEnteringGameplay && after.playerShots > before.playerShots) {
-      this.sound.attack();
-    }
+    if (after.bossCount > before.bossCount) this.sound.bossSpawn();
+    if (after.bossKills > before.bossKills) { this.sound.bossDefeated(); return; }
+    if (after.level > before.level) this.sound.levelUp();
+    if (after.hp < before.hp) this.sound.playerHurt();
+    if (after.hp > before.hp && after.hp <= after.maxHp && after.level === before.level) this.sound.pickupHP();
+    if (after.kills > before.kills) this.sound.kill();
+    if (after.xp > before.xp && after.kills === before.kills && after.level === before.level) this.sound.pickupXP();
+    if (inOrEnteringGameplay && after.playerShots > before.playerShots) this.sound.attack();
   }
 
   private updateBossPatterns(dt: number): void {
@@ -209,12 +185,10 @@ export class GameWithSound extends Game {
         this.fireBossFan(boss, Math.floor((7 + Math.floor(hpPressure * 4)) * pattern));
         timers.fan = Math.max(0.62, (2.35 - hpPressure * 0.42) / pattern);
       }
-
       if (timers.triple <= 0) {
         this.queueBossTriple(boss, pattern);
         timers.triple = Math.max(0.48, (1.72 - hpPressure * 0.28) / pattern);
       }
-
       if (timers.ring <= 0) {
         this.fireBossRing(boss, Math.floor((14 + Math.floor(hpPressure * 8)) * pattern));
         timers.ring = Math.max(1.25, (5.2 - hpPressure * 0.9) / pattern);
@@ -225,11 +199,7 @@ export class GameWithSound extends Game {
   private getBossTimers(boss: Enemy): BossPatternTimers {
     let timers = this.bossTimers.get(boss as object);
     if (!timers) {
-      timers = {
-        fan: 0.75,
-        triple: 1.25,
-        ring: 2.8,
-      };
+      timers = { fan: 0.75, triple: 1.25, ring: 2.8 };
       this.bossTimers.set(boss as object, timers);
     }
     return timers;
@@ -237,15 +207,10 @@ export class GameWithSound extends Game {
 
   private updateQueuedEnemyShots(dt: number): void {
     if (this.queuedEnemyShots.length <= 0) return;
-
     for (const shot of this.queuedEnemyShots) shot.delay -= dt;
-
     const ready = this.queuedEnemyShots.filter((shot) => shot.delay <= 0);
     this.queuedEnemyShots = this.queuedEnemyShots.filter((shot) => shot.delay > 0);
-
-    for (const shot of ready) {
-      this.projectiles.push(new Projectile(shot.x, shot.y, shot.vx, shot.vy, true, shot.damage, shot.kind));
-    }
+    for (const shot of ready) this.projectiles.push(new Projectile(shot.x, shot.y, shot.vx, shot.vy, true, shot.damage, shot.kind));
   }
 
   private fireBossFan(boss: Enemy, count: number): void {
@@ -253,7 +218,6 @@ export class GameWithSound extends Game {
     const spread = 1.08;
     const speed = 330;
     const damage = 12 * getCurrentDifficulty().damageMult;
-
     for (let i = 0; i < count; i++) {
       const t = count <= 1 ? 0 : i / (count - 1);
       const angle = base - spread / 2 + spread * t;
@@ -266,18 +230,9 @@ export class GameWithSound extends Game {
     const speed = 380;
     const damage = Math.floor(15 * getCurrentDifficulty().damageMult);
     const offsets = patternMult >= 1.55 ? [-0.16, -0.08, 0.02, 0.1, 0.18] : [-0.08, 0.02, 0.1];
-
     for (let i = 0; i < offsets.length; i++) {
       const angle = base + offsets[i];
-      this.queuedEnemyShots.push({
-        x: boss.pos.x,
-        y: boss.pos.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        damage,
-        kind: "heavy_magic",
-        delay: i * 0.13,
-      });
+      this.queuedEnemyShots.push({ x: boss.pos.x, y: boss.pos.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage, kind: "heavy_magic", delay: i * 0.13 });
     }
   }
 
@@ -285,7 +240,6 @@ export class GameWithSound extends Game {
     const speed = 245;
     const damage = Math.floor(10 * getCurrentDifficulty().damageMult);
     const offset = (performance.now() / 1000) % Math.PI;
-
     for (let i = 0; i < count; i++) {
       const angle = offset + (i / count) * Math.PI * 2;
       this.spawnEnemyShot(boss.pos.x, boss.pos.y, angle, speed, damage, "energy");
