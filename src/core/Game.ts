@@ -624,13 +624,13 @@ export class Game {
     ctx.fillStyle = "#111118";
     ctx.fillRect(0, 0, this.w, this.h);
 
-    if (this.phase === "menu") { this.racePanel.render(ctx, this.w, this.h); return; }
+    if (this.phase === "menu") { this.racePanel.render(ctx, this.w, this.h, this.assets); return; }
     if (this.phase === "school_choice") { this.schoolPanel.render(ctx, this.w, this.h); return; }
-    if (this.phase === "weapon_choice") { this.weaponPanel.render(ctx, this.w, this.h); return; }
+    if (this.phase === "weapon_choice") { this.weaponPanel.render(ctx, this.w, this.h, this.assets); return; }
     if (this.phase === "upgrade") {
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(0, 0, this.w, this.h);
-      this.upgradePanel.render(ctx, this.w, this.h);
+      this.upgradePanel.render(ctx, this.w, this.h, this.assets);
       this.renderScreenFeedback();
       return;
     }
