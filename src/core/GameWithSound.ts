@@ -1,11 +1,14 @@
 import { Game } from "./Game";
 import { SoundSystem } from "../systems/SoundSystem";
 import { Projectile, ProjectileKind } from "../entities/Projectile";
-import type { Enemy } from "../entities/Enemy";
+import { Enemy } from "../entities/Enemy";
 import { DIFFICULTIES, DifficultyId, getCurrentDifficulty, getCurrentDifficultyId, setCurrentDifficulty } from "../systems/DifficultySystem";
 import { LuckyUpgradePanel } from "../ui/LuckyUpgradePanel";
 import { StatsPanel } from "../ui/StatsPanel";
 import { BuildEffectOverlay } from "../ui/BuildEffectOverlay";
+
+const WORLD_W = 2400;
+const WORLD_H = 2400;
 
 interface GameSoundSnapshot {
   hp: number;
@@ -35,10 +38,17 @@ interface QueuedEnemyShot {
   delay: number;
 }
 
+interface SpecialEnemyTimers {
+  summon: number;
+  heal: number;
+}
+
 export class GameWithSound extends Game {
   private sound = new SoundSystem();
   private muted = false;
   private bossTimers = new WeakMap<object, BossPatternTimers>();
+  private specialTimers = new WeakMap<object, SpecialEnemyTimers>();
+  private explodedBombers = new WeakSet<object>();
   private queuedEnemyShots: QueuedEnemyShot[] = [];
   private difficultyRects: { x: number; y: number; w: number; h: number; id: DifficultyId }[] = [];
   private statsPanel = new StatsPanel();
@@ -68,6 +78,7 @@ export class GameWithSound extends Game {
     this.applyMaceRuntimeTuning();
     super.update(dt);
     this.updateMaceShots(before.playerShots, dt);
+    this.updateSpecialEnemies(dt);
     this.updateBossPatterns(dt);
     this.updateBuildPower(dt);
     const after = this.snapshot();
@@ -105,6 +116,135 @@ export class GameWithSound extends Game {
       bossKills: this.bossKills,
       skills: this.appliedSkills,
     });
+  }
+
+  private updateSpecialEnemies(dt: number): void {
+    if (this.phase !== "playing") return;
+
+    for (const enemy of [...this.enemies]) {
+      if (!enemy.alive) continue;
+
+      if (enemy.role === "bomber") {
+        const trigger = enemy.radius + this.player.radius + 38;
+        if (this.distToPlayer(enemy) <= trigger) this.detonateBomber(enemy);
+        continue;
+      }
+
+      if (enemy.role !== "summoner" && enemy.role !== "healer") continue;
+      const timers = this.getSpecialTimers(enemy);
+      timers.summon -= dt;
+      timers.heal -= dt;
+
+      if (enemy.role === "summoner" && timers.summon <= 0) {
+        this.summonAdds(enemy);
+        timers.summon = Math.max(2.2, 4.8 - this.waveNum * 0.08 - getCurrentDifficulty().eliteBonus * 3.2);
+      }
+
+      if (enemy.role === "healer" && timers.heal <= 0) {
+        this.healNearbyEnemies(enemy);
+        timers.heal = Math.max(1.35, 2.75 - this.waveNum * 0.035 - getCurrentDifficulty().eliteBonus * 1.8);
+      }
+    }
+  }
+
+  private getSpecialTimers(enemy: Enemy): SpecialEnemyTimers {
+    let timers = this.specialTimers.get(enemy as object);
+    if (!timers) {
+      timers = {
+        summon: 1.8 + Math.random() * 1.8,
+        heal: 0.8 + Math.random() * 1.2,
+      };
+      this.specialTimers.set(enemy as object, timers);
+    }
+    return timers;
+  }
+
+  private detonateBomber(enemy: Enemy): void {
+    if (this.explodedBombers.has(enemy as object)) return;
+    this.explodedBombers.add(enemy as object);
+
+    const difficulty = getCurrentDifficulty();
+    const radius = 92 + Math.min(56, this.waveNum * 3.5) + difficulty.eliteBonus * 75;
+    const damage = Math.floor((18 + this.waveNum * 2.25) * difficulty.damageMult);
+    const now = performance.now() / 1000;
+
+    if (this.distToPlayer(enemy) <= radius + this.player.radius) {
+      this.combat.dealDamageToPlayer(this.player, damage, now);
+      this.sound.playerHurt();
+    }
+
+    // 爆炸怪会伤到其他敌人，但这里控制为“非致死削血”，避免绕过原本击杀/经验结算。
+    for (const other of this.enemies) {
+      if (!other.alive || other === enemy) continue;
+      const d = this.dist(enemy.pos.x, enemy.pos.y, other.pos.x, other.pos.y);
+      if (d > radius + other.radius) continue;
+      const splash = Math.min(Math.max(0, other.hp - 1), Math.floor(damage * 0.72));
+      if (splash > 0) other.takeDamage(splash, Math.floor(damage * 0.3));
+      other.applySlow(0.58, 0.8);
+      const push = 36 * (1 - Math.min(1, d / Math.max(1, radius)));
+      if (push > 0) {
+        const dx = (other.pos.x - enemy.pos.x) / Math.max(1, d);
+        const dy = (other.pos.y - enemy.pos.y) / Math.max(1, d);
+        other.pos.x += dx * push;
+        other.pos.y += dy * push;
+      }
+    }
+
+    enemy.alive = false;
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      this.queuedEnemyShots.push({
+        x: enemy.pos.x,
+        y: enemy.pos.y,
+        vx: Math.cos(angle) * 250,
+        vy: Math.sin(angle) * 250,
+        damage: Math.max(1, Math.floor(damage * 0.18)),
+        kind: "energy",
+        delay: i * 0.012,
+      });
+    }
+  }
+
+  private summonAdds(enemy: Enemy): void {
+    const difficulty = getCurrentDifficulty();
+    const cap = difficulty.id === "hell" ? 120 : difficulty.id === "nightmare" ? 98 : 82;
+    if (this.enemies.length >= cap) return;
+
+    const hpMult = Math.max(0.45, this.wave.getHPMultiplier(this.waveNum) * 0.48);
+    const spdMult = this.wave.getSpeedMultiplier(this.waveNum) * 1.02;
+    const count = Math.min(4, 2 + Math.floor(this.waveNum / 12) + (difficulty.id === "hell" ? 1 : 0));
+
+    for (let i = 0; i < count; i++) {
+      const roll = Math.random();
+      const role = roll < 0.62 ? "basic" : roll < 0.88 ? "fast" : "bomber";
+      const add = new Enemy(WORLD_W, WORLD_H, hpMult, spdMult, role);
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 34 + Math.random() * 42;
+      add.pos.x = this.clamp(enemy.pos.x + Math.cos(angle) * dist, 40, WORLD_W - 40);
+      add.pos.y = this.clamp(enemy.pos.y + Math.sin(angle) * dist, 40, WORLD_H - 40);
+      add.radius = Math.max(9, Math.floor(add.radius * 0.82));
+      add.maxHp = Math.max(12, Math.floor(add.maxHp * 0.68));
+      add.hp = add.maxHp;
+      add.maxArmor = Math.floor(add.maxArmor * 0.45);
+      add.armor = add.maxArmor;
+      this.enemies.push(add);
+    }
+  }
+
+  private healNearbyEnemies(healer: Enemy): void {
+    const difficulty = getCurrentDifficulty();
+    const radius = difficulty.id === "hell" ? 285 : difficulty.id === "nightmare" ? 255 : 230;
+    const amount = Math.floor(18 + this.waveNum * 2.1 + difficulty.eliteBonus * 35);
+    const injured = this.enemies
+      .filter((e) => e.alive && e !== healer && e.hp < e.maxHp && this.dist(e.pos.x, e.pos.y, healer.pos.x, healer.pos.y) <= radius)
+      .sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))
+      .slice(0, difficulty.id === "hell" ? 6 : 4);
+
+    for (const target of injured) {
+      target.heal(amount);
+    }
+
+    if (healer.hp < healer.maxHp * 0.85) healer.heal(Math.floor(amount * 0.55));
   }
 
   private applyMaceRuntimeTuning(): void {
@@ -282,7 +422,7 @@ export class GameWithSound extends Game {
     for (const e of this.enemies) {
       if (!e.alive) continue;
       const d = this.dist2(e.pos.x, e.pos.y);
-      const weight = e.role === "boss" ? d * 0.35 : e.role === "elite" ? d * 0.55 : d;
+      const weight = e.role === "healer" || e.role === "summoner" ? d * 0.32 : e.role === "boss" ? d * 0.35 : e.role === "elite" ? d * 0.55 : e.role === "bomber" ? d * 0.68 : d;
       if (weight < bestD) {
         bestD = weight;
         best = e;
@@ -291,10 +431,24 @@ export class GameWithSound extends Game {
     return best;
   }
 
+  private distToPlayer(enemy: Enemy): number {
+    return this.dist(enemy.pos.x, enemy.pos.y, this.player.pos.x, this.player.pos.y);
+  }
+
   private dist2(x: number, y: number): number {
     const dx = x - this.player.pos.x;
     const dy = y - this.player.pos.y;
     return dx * dx + dy * dy;
+  }
+
+  private dist(ax: number, ay: number, bx: number, by: number): number {
+    const dx = ax - bx;
+    const dy = ay - by;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
   }
 
   private countSpecial(special: string): number {
