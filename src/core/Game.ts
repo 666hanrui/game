@@ -16,7 +16,6 @@ import { distance, randRange, vec2 } from "../utils/math";
 
 export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "result";
 
-// 世界大小
 const WORLD_W = 2400;
 const WORLD_H = 2400;
 
@@ -55,9 +54,8 @@ export class Game {
   shootTimer = 0;
   gameTime = 0;
 
-  // 地图经验刷新
   private xpSpawnTimer = 0;
-  private xpSpawnInterval = 3.0; // 每 3 秒刷一个
+  private xpSpawnInterval = 3.0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -69,7 +67,6 @@ export class Game {
     this.input = new Input(canvas);
     this.canvas.addEventListener("click", (e) => this.onClick(e));
 
-    // 玩家出生在世界中心
     const cx = WORLD_W / 2;
     const cy = WORLD_H / 2;
 
@@ -144,12 +141,9 @@ export class Game {
 
   private selectRace(race: Race): void {
     this.selectedRace = race;
-    this.player.maxHp = Math.floor(100 * race.hpMod);
+    this.applyAllMods();
     this.player.hp = this.player.maxHp;
-    this.player.speed = Math.floor(260 * race.spdMod);
-    this.player.damage = Math.floor(25 * race.dmgMod);
     this.xp.xpPerKill = Math.floor(20 * race.xpMod);
-    if (race.id === "elf") this.player.radius = 13;
     this.startNextWave();
     this.phase = "playing";
   }
@@ -177,9 +171,11 @@ export class Game {
 
   private applyAllMods(): void {
     const race = this.selectedRace ?? RACES[0];
-    let hp = Math.floor(100 * race.hpMod);
-    let spd = Math.floor(260 * race.spdMod);
-    let dmg = Math.floor(25 * race.dmgMod);
+    const raceLevel = Math.max(0, this.xp.level - 1);
+
+    let hp = Math.floor((100 + race.hpGrowth * raceLevel) * race.hpMod);
+    let spd = Math.floor((260 + race.speedGrowth * raceLevel) * race.spdMod);
+    let dmg = Math.floor((25 + race.dmgGrowth * raceLevel) * race.dmgMod);
     let cooldown = 0.4;
     let projExtra = 0;
     let critChance = 0;
@@ -199,6 +195,7 @@ export class Game {
     this.player.hp = Math.min(this.player.hp, hp);
     this.player.speed = spd;
     this.player.damage = dmg;
+    this.player.radius = Math.max(10, Math.floor(16 * race.radiusMod));
     this.player.attackCooldown = Math.max(0.08, cooldown);
     this.player.projectileExtra = projExtra;
     this.player.critChance = critChance;
@@ -216,7 +213,6 @@ export class Game {
     }
   }
 
-  // 地图上随机生成经验宝石
   private spawnMapXP(): void {
     const x = randRange(60, WORLD_W - 60);
     const y = randRange(60, WORLD_H - 60);
@@ -260,9 +256,9 @@ export class Game {
     const count = this.skillCount("drone");
     if (count <= 0) return;
 
-    // 复用 shootTimer 之外的简单节奏：按游戏时间取模，避免新增太多状态
-    const gate = Math.floor(this.gameTime * (1.4 + count * 0.35));
-    const prevGate = Math.floor((this.gameTime - dt) * (1.4 + count * 0.35));
+    const rate = 1.4 + count * 0.35;
+    const gate = Math.floor(this.gameTime * rate);
+    const prevGate = Math.floor((this.gameTime - dt) * rate);
     if (gate === prevGate) return;
 
     for (let i = 0; i < count; i++) {
@@ -291,7 +287,6 @@ export class Game {
     }
   }
 
-  // ---- 主更新 ----
   update(dt: number): void {
     if (this.phase === "menu") return;
     if (this.phase === "school_choice") return;
@@ -309,14 +304,12 @@ export class Game {
     this.input.update();
     this.player.update(dt, this.input, WORLD_W, WORLD_H);
 
-    // 地图经验刷新
     this.xpSpawnTimer -= dt;
     if (this.xpSpawnTimer <= 0) {
       this.spawnMapXP();
       this.xpSpawnTimer = this.xpSpawnInterval;
     }
 
-    // 射击
     this.shootTimer -= dt;
     if (this.input.state.shooting && this.shootTimer <= 0) {
       const proj = this.player.shoot(this.input.state.aimDir);
@@ -342,7 +335,6 @@ export class Game {
     for (const pk of this.pickups) pk.update(dt);
     this.pickups = this.pickups.filter((pk) => pk.alive);
 
-    // 弹射物 vs 敌人
     for (const p of this.projectiles) {
       if (!p.alive || p.fromEnemy) continue;
       for (const e of this.enemies) {
@@ -367,7 +359,6 @@ export class Game {
       }
     }
 
-    // 敌人 vs 玩家
     const now = performance.now() / 1000;
     for (const e of this.enemies) {
       if (!e.alive) continue;
@@ -376,7 +367,6 @@ export class Game {
       }
     }
 
-    // 捡掉落
     for (const pk of this.pickups) {
       if (!pk.alive) continue;
       if (distance(this.player.pos, pk.pos) < this.player.radius + 15) {
@@ -386,8 +376,13 @@ export class Game {
       }
     }
 
-    // 升级
     if (this.xp.checkLevelUp()) {
+      const oldMaxHp = this.player.maxHp;
+      this.applyAllMods();
+      if (this.player.maxHp > oldMaxHp) {
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + (this.player.maxHp - oldMaxHp));
+      }
+
       if (!this.selectedSchool) {
         this.phase = "school_choice";
       } else {
@@ -396,7 +391,6 @@ export class Game {
       }
     }
 
-    // Camera 跟随
     this.camera.follow(this.player.pos.x, this.player.pos.y);
     this.camera.update();
 
@@ -430,7 +424,6 @@ export class Game {
     }
   }
 
-  // ---- 渲染 ----
   render(): void {
     const ctx = this.ctx;
     ctx.fillStyle = "#111118";
@@ -458,14 +451,11 @@ export class Game {
       return;
     }
 
-    // --- 游戏画面（世界坐标 → 屏幕坐标）---
     const toScreen = (wx: number, wy: number) => this.camera.worldToScreen(wx, wy, this.w, this.h);
 
-    // 网格（世界坐标）
     ctx.strokeStyle = "#1c1c28";
     ctx.lineWidth = 0.5;
     const gridSize = 60;
-    // 只绘制可见区域内的网格
     const visLeft = this.camera.pos.x - this.w / 2;
     const visTop = this.camera.pos.y - this.h / 2;
     const sx = Math.floor(visLeft / gridSize) * gridSize;
@@ -481,14 +471,12 @@ export class Game {
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     }
 
-    // 世界边界
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 2;
     const tl = toScreen(0, 0);
     const br = toScreen(WORLD_W, WORLD_H);
     ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
 
-    // 实体（世界坐标 → 渲染时用屏幕坐标）
     for (const pk of this.pickups) {
       const sp = toScreen(pk.pos.x, pk.pos.y);
       pk.renderAt(ctx, sp.x, sp.y);
@@ -502,15 +490,12 @@ export class Game {
       e.renderAt(ctx, sp.x, sp.y);
     }
 
-    // 玩家
     const psp = toScreen(this.player.pos.x, this.player.pos.y);
     const color = this.selectedRace?.color ?? "#4fc3f7";
     this.player.renderAt(ctx, psp.x, psp.y, this.input.state.aimDir, color);
 
-    // 摇杆 UI（屏幕坐标）
     this.input.renderSticks(ctx);
 
-    // HUD（屏幕坐标）
     this.hud.render(ctx, {
       hp: this.player.hp, maxHp: this.player.maxHp,
       xp: this.xp.xp, xpToNext: this.xp.xpToNext, level: this.xp.level,
@@ -520,7 +505,6 @@ export class Game {
       schoolIcon: this.selectedSchool?.icon,
     });
 
-    // 技能一览
     if (this.appliedSkills.length > 0) {
       ctx.textAlign = "left";
       ctx.font = "10px monospace";
