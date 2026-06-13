@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Diamond tech lock-on visual effect">
+  <title>Diamond Tech Lock-on</title>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#e3f2fd" stop-opacity="0.9"/>
+      <stop offset="48%" stop-color="#2196f3" stop-opacity="0.58"/>
+      <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="236" fill="url(#bg)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="134" y="134" width="244" height="244" rx="28" stroke="#bbdefb" stroke-width="11" opacity="0.88"/>
+    <path d="M134 199 H378 M134 256 H378 M134 313 H378" stroke="#40c4ff" stroke-width="5" opacity="0.58"/>
+    <path d="M199 134 V378 M256 134 V378 M313 134 V378" stroke="#40c4ff" stroke-width="5" opacity="0.36"/>
+    <path d="M89 166 H149 M89 346 H149 M363 166 H423 M363 346 H423" stroke="#ffffff" stroke-width="10"/>
+    <path d="M166 89 V149 M346 89 V149 M166 363 V423 M346 363 V423" stroke="#ffffff" stroke-width="10"/>
+    <circle cx="256" cy="256" r="66" stroke="#ffffff" stroke-width="9"/>
+    <circle cx="256" cy="256" r="24" stroke="#40c4ff" stroke-width="8"/>
+    <path d="M256 176 V215 M256 297 V336 M176 256 H215 M297 256 H336" stroke="#e3f2fd" stroke-width="8"/>
+  </g>
+  <g fill="#40c4ff">
+    <circle cx="183" cy="183" r="8"/>
+    <circle cx="329" cy="183" r="8"/>
+    <circle cx="183" cy="329" r="8"/>
+    <circle cx="329" cy="329" r="8"/>
+  </g>
+</svg>
