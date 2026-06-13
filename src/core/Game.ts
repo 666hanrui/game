@@ -13,13 +13,14 @@ import { MetaProgress } from "../systems/MetaProgress";
 import { HUD } from "../ui/HUD";
 import { UpgradePanel, RacePanel, SchoolPanel, WeaponPanel } from "../ui/UpgradePanel";
 import { MetaUpgradePanel } from "../ui/MetaUpgradePanel";
+import { PausePanel } from "../ui/PausePanel";
 import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
 import { Weapon } from "../data/weapons";
 import { distance, randRange, vec2, Vec2 } from "../utils/math";
 
-export type GamePhase = "menu" | "meta_upgrade" | "playing" | "upgrade" | "school_choice" | "weapon_choice" | "result";
+export type GamePhase = "menu" | "meta_upgrade" | "playing" | "paused" | "upgrade" | "school_choice" | "weapon_choice" | "result";
 
 const WORLD_W = 2400;
 const WORLD_H = 2400;
@@ -70,6 +71,7 @@ export class Game {
   schoolPanel: SchoolPanel;
   weaponPanel: WeaponPanel;
   metaPanel: MetaUpgradePanel;
+  pausePanel: PausePanel;
 
   phase: GamePhase = "menu";
 
@@ -94,6 +96,7 @@ export class Game {
   private resultSettled = false;
   private goalCompleteBannerShown = false;
   private menuMetaButton = { x: 0, y: 0, w: 138, h: 38 };
+  private wasEscapeDown = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -125,6 +128,7 @@ export class Game {
     this.schoolPanel = new SchoolPanel();
     this.weaponPanel = new WeaponPanel();
     this.metaPanel = new MetaUpgradePanel();
+    this.pausePanel = new PausePanel();
   }
 
   resize(): void {
@@ -140,6 +144,17 @@ export class Game {
     const cy = e.clientY - rect.top;
 
     if (this.phase === "result") { this.restart(); return; }
+
+    if (this.phase === "paused") {
+      const action = this.pausePanel.handleClick(cx, cy);
+      if (action === "resume") this.phase = "playing";
+      if (action === "main_menu") this.restart();
+      if (action === "settle") {
+        this.settleRun();
+        this.phase = "result";
+      }
+      return;
+    }
 
     if (this.phase === "meta_upgrade") {
       const action = this.metaPanel.handleClick(cx, cy, this.meta);
@@ -202,6 +217,7 @@ export class Game {
     this.bannerTimer = 0;
     this.resultSettled = false;
     this.goalCompleteBannerShown = false;
+    this.wasEscapeDown = false;
     this.xp.reset();
     this.phase = "menu";
   }
@@ -248,6 +264,18 @@ export class Game {
 
   private goalStats(): GoalStats {
     return { wave: this.waveNum, kills: this.kills, bossKills: this.bossKills };
+  }
+
+  private pauseStats() {
+    return {
+      wave: this.waveNum,
+      kills: this.kills,
+      level: this.xp.level,
+      bossKills: this.bossKills,
+      raceName: this.selectedRace?.name,
+      schoolName: this.selectedSchool?.name,
+      weaponName: this.selectedWeapon?.name,
+    };
   }
 
   private settleRun(): void {
@@ -301,6 +329,15 @@ export class Game {
     }
     this.floatingTexts = this.floatingTexts.filter((t) => t.life > 0);
     if (this.bannerTimer > 0) this.bannerTimer -= dt;
+  }
+
+  private updatePauseToggle(): void {
+    const esc = this.input.isKeyDown("escape");
+    if (esc && !this.wasEscapeDown) {
+      if (this.phase === "playing") this.phase = "paused";
+      else if (this.phase === "paused") this.phase = "playing";
+    }
+    this.wasEscapeDown = esc;
   }
 
   private applyAllMods(): void {
@@ -523,6 +560,9 @@ export class Game {
   }
 
   update(dt: number): void {
+    this.updatePauseToggle();
+
+    if (this.phase === "paused") return;
     this.updateFeedback(dt);
     if (this.phase === "menu" || this.phase === "meta_upgrade" || this.phase === "school_choice" || this.phase === "weapon_choice") return;
 
@@ -842,6 +882,11 @@ export class Game {
       ctx.font = "10px monospace";
       ctx.fillStyle = "rgba(255,255,255,0.4)";
       ctx.fillText(this.appliedSkills.map((s) => s.name).join(" · "), 16, this.h - 16);
+    }
+
+    if (this.phase === "paused") {
+      this.pausePanel.render(ctx, this.w, this.h, this.pauseStats());
+      return;
     }
 
     this.renderScreenFeedback();
