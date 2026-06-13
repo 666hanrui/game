@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Spirit Race</title>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="61%">
+      <stop offset="0%" stop-color="#f3e5f5" stop-opacity="0.98"/>
+      <stop offset="52%" stop-color="#ce93d8" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="b" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f3c8ff"/>
+      <stop offset="55%" stop-color="#ce93d8"/>
+      <stop offset="100%" stop-color="#6a1b9a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="224" fill="url(#g)"/>
+  <path d="M184 379c-38-35-59-80-59-128 0-75 55-134 131-134s131 59 131 134c0 48-21 93-59 128-23-18-47-18-72 0-24-18-48-18-72 0z" fill="url(#b)" stroke="#f8e8ff" stroke-width="8" opacity="0.88"/>
+  <path d="M177 173c43-47 115-49 158-2" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
+  <circle cx="221" cy="252" r="11" fill="#240631" opacity="0.82"/>
+  <circle cx="291" cy="252" r="11" fill="#240631" opacity="0.82"/>
+  <path d="M226 312c21 13 39 13 60 0" fill="none" stroke="#240631" stroke-width="8" stroke-linecap="round" opacity="0.58"/>
+  <path d="M137 363c-34 23-57 52-69 88" fill="none" stroke="#e1bee7" stroke-width="14" stroke-linecap="round" opacity="0.58"/>
+  <path d="M374 363c34 23 57 52 69 88" fill="none" stroke="#e1bee7" stroke-width="14" stroke-linecap="round" opacity="0.58"/>
+  <path d="M229 90c-4 43-21 76-51 99 49-12 82-40 99-84z" fill="#ffffff" opacity="0.52"/>
+  <path d="M303 97c22 39 52 62 91 68-36 12-72 8-108-11z" fill="#ffffff" opacity="0.42"/>
+  <circle cx="159" cy="135" r="8" fill="#f3e5f5" opacity="0.85"/>
+  <circle cx="395" cy="228" r="6" fill="#f3e5f5" opacity="0.78"/>
+  <circle cx="111" cy="269" r="5" fill="#f3e5f5" opacity="0.7"/>
+</svg>
