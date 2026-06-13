@@ -20,7 +20,7 @@ export class Pickup {
     if (this.life > 30) this.alive = false;
   }
 
-  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, sprite?: HTMLImageElement | null): void {
     const bob = Math.sin(this.life * 4) * 2;
     const pulse = 1 + Math.sin(this.life * 5) * 0.08;
     const by = sy + bob;
@@ -32,7 +32,6 @@ export class Pickup {
     ctx.translate(sx, by);
     ctx.scale(pulse, pulse);
 
-    // 光晕
     const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 18);
     glow.addColorStop(0, main + "aa");
     glow.addColorStop(1, "rgba(255,255,255,0)");
@@ -41,7 +40,12 @@ export class Pickup {
     ctx.arc(0, 0, 18, 0, Math.PI * 2);
     ctx.fill();
 
-    // 菱形主体
+    if (sprite) {
+      ctx.drawImage(sprite, -11, -11, 22, 22);
+      ctx.restore();
+      return;
+    }
+
     ctx.fillStyle = main;
     ctx.beginPath();
     ctx.moveTo(0, -7);
@@ -54,7 +58,6 @@ export class Pickup {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // 中心亮点
     ctx.fillStyle = light;
     ctx.beginPath();
     ctx.arc(0, 0, this.type === "xp" ? 2.3 : 2.6, 0, Math.PI * 2);
