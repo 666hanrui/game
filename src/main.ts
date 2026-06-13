@@ -25,6 +25,8 @@ function main(): void {
 
     if (action === "start") {
       showHubCamp = false;
+      e.stopImmediatePropagation();
+      e.preventDefault();
       return;
     }
 
