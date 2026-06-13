@@ -218,10 +218,26 @@ export class Enemy {
     }
 
     if (this.role === "bomber") {
-      ctx.strokeStyle = `rgba(255,112,67,${0.35 + Math.sin(this.anim * 2.2) * 0.18})`;
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = `rgba(255,87,34,${0.46 + Math.sin(this.anim * 2.4) * 0.22})`;
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(sx, sy, this.radius + 8 + Math.sin(this.anim * 1.8) * 3, 0, Math.PI * 2);
+      ctx.arc(sx, sy, this.radius + 9 + Math.sin(this.anim * 1.9) * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.role === "summoner") {
+      ctx.strokeStyle = "rgba(171,71,188,0.46)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 11, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.role === "healer") {
+      ctx.strokeStyle = "rgba(102,187,106,0.5)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 10 + Math.sin(this.anim * 1.4) * 2, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -285,7 +301,7 @@ export class Enemy {
       const pct = Math.max(0, this.hp / this.maxHp);
       ctx.fillStyle = "#222";
       ctx.fillRect(sx - bw / 2, py, bw, bh);
-      ctx.fillStyle = this.role === "boss" ? "#ffd54f" : this.role === "healer" ? "#81c784" : this.role === "summoner" ? "#b39ddb" : "#ef5350";
+      ctx.fillStyle = this.role === "boss" ? "#ffd54f" : this.role === "healer" ? "#66bb6a" : this.role === "summoner" ? "#ab47bc" : "#ef5350";
       ctx.fillRect(sx - bw / 2, py, bw * pct, bh);
 
       if (this.maxArmor > 0 && this.armor > 0) {
@@ -343,14 +359,14 @@ export class Enemy {
       ctx.lineTo(sx, sy + r + 5);
       ctx.stroke();
     } else if (this.role === "bomber") {
-      ctx.strokeStyle = "rgba(255,112,67,0.96)";
-      ctx.fillStyle = "rgba(255,112,67,0.25)";
-      ctx.lineWidth = 3;
-      const r = this.radius + 8;
+      ctx.strokeStyle = "rgba(255,87,34,0.98)";
+      ctx.fillStyle = "rgba(255,87,34,0.32)";
+      ctx.lineWidth = 4;
+      const r = this.radius + 9;
       ctx.beginPath();
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2 + this.anim * 0.12;
-        const rr = i % 2 === 0 ? r + 4 : r - 2;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + this.anim * 0.16;
+        const rr = i % 2 === 0 ? r + 7 : r - 3;
         const x = sx + Math.cos(a) * rr;
         const y = sy + Math.sin(a) * rr;
         if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -358,29 +374,71 @@ export class Enemy {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-    } else if (this.role === "summoner") {
-      ctx.strokeStyle = "rgba(179,157,219,0.96)";
+
+      ctx.strokeStyle = "rgba(255,235,59,0.9)";
       ctx.lineWidth = 3;
-      const r = this.radius + 9;
+      ctx.beginPath();
+      ctx.moveTo(sx + r * 0.15, sy - r - 8);
+      ctx.quadraticCurveTo(sx + r * 0.72, sy - r - 22, sx + r * 0.9, sy - r - 3);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,235,59,0.9)";
+      ctx.beginPath();
+      ctx.arc(sx + r * 0.92, sy - r - 2, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (this.role === "summoner") {
+      ctx.strokeStyle = "rgba(171,71,188,0.98)";
+      ctx.fillStyle = "rgba(171,71,188,0.18)";
+      ctx.lineWidth = 3;
+      const r = this.radius + 10;
       ctx.beginPath();
       ctx.arc(sx, sy, r, this.anim * 0.22, this.anim * 0.22 + Math.PI * 1.35);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(sx, sy, r + 6, -this.anim * 0.18, -this.anim * 0.18 + Math.PI * 1.1);
+      ctx.arc(sx, sy, r + 7, -this.anim * 0.18, -this.anim * 0.18 + Math.PI * 1.1);
       ctx.stroke();
-    } else if (this.role === "healer") {
-      ctx.strokeStyle = "rgba(129,199,132,0.96)";
-      ctx.lineWidth = 4;
-      const r = this.radius + 7;
+
       ctx.beginPath();
-      ctx.moveTo(sx - r * 0.55, sy);
-      ctx.lineTo(sx + r * 0.55, sy);
-      ctx.moveTo(sx, sy - r * 0.55);
-      ctx.lineTo(sx, sy + r * 0.55);
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + (i * 2 / 5) * Math.PI * 2;
+        const x = sx + Math.cos(a) * (r - 2);
+        const y = sy + Math.sin(a) * (r - 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
+
+      ctx.fillStyle = "rgba(225,190,231,0.95)";
+      for (let i = 0; i < 5; i++) {
+        const a = this.anim * 0.18 + (i / 5) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(sx + Math.cos(a) * (r + 7), sy + Math.sin(a) * (r + 7), 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (this.role === "healer") {
+      ctx.strokeStyle = "rgba(102,187,106,0.98)";
+      ctx.fillStyle = "rgba(102,187,106,0.18)";
+      ctx.lineWidth = 4;
+      const r = this.radius + 8;
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
       ctx.stroke();
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(sx - r * 0.58, sy);
+      ctx.lineTo(sx + r * 0.58, sy);
+      ctx.moveTo(sx, sy - r * 0.58);
+      ctx.lineTo(sx, sy + r * 0.58);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(200,230,201,0.85)";
+      ctx.lineWidth = 2;
+      for (const dir of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(sx + dir * (r + 3), sy - r * 0.65, 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     } else if (this.role === "elite") {
       ctx.strokeStyle = "rgba(239,83,80,0.95)";
       ctx.fillStyle = "rgba(239,83,80,0.35)";
@@ -435,9 +493,9 @@ export class Enemy {
       case "fast": return "#ffee58";
       case "tank": return "#78909c";
       case "ranged": return "#42a5f5";
-      case "bomber": return "#ff7043";
-      case "summoner": return "#b39ddb";
-      case "healer": return "#81c784";
+      case "bomber": return "#ff5722";
+      case "summoner": return "#ab47bc";
+      case "healer": return "#66bb6a";
       case "elite": return "#ef5350";
       case "boss": return "#ff8f00";
       default: return base;
