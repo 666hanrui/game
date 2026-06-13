@@ -1,6 +1,6 @@
 import { vec2, Vec2 } from "../utils/math";
 
-export type ProjectileKind = "arrow" | "magic" | "heavy_magic" | "energy" | "blade" | "drone";
+export type ProjectileKind = "arrow" | "magic" | "heavy_magic" | "energy" | "blade" | "drone" | "hammer";
 
 export class Projectile {
   pos: Vec2;
@@ -18,10 +18,12 @@ export class Projectile {
     this.fromEnemy = fromEnemy;
     this.damage = damage;
     this.kind = kind;
+    if (kind === "hammer") this.maxLife = 1.15;
   }
 
   get hitRadius(): number {
     switch (this.kind) {
+      case "hammer": return 15;
       case "heavy_magic": return 11;
       case "energy": return 8;
       case "blade": return 9;
@@ -40,12 +42,13 @@ export class Projectile {
 
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, sprite?: HTMLImageElement | null): void {
     const angle = Math.atan2(this.vel.y, this.vel.x);
-    if (sprite) return this.renderSprite(ctx, sx, sy, angle, sprite);
+    if (sprite && this.kind !== "hammer") return this.renderSprite(ctx, sx, sy, angle, sprite);
     if (this.kind === "magic") return this.renderOrb(ctx, sx, sy, "#ce93d8", "#f3e5f5", 6);
     if (this.kind === "heavy_magic") return this.renderOrb(ctx, sx, sy, "#ab47bc", "#e1bee7", 9);
     if (this.kind === "energy") return this.renderEnergy(ctx, sx, sy, angle);
     if (this.kind === "blade") return this.renderBlade(ctx, sx, sy, angle);
     if (this.kind === "drone") return this.renderOrb(ctx, sx, sy, "#42a5f5", "#e3f2fd", 5);
+    if (this.kind === "hammer") return this.renderHammerShock(ctx, sx, sy, angle, sprite);
     return this.renderArrow(ctx, sx, sy, angle);
   }
 
@@ -168,6 +171,38 @@ export class Projectile {
     ctx.beginPath();
     ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  private renderHammerShock(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, sprite?: HTMLImageElement | null): void {
+    const alpha = Math.max(0, 1 - this.life / this.maxLife);
+    ctx.save();
+
+    ctx.globalAlpha = 0.18 * alpha;
+    ctx.strokeStyle = "#bc8f5a";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 12 + this.life * 46, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.9;
+    ctx.translate(sx, sy);
+    ctx.rotate(angle + this.life * 4);
+
+    if (sprite) {
+      ctx.drawImage(sprite, -15, -15, 30, 30);
+    } else {
+      ctx.fillStyle = "#9e9e9e";
+      ctx.strokeStyle = "#4e342e";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#6d4c41";
+      ctx.fillRect(-3, 4, 6, 18);
+    }
+
     ctx.restore();
   }
 }
