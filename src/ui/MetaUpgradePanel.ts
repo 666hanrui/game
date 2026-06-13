@@ -1,4 +1,9 @@
-import { MetaProgress, META_UPGRADES, MetaUpgradeDef, MetaUpgradeId } from "../systems/MetaProgress";
+import { MetaProgress, META_UPGRADES, MetaUpgradeDef, MetaUpgradeId, PurchaseResult } from "../systems/MetaProgress";
+
+export type MetaPanelAction =
+  | { type: "back" }
+  | { type: "reset" }
+  | { type: "purchase"; result: PurchaseResult };
 
 export class MetaUpgradePanel {
   private cardW = 230;
@@ -6,16 +11,18 @@ export class MetaUpgradePanel {
   private gap = 16;
   private cardRects: { x: number; y: number; w: number; h: number; id: MetaUpgradeId }[] = [];
   private backRect = { x: 0, y: 0, w: 110, h: 36 };
+  private resetRect = { x: 0, y: 0, w: 118, h: 34 };
 
-  handleClick(cx: number, cy: number, meta: MetaProgress): "back" | "buy" | null {
-    if (cx >= this.backRect.x && cx <= this.backRect.x + this.backRect.w && cy >= this.backRect.y && cy <= this.backRect.y + this.backRect.h) {
-      return "back";
+  handleClick(cx: number, cy: number, meta: MetaProgress): MetaPanelAction | null {
+    if (this.inRect(cx, cy, this.backRect)) return { type: "back" };
+    if (this.inRect(cx, cy, this.resetRect)) {
+      meta.resetAll();
+      return { type: "reset" };
     }
 
     for (const r of this.cardRects) {
-      if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) {
-        meta.purchaseUpgrade(r.id);
-        return "buy";
+      if (this.inRect(cx, cy, r)) {
+        return { type: "purchase", result: meta.purchaseUpgrade(r.id) };
       }
     }
     return null;
@@ -31,16 +38,10 @@ export class MetaUpgradePanel {
     ctx.fillRect(0, 0, w, h);
 
     this.backRect = { x: 22, y: 22, w: 110, h: 36 };
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 1;
-    this.roundRect(ctx, this.backRect.x, this.backRect.y, this.backRect.w, this.backRect.h, 8);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "#ddd";
-    ctx.font = "bold 13px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("返回", this.backRect.x + this.backRect.w / 2, this.backRect.y + 23);
+    this.drawButton(ctx, this.backRect, "返回", "rgba(255,255,255,0.08)", "rgba(255,255,255,0.2)", "#ddd");
+
+    this.resetRect = { x: w - 142, y: 22, w: 120, h: 34 };
+    this.drawButton(ctx, this.resetRect, "清空存档", "rgba(239,83,80,0.08)", "rgba(239,83,80,0.42)", "#ef9a9a", 12);
 
     ctx.fillStyle = "#fff";
     ctx.font = "bold 28px monospace";
@@ -90,7 +91,7 @@ export class MetaUpgradePanel {
     ctx.fillStyle = "rgba(255,255,255,0.28)";
     ctx.font = "11px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("点击强化卡片购买；满级后不可继续购买", w / 2, by + 28);
+    ctx.fillText("点击强化卡片购买；清空存档仅用于开发测试", w / 2, by + 28);
   }
 
   private drawUpgradeCard(ctx: CanvasRenderingContext2D, x: number, y: number, def: MetaUpgradeDef, level: number, cost: number, soul: number): void {
@@ -129,7 +130,24 @@ export class MetaUpgradePanel {
     ctx.textAlign = "right";
     ctx.font = "bold 12px monospace";
     ctx.fillStyle = color;
-    ctx.fillText(full ? "已满级" : `花费 ${cost}`, x + this.cardW - 16, y + 112);
+    ctx.fillText(full ? "已满级" : affordable ? `花费 ${cost}` : `缺 ${cost - soul}`, x + this.cardW - 16, y + 112);
+  }
+
+  private drawButton(ctx: CanvasRenderingContext2D, rect: { x: number; y: number; w: number; h: number }, text: string, fill: string, stroke: string, color: string, fontSize = 13): void {
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    this.roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(text, rect.x + rect.w / 2, rect.y + rect.h / 2 + fontSize * 0.35);
+  }
+
+  private inRect(cx: number, cy: number, r: { x: number; y: number; w: number; h: number }): boolean {
+    return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
   }
 
   private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
