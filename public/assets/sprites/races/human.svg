@@ -1,33 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="Human race sprite">
   <title>Human Race</title>
   <defs>
-    <radialGradient id="humanGlow" cx="50%" cy="45%" r="55%">
-      <stop offset="0%" stop-color="#b3e5fc" stop-opacity="0.95"/>
-      <stop offset="52%" stop-color="#4fc3f7" stop-opacity="0.72"/>
+    <radialGradient id="glow" cx="50%" cy="46%" r="58%">
+      <stop offset="0%" stop-color="#e1f5fe" stop-opacity="0.95"/>
+      <stop offset="54%" stop-color="#4fc3f7" stop-opacity="0.72"/>
       <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="humanBody" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#9be7ff"/>
       <stop offset="55%" stop-color="#4fc3f7"/>
       <stop offset="100%" stop-color="#0277bd"/>
     </linearGradient>
-    <filter id="softShadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity="0.42"/>
-    </filter>
   </defs>
-  <circle cx="256" cy="256" r="214" fill="url(#humanGlow)"/>
-  <g filter="url(#softShadow)">
-    <circle cx="256" cy="256" r="112" fill="url(#humanBody)" stroke="#e1f5fe" stroke-width="8"/>
-    <path d="M150 317c31 49 68 74 106 74s75-25 106-74c-25 18-60 29-106 29s-81-11-106-29z" fill="#0d47a1" opacity="0.42"/>
-    <path d="M205 194c22-24 79-24 101 0" fill="none" stroke="#e1f5fe" stroke-width="10" stroke-linecap="round" opacity="0.82"/>
-    <circle cx="222" cy="248" r="10" fill="#08233f"/>
-    <circle cx="290" cy="248" r="10" fill="#08233f"/>
-    <path d="M224 303c20 18 44 18 64 0" fill="none" stroke="#08233f" stroke-width="8" stroke-linecap="round" opacity="0.6"/>
-    <path d="M132 257c0-65 43-123 106-145" fill="none" stroke="#c8a96e" stroke-width="17" stroke-linecap="round"/>
-    <path d="M132 257c0 65 43 123 106 145" fill="none" stroke="#c8a96e" stroke-width="17" stroke-linecap="round"/>
-    <path d="M235 112c-28 73-28 217 0 290" fill="none" stroke="#f5f5f5" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
-    <path d="M300 256h88" stroke="#fff9c4" stroke-width="12" stroke-linecap="round"/>
-    <path d="M388 256l-34-19v38z" fill="#fff9c4"/>
-    <path d="M300 256l-26-12v24z" fill="#263238" opacity="0.42"/>
+  <circle cx="256" cy="256" r="218" fill="url(#glow)"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="256" cy="379" rx="96" ry="44" fill="#0b1f33" opacity="0.28"/>
+    <path d="M176 324 C191 270 219 244 256 244 C293 244 321 270 336 324 L344 394 C309 414 203 414 168 394 Z" fill="url(#body)" stroke="#e1f5fe" stroke-width="10"/>
+    <path d="M180 332 L118 370" stroke="#e1f5fe" stroke-width="18"/>
+    <path d="M332 332 L394 370" stroke="#e1f5fe" stroke-width="18"/>
+    <path d="M218 397 L202 448" stroke="#e1f5fe" stroke-width="18"/>
+    <path d="M294 397 L310 448" stroke="#e1f5fe" stroke-width="18"/>
+    <circle cx="256" cy="186" r="64" fill="#f5d7bd" stroke="#e1f5fe" stroke-width="10"/>
+    <path d="M197 178 C210 116 302 111 321 178 C294 157 226 157 197 178 Z" fill="#263238"/>
+    <circle cx="233" cy="194" r="7" fill="#08233f"/>
+    <circle cx="279" cy="194" r="7" fill="#08233f"/>
+    <path d="M235 223 C249 233 263 233 277 223" fill="none" stroke="#08233f" stroke-width="6" opacity="0.6"/>
+    <path d="M186 292 C224 315 288 315 326 292" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.58"/>
+    <circle cx="256" cy="314" r="18" fill="#ffffff" opacity="0.3"/>
   </g>
 </svg>
