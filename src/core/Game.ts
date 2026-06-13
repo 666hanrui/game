@@ -9,7 +9,7 @@ import { CombatSystem } from "../systems/CombatSystem";
 import { XPLevelSystem } from "../systems/XPLevelSystem";
 import { HUD } from "../ui/HUD";
 import { UpgradePanel, RacePanel, SchoolPanel } from "../ui/UpgradePanel";
-import { Race, getRace, RACES } from "../data/races";
+import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
 import { distance, randRange, vec2 } from "../utils/math";
@@ -26,8 +26,8 @@ export class Game {
   input: Input;
   camera: Camera;
 
-  w: number;
-  h: number;
+  w = 0;
+  h = 0;
 
   player: Player;
   enemies: Enemy[] = [];
@@ -98,6 +98,10 @@ export class Game {
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
 
+    if (this.phase === "result") {
+      this.restart();
+      return;
+    }
     if (this.phase === "menu") {
       const race = this.racePanel.handleClick(cx, cy);
       if (race) this.selectRace(race);
@@ -113,6 +117,29 @@ export class Game {
       if (skill) this.applySkill(skill);
       return;
     }
+  }
+
+  private restart(): void {
+    const cx = WORLD_W / 2;
+    const cy = WORLD_H / 2;
+
+    this.player = new Player(cx, cy);
+    this.camera = new Camera(WORLD_W, WORLD_H);
+    this.camera.follow(cx, cy);
+    this.enemies = [];
+    this.projectiles = [];
+    this.pickups = [];
+    this.selectedRace = null;
+    this.selectedSchool = null;
+    this.appliedSkills = [];
+    this.appliedSkillIds = [];
+    this.kills = 0;
+    this.waveNum = 0;
+    this.shootTimer = 0;
+    this.gameTime = 0;
+    this.xpSpawnTimer = 0;
+    this.xp.reset();
+    this.phase = "menu";
   }
 
   private selectRace(race: Race): void {
@@ -138,6 +165,14 @@ export class Game {
     this.appliedSkillIds.push(skill.id);
     this.applyAllMods();
     this.phase = "playing";
+  }
+
+  private hasSkill(id: string): boolean {
+    return this.appliedSkillIds.includes(id);
+  }
+
+  private skillCount(id: string): number {
+    return this.appliedSkillIds.filter((skillId) => skillId === id).length;
   }
 
   private applyAllMods(): void {
@@ -188,6 +223,74 @@ export class Game {
     this.pickups.push(new Pickup(x, y, "xp", 30));
   }
 
+  private findNearestEnemy(x: number, y: number, maxDist: number): Enemy | null {
+    let result: Enemy | null = null;
+    let best = maxDist;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const d = distance(vec2(x, y), e.pos);
+      if (d < best) {
+        best = d;
+        result = e;
+      }
+    }
+    return result;
+  }
+
+  private updateTrackingArrows(dt: number): void {
+    if (!this.hasSkill("tracking")) return;
+    for (const p of this.projectiles) {
+      if (!p.alive || p.fromEnemy) continue;
+      const target = this.findNearestEnemy(p.pos.x, p.pos.y, 420);
+      if (!target) continue;
+
+      const dx = target.pos.x - p.pos.x;
+      const dy = target.pos.y - p.pos.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const speed = Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y) || 600;
+      const blend = Math.min(1, dt * 5);
+      const tx = (dx / len) * speed;
+      const ty = (dy / len) * speed;
+      p.vel.x += (tx - p.vel.x) * blend;
+      p.vel.y += (ty - p.vel.y) * blend;
+    }
+  }
+
+  private updateDrone(dt: number): void {
+    const count = this.skillCount("drone");
+    if (count <= 0) return;
+
+    // 复用 shootTimer 之外的简单节奏：按游戏时间取模，避免新增太多状态
+    const gate = Math.floor(this.gameTime * (1.4 + count * 0.35));
+    const prevGate = Math.floor((this.gameTime - dt) * (1.4 + count * 0.35));
+    if (gate === prevGate) return;
+
+    for (let i = 0; i < count; i++) {
+      const target = this.findNearestEnemy(this.player.pos.x, this.player.pos.y, 760);
+      if (!target) break;
+      const dx = target.pos.x - this.player.pos.x;
+      const dy = target.pos.y - this.player.pos.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      this.projectiles.push(new Projectile(
+        this.player.pos.x,
+        this.player.pos.y,
+        (dx / len) * 620,
+        (dy / len) * 620,
+        false,
+        12 + count * 5,
+      ));
+    }
+  }
+
+  private explodeAt(x: number, y: number, radius: number, damage: number, exclude: Enemy): void {
+    for (const e of this.enemies) {
+      if (!e.alive || e === exclude) continue;
+      if (distance(vec2(x, y), e.pos) > radius) continue;
+      const defeated = e.takeDamage(damage);
+      if (defeated) this.onKill(e);
+    }
+  }
+
   // ---- 主更新 ----
   update(dt: number): void {
     if (this.phase === "menu") return;
@@ -230,6 +333,9 @@ export class Game {
       this.shootTimer = this.player.attackCooldown;
     }
 
+    this.updateDrone(dt);
+    this.updateTrackingArrows(dt);
+
     for (const p of this.projectiles) p.update(dt);
     this.projectiles = this.projectiles.filter((p) => p.alive);
     for (const e of this.enemies) e.update(dt, this.player.pos);
@@ -242,11 +348,20 @@ export class Game {
       for (const e of this.enemies) {
         if (!e.alive) continue;
         if (this.combat.projectileHitsEnemy(p, e)) {
-          const dmg = this.player.critChance > 0 && Math.random() < this.player.critChance
-            ? Math.floor(this.player.damage * this.player.critMultiplier) : this.player.damage;
-          const killed = this.combat.dealDamage(e, dmg);
+          const isCrit = this.player.critChance > 0 && Math.random() < this.player.critChance;
+          const dmg = isCrit ? Math.floor(p.damage * this.player.critMultiplier) : p.damage;
+          const defeated = this.combat.dealDamage(e, dmg);
           p.alive = false;
-          if (killed) this.onKill(e);
+
+          if (this.hasSkill("frost_arrow")) {
+            e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
+          }
+
+          if (this.hasSkill("fireball")) {
+            this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
+          }
+
+          if (defeated) this.onKill(e);
           break;
         }
       }
@@ -292,6 +407,27 @@ export class Game {
 
   private onKill(enemy: Enemy): void {
     this.kills++;
+
+    const xpValue = this.xp.xpPerKill;
+    this.xp.addXP(xpValue);
+    this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
+
+    if (Math.random() < 0.12) {
+      this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", 18));
+    }
+
+    if (this.hasSkill("bloodlust")) {
+      const heal = Math.max(1, Math.floor(this.player.maxHp * 0.08 * this.skillCount("bloodlust")));
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+    }
+
+    if (this.hasSkill("chain_lightning")) {
+      const target = this.findNearestEnemy(enemy.pos.x, enemy.pos.y, 280);
+      if (target) {
+        const defeated = target.takeDamage(28 + this.skillCount("chain_lightning") * 12);
+        if (defeated) this.onKill(target);
+      }
+    }
   }
 
   // ---- 渲染 ----
@@ -318,7 +454,7 @@ export class Game {
       ctx.fillStyle = "#ccc";
       ctx.font = "14px monospace";
       ctx.fillText(`击杀 ${this.kills}  ·  波次 ${this.waveNum}  ·  等级 ${this.xp.level}`, this.w / 2, this.h / 2 + 20);
-      ctx.fillText("刷新页面重新开始", this.w / 2, this.h / 2 + 44);
+      ctx.fillText("点击任意位置重新开始", this.w / 2, this.h / 2 + 44);
       return;
     }
 
