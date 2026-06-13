@@ -1,4 +1,5 @@
 import type { GameWithSound } from "../core/GameWithSound";
+import { Projectile } from "../entities/Projectile";
 import { RUN_ITEMS } from "../data/runItems";
 import type { RunItemDef } from "../data/runItems";
 
@@ -10,7 +11,13 @@ export type RuntimeSupplyId =
   | "health_pack"
   | "regen_dew"
   | "crit_potion"
-  | "frost_bomb";
+  | "frost_bomb"
+  | "thunder_stone"
+  | "quake_stone"
+  | "decoy_doll"
+  | "turret_pack";
+
+type ConstructId = "decoy_doll" | "turret_pack";
 
 interface RuntimeSupplyDrop {
   id: RuntimeSupplyId;
@@ -29,6 +36,16 @@ interface RuntimeEffect {
   remaining: number;
 }
 
+interface RuntimeConstruct {
+  id: ConstructId;
+  x: number;
+  y: number;
+  age: number;
+  life: number;
+  fireTimer: number;
+  seed: number;
+}
+
 interface FloatingSupplyText {
   x: number;
   y: number;
@@ -38,38 +55,13 @@ interface FloatingSupplyText {
   maxLife: number;
 }
 
-interface SupplyParticle {
-  pos: { x: number; y: number };
-  vel: { x: number; y: number };
-  life: number;
-  maxLife: number;
-  size: number;
-  color: string;
-}
-
-interface SupplyVisual {
-  shortLabel: string;
-  hint: string;
-  shape: "diamond" | "hex" | "bolt" | "triangle" | "cross" | "circle" | "star" | "snow";
-}
-
 const WORLD_W = 2400;
 const WORLD_H = 2400;
-
-const SUPPLY_VISUALS: Record<RuntimeSupplyId, SupplyVisual> = {
-  magnet: { shortLabel: "吸", hint: "吸取", shape: "diamond" },
-  shield: { shortLabel: "盾", hint: "护盾", shape: "hex" },
-  haste_potion: { shortLabel: "速", hint: "急速", shape: "bolt" },
-  power_potion: { shortLabel: "攻", hint: "攻击", shape: "triangle" },
-  health_pack: { shortLabel: "血", hint: "回血", shape: "cross" },
-  regen_dew: { shortLabel: "春", hint: "回春", shape: "circle" },
-  crit_potion: { shortLabel: "暴", hint: "暴击", shape: "star" },
-  frost_bomb: { shortLabel: "冰", hint: "冰霜", shape: "snow" },
-};
 
 export class RunSupplyRuntime {
   private drops: RuntimeSupplyDrop[] = [];
   private effects: RuntimeEffect[] = [];
+  private constructs: RuntimeConstruct[] = [];
   private floatingTexts: FloatingSupplyText[] = [];
   private spawnTimer = 5.5;
   private lastKills = 0;
@@ -100,6 +92,7 @@ export class RunSupplyRuntime {
     this.updateSpawning(dt);
     this.updateDrops(dt);
     this.updatePickupCollision();
+    this.updateConstructs(dt);
     this.applyOngoingEffects(dt);
     this.applyTemporaryStatMods();
   }
@@ -107,6 +100,7 @@ export class RunSupplyRuntime {
   render(ctx: CanvasRenderingContext2D): void {
     if (this.game.phase !== "playing") return;
     this.renderDrops(ctx);
+    this.renderConstructs(ctx);
     this.renderPlayerAuras(ctx);
     this.renderEffectBar(ctx);
     this.renderFloatingTexts(ctx);
@@ -138,7 +132,7 @@ export class RunSupplyRuntime {
     if (this.game.kills > this.lastKills) {
       const diff = this.game.kills - this.lastKills;
       for (let i = 0; i < diff; i++) {
-        const chance = this.game.waveNum >= 6 ? 0.052 : 0.034;
+        const chance = this.game.waveNum >= 6 ? 0.054 : 0.034;
         if (Math.random() < chance) this.spawnNearPlayer(this.pickSpawnId(), 120, 420);
       }
       this.lastKills = this.game.kills;
@@ -148,6 +142,7 @@ export class RunSupplyRuntime {
       this.spawnNearPlayer("shield", 80, 220);
       this.spawnNearPlayer(this.pickBossBonusId(), 100, 260);
       this.spawnNearPlayer(Math.random() < 0.55 ? "health_pack" : "regen_dew", 110, 280);
+      this.spawnNearPlayer(Math.random() < 0.5 ? "turret_pack" : "decoy_doll", 120, 320);
       this.lastBossKills = this.game.bossKills;
     }
   }
@@ -169,6 +164,51 @@ export class RunSupplyRuntime {
       drop.age = drop.life + 1;
     }
     this.drops = this.drops.filter((drop) => drop.age < drop.life);
+  }
+
+  private updateConstructs(dt: number): void {
+    for (const construct of this.constructs) {
+      construct.age += dt;
+      if (construct.id === "decoy_doll") this.updateDecoy(construct, dt);
+      if (construct.id === "turret_pack") this.updateTurret(construct, dt);
+    }
+    this.constructs = this.constructs.filter((construct) => construct.age < construct.life);
+  }
+
+  private updateDecoy(decoy: RuntimeConstruct, dt: number): void {
+    const radius = 360;
+    for (const enemy of this.game.enemies) {
+      if (!enemy.alive) continue;
+      const dx = decoy.x - enemy.pos.x;
+      const dy = decoy.y - enemy.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      if (dist > radius) continue;
+
+      const pull = (1 - dist / radius) * 145;
+      enemy.pos.x += (dx / dist) * pull * dt;
+      enemy.pos.y += (dy / dist) * pull * dt;
+      if (dist < 92) enemy.applySlow(0.72, 0.22);
+    }
+  }
+
+  private updateTurret(turret: RuntimeConstruct, dt: number): void {
+    turret.fireTimer -= dt;
+    if (turret.fireTimer > 0) return;
+
+    const target = this.findNearestEnemy(turret.x, turret.y, 620);
+    if (!target) {
+      turret.fireTimer = 0.22;
+      return;
+    }
+
+    const dx = target.pos.x - turret.x;
+    const dy = target.pos.y - turret.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const speed = 700;
+    const damage = 18 + Math.floor(this.game.waveNum * 1.2);
+    this.game.projectiles.push(new Projectile(turret.x, turret.y, (dx / len) * speed, (dy / len) * speed, false, damage, "energy"));
+    this.game.particles.push(...this.makeBurst(turret.x, turret.y, this.colorFor("turret_pack"), 4, 2.4, 95));
+    turret.fireTimer = Math.max(0.28, 0.62 - Math.min(0.22, this.game.waveNum * 0.006));
   }
 
   private activate(id: RuntimeSupplyId): void {
@@ -224,6 +264,26 @@ export class RunSupplyRuntime {
 
     if (id === "frost_bomb") {
       this.triggerFrostBomb(color);
+      return;
+    }
+
+    if (id === "thunder_stone") {
+      this.triggerThunderStone(color);
+      return;
+    }
+
+    if (id === "quake_stone") {
+      this.triggerQuakeStone(color);
+      return;
+    }
+
+    if (id === "decoy_doll") {
+      this.spawnConstruct("decoy_doll", color, "诱饵部署", 7.5);
+      return;
+    }
+
+    if (id === "turret_pack") {
+      this.spawnConstruct("turret_pack", color, "炮台部署", 12);
     }
   }
 
@@ -280,6 +340,63 @@ export class RunSupplyRuntime {
 
     this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, color, 34, 4.5, 260));
     this.floatText(this.game.player.pos.x, this.game.player.pos.y - 46, `冰霜爆发 ${affected}`, color);
+  }
+
+  private triggerThunderStone(color: string): void {
+    const targets = this.getNearestEnemies(this.game.player.pos.x, this.game.player.pos.y, 720, 8);
+    const damage = 24 + Math.floor(this.game.waveNum * 1.35);
+    const speed = 860;
+
+    for (const target of targets) {
+      const dx = target.pos.x - this.game.player.pos.x;
+      const dy = target.pos.y - this.game.player.pos.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      this.game.projectiles.push(new Projectile(this.game.player.pos.x, this.game.player.pos.y, (dx / len) * speed, (dy / len) * speed, false, damage, "energy"));
+      this.game.particles.push(...this.makeBurst(target.pos.x, target.pos.y, color, 4, 2.2, 110));
+    }
+
+    this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, color, 24, 3.4, 230));
+    this.floatText(this.game.player.pos.x, this.game.player.pos.y - 46, `雷击锁定 ${targets.length}`, color);
+  }
+
+  private triggerQuakeStone(color: string): void {
+    const radius = 235 + Math.min(85, this.game.waveNum * 3.2);
+    const breakAmount = 7 + Math.floor(this.game.waveNum * 0.8);
+    const projectileCount = 12;
+    let affected = 0;
+
+    for (const enemy of this.game.enemies) {
+      if (!enemy.alive) continue;
+      const dx = enemy.pos.x - this.game.player.pos.x;
+      const dy = enemy.pos.y - this.game.player.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      if (dist > radius + enemy.radius) continue;
+
+      enemy.breakArmor(breakAmount);
+      enemy.applySlow(0.62, 0.9);
+      const push = 80 * (1 - Math.min(1, dist / radius));
+      enemy.pos.x += (dx / dist) * push;
+      enemy.pos.y += (dy / dist) * push;
+      affected++;
+    }
+
+    for (let i = 0; i < projectileCount; i++) {
+      const angle = (i / projectileCount) * Math.PI * 2;
+      this.game.projectiles.push(new Projectile(this.game.player.pos.x, this.game.player.pos.y, Math.cos(angle) * 360, Math.sin(angle) * 360, false, 8 + Math.floor(this.game.waveNum * 0.4), "hammer"));
+    }
+
+    this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, color, 32, 5, 260));
+    this.floatText(this.game.player.pos.x, this.game.player.pos.y - 46, `地裂破甲 ${affected}`, color);
+  }
+
+  private spawnConstruct(id: ConstructId, color: string, text: string, life: number): void {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 46 + Math.random() * 34;
+    const x = this.clamp(this.game.player.pos.x + Math.cos(angle) * dist, 45, WORLD_W - 45);
+    const y = this.clamp(this.game.player.pos.y + Math.sin(angle) * dist, 45, WORLD_H - 45);
+    this.constructs.push({ id, x, y, age: 0, life, fireTimer: 0.15, seed: Math.random() * 1000 });
+    this.floatText(x, y - 32, text, color);
+    this.game.particles.push(...this.makeBurst(x, y, color, 18, 3.2, 150));
   }
 
   private addOrRefreshEffect(id: RuntimeSupplyId, label: string, color: string, duration: number): void {
@@ -340,6 +457,7 @@ export class RunSupplyRuntime {
     this.removeTemporaryStatMods();
     this.drops = [];
     this.effects = [];
+    this.constructs = [];
     this.floatingTexts = [];
     this.shieldCharges = 0;
     this.regenHealBank = 0;
@@ -361,24 +479,59 @@ export class RunSupplyRuntime {
     const roll = Math.random();
 
     if (hpRate < 0.38) {
-      if (roll < 0.32) return "health_pack";
-      if (roll < 0.48) return "regen_dew";
-      if (roll < 0.62) return "shield";
+      if (roll < 0.28) return "health_pack";
+      if (roll < 0.44) return "regen_dew";
+      if (roll < 0.58) return "shield";
+      if (roll < 0.7) return "decoy_doll";
     }
 
-    if (roll < 0.18) return "magnet";
-    if (roll < 0.34) return "haste_potion";
-    if (roll < 0.5) return "power_potion";
-    if (roll < 0.63) return "health_pack";
-    if (roll < 0.74) return "regen_dew";
-    if (roll < 0.84) return "crit_potion";
-    if (roll < 0.93) return "shield";
-    return "frost_bomb";
+    if (roll < 0.14) return "magnet";
+    if (roll < 0.27) return "haste_potion";
+    if (roll < 0.4) return "power_potion";
+    if (roll < 0.51) return "health_pack";
+    if (roll < 0.61) return "regen_dew";
+    if (roll < 0.7) return "crit_potion";
+    if (roll < 0.78) return "shield";
+    if (roll < 0.85) return "frost_bomb";
+    if (roll < 0.91) return "thunder_stone";
+    if (roll < 0.96) return "quake_stone";
+    if (roll < 0.985) return "decoy_doll";
+    return "turret_pack";
   }
 
   private pickBossBonusId(): RuntimeSupplyId {
-    const pool: RuntimeSupplyId[] = ["haste_potion", "power_potion", "crit_potion", "frost_bomb", "regen_dew"];
+    const pool: RuntimeSupplyId[] = ["haste_potion", "power_potion", "crit_potion", "frost_bomb", "regen_dew", "thunder_stone", "quake_stone", "turret_pack"];
     return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  private findNearestEnemy(x: number, y: number, maxDist: number) {
+    return this.getNearestEnemies(x, y, maxDist, 1)[0] ?? null;
+  }
+
+  private getNearestEnemies(x: number, y: number, maxDist: number, limit: number) {
+    return this.game.enemies
+      .filter((enemy) => enemy.alive)
+      .map((enemy) => {
+        const dx = enemy.pos.x - x;
+        const dy = enemy.pos.y - y;
+        return { enemy, dist: Math.sqrt(dx * dx + dy * dy) };
+      })
+      .filter((item) => item.dist <= maxDist)
+      .sort((a, b) => this.targetPriority(a.enemy.role) - this.targetPriority(b.enemy.role) || a.dist - b.dist)
+      .slice(0, limit)
+      .map((item) => item.enemy);
+  }
+
+  private targetPriority(role: string): number {
+    switch (role) {
+      case "healer": return 0;
+      case "summoner": return 1;
+      case "bomber": return 2;
+      case "boss": return 3;
+      case "elite": return 4;
+      case "ranged": return 5;
+      default: return 10;
+    }
   }
 
   private renderDrops(ctx: CanvasRenderingContext2D): void {
@@ -386,274 +539,147 @@ export class RunSupplyRuntime {
       const sp = this.game.camera.worldToScreen(drop.x, drop.y, this.game.w, this.game.h);
       const item = this.getItem(drop.id);
       const color = item?.color ?? this.colorFor(drop.id);
-      const visual = SUPPLY_VISUALS[drop.id];
+      const icon = item?.icon ?? "◆";
       const pulse = 1 + Math.sin((drop.age + drop.seed) * 5) * 0.08;
       const fade = Math.min(1, Math.max(0.18, (drop.life - drop.age) / 4));
-      const bob = Math.sin((drop.age + drop.seed) * 2.8) * 2;
 
       ctx.save();
       ctx.globalAlpha = fade;
-      ctx.translate(sp.x, sp.y + bob);
+      ctx.translate(sp.x, sp.y + Math.sin((drop.age + drop.seed) * 2.8) * 2);
       ctx.scale(pulse, pulse);
 
-      this.drawDropGlow(ctx, color);
-      this.drawDropPlate(ctx, color, visual.shape, drop.age + drop.seed);
+      const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 24);
+      glow.addColorStop(0, color + "aa");
+      glow.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.fill();
 
-      ctx.fillStyle = "#07101f";
-      ctx.font = "bold 13px monospace";
+      ctx.fillStyle = "rgba(10,10,18,0.78)";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.font = "bold 15px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(visual.shortLabel, 0, 5);
-
-      ctx.fillStyle = this.rgba(color, 0.95);
-      ctx.font = "bold 10px monospace";
-      ctx.fillText(visual.hint, 0, 30);
+      ctx.fillText(icon, 0, 5);
       ctx.restore();
     }
   }
 
-  private drawDropGlow(ctx: CanvasRenderingContext2D, color: string): void {
-    const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 30);
-    glow.addColorStop(0, this.rgba(color, 0.76));
-    glow.addColorStop(0.5, this.rgba(color, 0.22));
-    glow.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  private renderConstructs(ctx: CanvasRenderingContext2D): void {
+    for (const construct of this.constructs) {
+      const sp = this.game.camera.worldToScreen(construct.x, construct.y, this.game.w, this.game.h);
+      const color = this.colorFor(construct.id);
+      const pct = Math.max(0, 1 - construct.age / construct.life);
+      const pulse = 1 + Math.sin((construct.age + construct.seed) * 5) * 0.06;
 
-  private drawDropPlate(ctx: CanvasRenderingContext2D, color: string, shape: SupplyVisual["shape"], time: number): void {
-    ctx.fillStyle = "rgba(8,13,24,0.86)";
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
+      ctx.save();
+      ctx.translate(sp.x, sp.y);
+      ctx.scale(pulse, pulse);
 
-    if (shape === "diamond") {
-      ctx.moveTo(0, -17);
-      ctx.lineTo(17, 0);
-      ctx.lineTo(0, 17);
-      ctx.lineTo(-17, 0);
-      ctx.closePath();
-    } else if (shape === "hex") {
-      for (let i = 0; i < 6; i++) {
-        const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
-        const x = Math.cos(a) * 18;
-        const y = Math.sin(a) * 18;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    } else if (shape === "triangle") {
-      ctx.moveTo(0, -18);
-      ctx.lineTo(17, 14);
-      ctx.lineTo(-17, 14);
-      ctx.closePath();
-    } else if (shape === "bolt") {
-      ctx.moveTo(-7, -19);
-      ctx.lineTo(10, -3);
-      ctx.lineTo(2, -2);
-      ctx.lineTo(9, 19);
-      ctx.lineTo(-10, 2);
-      ctx.lineTo(-2, 1);
-      ctx.closePath();
-    } else if (shape === "cross") {
-      ctx.moveTo(-6, -18);
-      ctx.lineTo(6, -18);
-      ctx.lineTo(6, -6);
-      ctx.lineTo(18, -6);
-      ctx.lineTo(18, 6);
-      ctx.lineTo(6, 6);
-      ctx.lineTo(6, 18);
-      ctx.lineTo(-6, 18);
-      ctx.lineTo(-6, 6);
-      ctx.lineTo(-18, 6);
-      ctx.lineTo(-18, -6);
-      ctx.lineTo(-6, -6);
-      ctx.closePath();
-    } else {
-      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.globalAlpha = 0.16 * pct;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, construct.id === "decoy_doll" ? 68 : 48, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(10,10,18,0.82)";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.2;
+      this.roundRect(ctx, -15, -16, 30, 30, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.font = "bold 16px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(construct.id === "decoy_doll" ? "◎" : "▣", 0, 5);
+
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = color;
+      ctx.fillRect(-18, 21, 36 * pct, 3);
+      ctx.restore();
     }
-
-    ctx.fill();
-    ctx.stroke();
-
-    if (shape === "star" || shape === "snow") {
-      ctx.strokeStyle = this.rgba(color, 0.72);
-      ctx.lineWidth = 1.4;
-      for (let i = 0; i < (shape === "star" ? 5 : 6); i++) {
-        const a = time * 0.35 + (i / (shape === "star" ? 5 : 6)) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(a) * 5, Math.sin(a) * 5);
-        ctx.lineTo(Math.cos(a) * 24, Math.sin(a) * 24);
-        ctx.stroke();
-      }
-    }
-
-    ctx.strokeStyle = this.rgba(color, 0.42);
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(0, 0, 23 + Math.sin(time * 2.5) * 2, 0, Math.PI * 2);
-    ctx.stroke();
   }
 
   private renderPlayerAuras(ctx: CanvasRenderingContext2D): void {
     const sp = this.game.camera.worldToScreen(this.game.player.pos.x, this.game.player.pos.y, this.game.w, this.game.h);
     ctx.save();
 
-    if (this.hasEffect("magnet")) this.renderMagnetAura(ctx, sp.x, sp.y);
-    if (this.hasEffect("regen_dew")) this.renderRegenAura(ctx, sp.x, sp.y);
-    if (this.hasEffect("crit_potion")) this.renderCritAura(ctx, sp.x, sp.y);
-    if (this.shieldCharges > 0) this.renderShieldAura(ctx, sp.x, sp.y);
-
-    ctx.restore();
-  }
-
-  private renderMagnetAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    const color = this.colorFor("magnet");
-    const t = this.game.gameTime;
-    const radius = 78 + Math.sin(t * 5) * 5;
-
-    const glow = ctx.createRadialGradient(x, y, 12, x, y, radius + 26);
-    glow.addColorStop(0, this.rgba(color, 0.06));
-    glow.addColorStop(0.7, this.rgba(color, 0.13));
-    glow.addColorStop(1, "rgba(66,165,245,0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(x, y, radius + 26, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = this.rgba(color, 0.36);
-    ctx.lineWidth = 2;
-    ctx.setLineDash([12, 10]);
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.strokeStyle = this.rgba(color, 0.22);
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i < 10; i++) {
-      const a = t * 1.4 + (i / 10) * Math.PI * 2;
-      const outer = radius + 12;
-      const inner = radius - 12;
+    if (this.hasEffect("magnet")) {
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = this.colorFor("magnet");
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(x + Math.cos(a) * outer, y + Math.sin(a) * outer);
-      ctx.lineTo(x + Math.cos(a) * inner, y + Math.sin(a) * inner);
+      ctx.arc(sp.x, sp.y, 72 + Math.sin(this.game.gameTime * 5) * 5, 0, Math.PI * 2);
       ctx.stroke();
     }
-  }
 
-  private renderRegenAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    const color = this.colorFor("regen_dew");
-    ctx.strokeStyle = this.rgba(color, 0.34);
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, this.game.player.radius + 24 + Math.sin(this.game.gameTime * 4) * 4, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  private renderCritAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    const color = this.colorFor("crit_potion");
-    ctx.strokeStyle = this.rgba(color, 0.34);
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.arc(x, y, this.game.player.radius + 29, this.game.gameTime * 2, this.game.gameTime * 2 + Math.PI * 1.35);
-    ctx.stroke();
-  }
-
-  private renderShieldAura(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    const color = this.colorFor("shield");
-    const r = this.game.player.radius + 15 + Math.sin(this.game.gameTime * 6) * 2;
-
-    ctx.strokeStyle = this.rgba(color, 0.58);
-    ctx.lineWidth = 3.4;
-    this.hexPath(ctx, x, y, r + 3);
-    ctx.stroke();
-
-    ctx.strokeStyle = this.rgba("#ffffff", 0.28);
-    ctx.lineWidth = 1.4;
-    this.hexPath(ctx, x, y, r + 8);
-    ctx.stroke();
-
-    ctx.fillStyle = this.rgba(color, 0.9);
-    for (let i = 0; i < this.shieldCharges; i++) {
-      const a = -Math.PI / 2 + (i - (this.shieldCharges - 1) / 2) * 0.28;
+    if (this.hasEffect("regen_dew")) {
+      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = this.colorFor("regen_dew");
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x + Math.cos(a) * (r + 17), y + Math.sin(a) * (r + 17), 3.2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(sp.x, sp.y, this.game.player.radius + 22 + Math.sin(this.game.gameTime * 4) * 4, 0, Math.PI * 2);
+      ctx.stroke();
     }
+
+    if (this.hasEffect("crit_potion")) {
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = this.colorFor("crit_potion");
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, this.game.player.radius + 27, this.game.gameTime * 2, this.game.gameTime * 2 + Math.PI * 1.35);
+      ctx.stroke();
+    }
+
+    if (this.shieldCharges > 0) {
+      ctx.globalAlpha = 0.36;
+      ctx.strokeStyle = this.colorFor("shield");
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, this.game.player.radius + 13 + Math.sin(this.game.gameTime * 6) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   private renderEffectBar(ctx: CanvasRenderingContext2D): void {
     if (this.effects.length <= 0) return;
-    const panelW = Math.min(242, Math.max(196, this.game.w * 0.24));
-    const x = Math.max(12, this.game.w - panelW - 16);
-    let y = 104;
+    const x = Math.max(270, this.game.w - 250);
+    let y = 110;
 
     ctx.save();
     ctx.textAlign = "left";
-    ctx.fillStyle = "rgba(0,0,0,0.36)";
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 1;
-    this.roundRect(ctx, x, y - 27, panelW, 22, 8);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,0.62)";
-    ctx.font = "bold 11px monospace";
-    ctx.fillText("局内补给", x + 10, y - 12);
-
     for (const effect of this.effects) {
       const pct = Math.max(0, Math.min(1, effect.remaining / effect.duration));
-      const visual = SUPPLY_VISUALS[effect.id];
-      const rowH = 32;
-
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.strokeStyle = this.rgba(effect.color, 0.76);
-      ctx.lineWidth = 1.2;
-      this.roundRect(ctx, x, y, panelW, rowH, 10);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = this.rgba(effect.color, 0.16);
-      this.roundRect(ctx, x + 4, y + 4, 26, 24, 8);
-      ctx.fill();
-      ctx.strokeStyle = this.rgba(effect.color, 0.56);
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.strokeStyle = effect.color;
       ctx.lineWidth = 1;
-      this.roundRect(ctx, x + 4, y + 4, 26, 24, 8);
+      this.roundRect(ctx, x, y, 218, 24, 8);
+      ctx.fill();
       ctx.stroke();
-
+      ctx.fillStyle = effect.color + "66";
+      this.roundRect(ctx, x + 4, y + 17, 210 * pct, 3, 2);
+      ctx.fill();
       ctx.fillStyle = effect.color;
       ctx.font = "bold 11px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(visual.shortLabel, x + 17, y + 21);
-
-      ctx.textAlign = "left";
-      ctx.fillStyle = "rgba(255,255,255,0.82)";
-      ctx.font = "bold 11px monospace";
-      ctx.fillText(effect.label, x + 38, y + 14);
-
-      ctx.fillStyle = this.rgba(effect.color, 0.72);
-      this.roundRect(ctx, x + 38, y + 22, (panelW - 84) * pct, 4, 2);
-      ctx.fill();
-
-      if (effect.id === "shield") this.drawShieldChargePips(ctx, x + panelW - 70, y + 16, effect.color);
-
-      ctx.fillStyle = "rgba(255,255,255,0.62)";
-      ctx.font = "10px monospace";
+      ctx.fillText(effect.label, x + 10, y + 15);
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
       ctx.textAlign = "right";
-      ctx.fillText(`${effect.remaining.toFixed(1)}s`, x + panelW - 8, y + 19);
-      y += rowH + 7;
+      ctx.fillText(`${effect.remaining.toFixed(1)}s`, x + 206, y + 15);
+      ctx.textAlign = "left";
+      y += 30;
     }
     ctx.restore();
-  }
-
-  private drawShieldChargePips(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = i < this.shieldCharges ? color : "rgba(255,255,255,0.12)";
-      ctx.beginPath();
-      ctx.arc(x + i * 8, y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
 
   private renderFloatingTexts(ctx: CanvasRenderingContext2D): void {
@@ -663,16 +689,14 @@ export class RunSupplyRuntime {
     for (const t of this.floatingTexts) {
       const sp = this.game.camera.worldToScreen(t.x, t.y, this.game.w, this.game.h);
       ctx.globalAlpha = Math.max(0, t.life / t.maxLife);
-      ctx.fillStyle = "rgba(0,0,0,0.42)";
-      ctx.fillText(t.text, sp.x + 1, sp.y + 1);
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, sp.x, sp.y);
     }
     ctx.restore();
   }
 
-  private makeBurst(x: number, y: number, color: string, count: number, size: number, force: number): SupplyParticle[] {
-    const particles: SupplyParticle[] = [];
+  private makeBurst(x: number, y: number, color: string, count: number, size: number, force: number) {
+    const particles = [];
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const speed = force * (0.25 + Math.random() * 0.75);
@@ -711,10 +735,14 @@ export class RunSupplyRuntime {
       case "regen_dew": return "回春露";
       case "crit_potion": return "暴击药剂";
       case "frost_bomb": return "冰霜炸弹";
+      case "thunder_stone": return "雷击符石";
+      case "quake_stone": return "地裂符石";
+      case "decoy_doll": return "诱饵人偶";
+      case "turret_pack": return "机械炮台";
     }
   }
 
-  private colorFor(id: RuntimeSupplyId): string {
+  private colorFor(id: RuntimeSupplyId | ConstructId): string {
     switch (id) {
       case "magnet": return "#42a5f5";
       case "shield": return "#80deea";
@@ -724,6 +752,10 @@ export class RunSupplyRuntime {
       case "regen_dew": return "#81c784";
       case "crit_potion": return "#ffeb3b";
       case "frost_bomb": return "#90caf9";
+      case "thunder_stone": return "#b388ff";
+      case "quake_stone": return "#bc8f5a";
+      case "decoy_doll": return "#ffcc80";
+      case "turret_pack": return "#4dd0e1";
     }
   }
 
@@ -731,39 +763,17 @@ export class RunSupplyRuntime {
     return Math.max(min, Math.min(max, value));
   }
 
-  private rgba(hex: string, alpha: number): string {
-    const clean = hex.replace("#", "");
-    const r = parseInt(clean.slice(0, 2), 16);
-    const g = parseInt(clean.slice(2, 4), 16);
-    const b = parseInt(clean.slice(4, 6), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-
-  private hexPath(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
-      const px = x + Math.cos(a) * r;
-      const py = y + Math.sin(a) * r;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-  }
-
   private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-    if (w <= 0 || h <= 0) return;
-    const rr = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.lineTo(x + w - rr, y);
-    ctx.arcTo(x + w, y, x + w, y + rr, rr);
-    ctx.lineTo(x + w, y + h - rr);
-    ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
-    ctx.lineTo(x + rr, y + h);
-    ctx.arcTo(x, y + h, x, y + h - rr, rr);
-    ctx.lineTo(x, y + rr);
-    ctx.arcTo(x, y, x + rr, y, rr);
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
     ctx.closePath();
   }
 }
