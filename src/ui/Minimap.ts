@@ -99,12 +99,26 @@ export class Minimap {
       const py = y + e.pos.y * sy;
       const boss = e.role === "boss";
       const elite = e.role === "elite";
-      const support = e.role === "healer" || e.role === "summoner";
       const bomber = e.role === "bomber";
-      ctx.fillStyle = boss ? "#ffeb3b" : elite ? "#ef5350" : support ? "#81c784" : bomber ? "#ff7043" : "#ff8a65";
-      ctx.beginPath();
-      ctx.arc(px, py, boss ? 3.4 : elite || support ? 2.7 : bomber ? 2.4 : 2, 0, Math.PI * 2);
-      ctx.fill();
+      const summoner = e.role === "summoner";
+      const healer = e.role === "healer";
+      ctx.fillStyle = boss ? "#ffeb3b" : elite ? "#ef5350" : bomber ? "#ff5722" : summoner ? "#ab47bc" : healer ? "#66bb6a" : "#ff8a65";
+
+      if (bomber) {
+        ctx.beginPath();
+        ctx.moveTo(px, py - 3.2);
+        ctx.lineTo(px + 3.2, py);
+        ctx.lineTo(px, py + 3.2);
+        ctx.lineTo(px - 3.2, py);
+        ctx.closePath();
+        ctx.fill();
+      } else if (summoner) {
+        ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
+      } else {
+        ctx.beginPath();
+        ctx.arc(px, py, boss ? 3.4 : elite || healer ? 2.7 : 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     const playerX = x + data.playerPos.x * sx;
@@ -177,12 +191,14 @@ export class Minimap {
 
     const bossNear = data.enemies.some((e) => e.role === "boss" && this.dist(e.pos, data.playerPos) < 520);
     const eliteNear = data.enemies.some((e) => e.role === "elite" && this.dist(e.pos, data.playerPos) < 360);
-    const supportNear = data.enemies.some((e) => (e.role === "healer" || e.role === "summoner") && this.dist(e.pos, data.playerPos) < 430);
+    const summonerNear = data.enemies.some((e) => e.role === "summoner" && this.dist(e.pos, data.playerPos) < 430);
+    const healerNear = data.enemies.some((e) => e.role === "healer" && this.dist(e.pos, data.playerPos) < 430);
     const bomberNear = data.enemies.some((e) => e.role === "bomber" && this.dist(e.pos, data.playerPos) < 260);
 
     if (bossNear) this.impact = { color: "#ffd54f", strength: 1, life: 0.18, maxLife: 0.18, label: "BOSS 压迫" };
-    else if (bomberNear) this.impact = { color: "#ff7043", strength: 0.72, life: 0.16, maxLife: 0.16, label: "爆炸怪靠近" };
-    else if (supportNear) this.impact = { color: "#81c784", strength: 0.48, life: 0.16, maxLife: 0.16, label: "支援怪出现" };
+    else if (bomberNear) this.impact = { color: "#ff5722", strength: 0.78, life: 0.16, maxLife: 0.16, label: "爆炸怪靠近" };
+    else if (summonerNear) this.impact = { color: "#ab47bc", strength: 0.56, life: 0.16, maxLife: 0.16, label: "召唤怪出现" };
+    else if (healerNear) this.impact = { color: "#66bb6a", strength: 0.48, life: 0.16, maxLife: 0.16, label: "治疗怪出现" };
     else if (eliteNear) this.impact = { color: "#ef5350", strength: 0.55, life: 0.16, maxLife: 0.16, label: "精英接近" };
   }
 
@@ -206,7 +222,7 @@ export class Minimap {
       const off = sx < -30 || sx > data.screenW + 30 || sy < -30 || sy > data.screenH + 30;
       if (!off) continue;
       const d = this.dist(enemy.pos, data.playerPos);
-      if (enemy.role !== "boss" && enemy.role !== "elite" && enemy.role !== "summoner" && enemy.role !== "healer" && d > 780) continue;
+      if (enemy.role !== "boss" && enemy.role !== "elite" && enemy.role !== "summoner" && enemy.role !== "healer" && enemy.role !== "bomber" && d > 780) continue;
       const angle = Math.atan2(enemy.pos.y - data.playerPos.y, enemy.pos.x - data.playerPos.x);
       const ix = this.clamp(data.screenW / 2 + Math.cos(angle) * (data.screenW / 2 - margin), margin, data.screenW - margin);
       const iy = this.clamp(data.screenH / 2 + Math.sin(angle) * (data.screenH / 2 - margin), margin, data.screenH - margin);
@@ -214,8 +230,8 @@ export class Minimap {
     }
 
     threats.sort((a, b) => {
-      const scoreA = a.enemy.role === "boss" ? -10000 : a.enemy.role === "elite" ? -5000 : (a.enemy.role === "summoner" || a.enemy.role === "healer") ? -3500 : 0;
-      const scoreB = b.enemy.role === "boss" ? -10000 : b.enemy.role === "elite" ? -5000 : (b.enemy.role === "summoner" || b.enemy.role === "healer") ? -3500 : 0;
+      const scoreA = a.enemy.role === "boss" ? -10000 : a.enemy.role === "elite" ? -5000 : a.enemy.role === "bomber" ? -4200 : a.enemy.role === "summoner" ? -3700 : a.enemy.role === "healer" ? -3400 : 0;
+      const scoreB = b.enemy.role === "boss" ? -10000 : b.enemy.role === "elite" ? -5000 : b.enemy.role === "bomber" ? -4200 : b.enemy.role === "summoner" ? -3700 : b.enemy.role === "healer" ? -3400 : 0;
       return (a.dist + scoreA) - (b.dist + scoreB);
     });
 
@@ -223,10 +239,12 @@ export class Minimap {
     for (const t of threats.slice(0, 6)) {
       const boss = t.enemy.role === "boss";
       const elite = t.enemy.role === "elite";
-      const support = t.enemy.role === "summoner" || t.enemy.role === "healer";
+      const bomber = t.enemy.role === "bomber";
+      const summoner = t.enemy.role === "summoner";
+      const healer = t.enemy.role === "healer";
       ctx.translate(t.screenX, t.screenY);
       ctx.rotate(t.angle);
-      ctx.fillStyle = boss ? "#ffd54f" : elite ? "#ef5350" : support ? "#81c784" : "rgba(255,138,101,0.82)";
+      ctx.fillStyle = boss ? "#ffd54f" : elite ? "#ef5350" : bomber ? "#ff5722" : summoner ? "#ab47bc" : healer ? "#66bb6a" : "rgba(255,138,101,0.82)";
       ctx.beginPath();
       ctx.moveTo(14, 0);
       ctx.lineTo(-8, -8);
@@ -237,7 +255,7 @@ export class Minimap {
       ctx.rotate(-t.angle);
       ctx.font = "bold 10px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(boss ? "B" : elite ? "E" : support ? "S" : "!", 0, -13);
+      ctx.fillText(boss ? "B" : elite ? "E" : bomber ? "爆" : summoner ? "召" : healer ? "疗" : "!", 0, -13);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
     ctx.restore();
