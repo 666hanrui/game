@@ -1,4 +1,4 @@
-// 武器流派定义：第一次升级时锁定，后续升级主要围绕同一武器持续成长
+// 体系定义：体系决定可用武器类型，武器再决定后续升级路线
 export interface School {
   id: string;
   name: string;
@@ -10,28 +10,28 @@ export interface School {
 
 export const SCHOOLS: School[] = [
   {
-    id: "archer",
-    name: "弓箭手",
-    description: "多重箭 · 追踪箭 · 爆炸箭",
+    id: "martial",
+    name: "古武体系",
+    description: "弓箭 · 飞刀 · 剑枪等冷兵器",
     icon: "🏹",
     color: "#ffd54f",
-    theme: "从单发成长到满屏箭雨，核心参考《弓箭手大作战》的升级爽感",
-  },
-  {
-    id: "blade",
-    name: "飞刃使",
-    description: "回旋刃 · 环绕刃 · 吸血",
-    icon: "🗡️",
-    color: "#ef5350",
-    theme: "偏近中距离，靠飞刃数量、回旋轨迹和吸血生存滚雪球",
+    theme: "以冷兵器为核心，当前先做弓箭成长线：多重箭、追踪箭、爆炸箭",
   },
   {
     id: "magic",
-    name: "魔法师",
-    description: "法球 · 元素 · 连锁爆发",
+    name: "魔法体系",
+    description: "魔杖 · 法杖 · 法球 · 魔导书",
     icon: "🔮",
     color: "#ab47bc",
-    theme: "偏技能流，用元素控制和范围爆发处理怪群",
+    theme: "只能使用魔法媒介，靠元素、法球、法阵和范围爆发成长",
+  },
+  {
+    id: "tech",
+    name: "科技体系",
+    description: "枪械 · 无人机 · 激光 · 炮台",
+    icon: "⚙️",
+    color: "#42a5f5",
+    theme: "使用现代/未来武器，靠自动火力、追踪模块和机械单位压制怪群",
   },
 ];
 
