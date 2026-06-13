@@ -38,13 +38,25 @@ interface SpawnWarning {
   maxLife: number;
 }
 
+interface ScreenImpact {
+  color: string;
+  strength: number;
+  life: number;
+  maxLife: number;
+  label: string;
+}
+
 export class Minimap {
   private seenEnemies = new WeakSet<object>();
   private spawnWarnings: SpawnWarning[] = [];
   private lastRenderAt = 0;
+  private previousEnemyCount = -1;
+  private impact: ScreenImpact | null = null;
 
   render(ctx: CanvasRenderingContext2D, data: MinimapData): void {
-    this.updateSpawnWarnings(data);
+    const dt = this.updateSpawnWarnings(data);
+    this.updateCombatImpact(data, dt);
+    this.renderScreenImpact(ctx);
     this.renderOffscreenThreats(ctx, data);
     this.renderSpawnWarnings(ctx);
 
@@ -67,14 +79,12 @@ export class Minimap {
     ctx.fillStyle = "rgba(255,255,255,0.04)";
     ctx.fillRect(x + 8, y + 8, size - 16, size - 16);
 
-    // 当前屏幕视野框
     const viewLeft = data.cameraPos.x - data.screenW / 2;
     const viewTop = data.cameraPos.y - data.screenH / 2;
     ctx.strokeStyle = "rgba(255,255,255,0.42)";
     ctx.lineWidth = 1;
     ctx.strokeRect(x + viewLeft * sx, y + viewTop * sy, data.screenW * sx, data.screenH * sy);
 
-    // 掉落物
     for (const p of data.pickups.slice(0, 80)) {
       const px = x + p.pos.x * sx;
       const py = y + p.pos.y * sy;
@@ -83,7 +93,6 @@ export class Minimap {
       ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
     }
 
-    // 敌人
     ctx.globalAlpha = 0.95;
     for (const e of data.enemies.slice(0, 140)) {
       const px = x + e.pos.x * sx;
@@ -96,7 +105,6 @@ export class Minimap {
       ctx.fill();
     }
 
-    // 玩家
     const playerX = x + data.playerPos.x * sx;
     const playerY = y + data.playerPos.y * sy;
     ctx.globalAlpha = 1;
@@ -137,13 +145,17 @@ export class Minimap {
     ctx.restore();
   }
 
-  private updateSpawnWarnings(data: MinimapData): void {
+  private updateSpawnWarnings(data: MinimapData): number {
     const now = performance.now() / 1000;
     const dt = this.lastRenderAt <= 0 ? 0.016 : Math.min(0.08, now - this.lastRenderAt);
     this.lastRenderAt = now;
 
     for (const warning of this.spawnWarnings) warning.life -= dt;
     this.spawnWarnings = this.spawnWarnings.filter((warning) => warning.life > 0);
+    if (this.impact) {
+      this.impact.life -= dt;
+      if (this.impact.life <= 0) this.impact = null;
+    }
 
     const newcomers: MinimapEnemy[] = [];
     for (const enemy of data.enemies) {
@@ -153,7 +165,7 @@ export class Minimap {
       newcomers.push(enemy);
     }
 
-    if (newcomers.length <= 0) return;
+    if (newcomers.length <= 0) return dt;
 
     let avgX = 0;
     let avgY = 0;
@@ -180,7 +192,69 @@ export class Minimap {
       maxLife,
     });
 
+    if (role === "boss") this.triggerImpact("#ffeb3b", 1.35, "Boss 来袭");
+    else if (role === "elite") this.triggerImpact("#ef5350", 0.85, "精英出现");
+    else if (newcomers.length >= 5) this.triggerImpact("#ffb74d", 0.55, "敌潮出现");
+
     if (this.spawnWarnings.length > 4) this.spawnWarnings = this.spawnWarnings.slice(-4);
+    return dt;
+  }
+
+  private updateCombatImpact(data: MinimapData, _dt: number): void {
+    if (this.previousEnemyCount < 0) {
+      this.previousEnemyCount = data.enemies.length;
+      return;
+    }
+
+    const defeated = this.previousEnemyCount - data.enemies.length;
+    if (defeated > 0) {
+      if (defeated >= 3) this.triggerImpact("#ffb74d", 0.9, `连破 ×${defeated}`);
+      else this.triggerImpact("#fff176", 0.42, "击破");
+    }
+
+    this.previousEnemyCount = data.enemies.length;
+  }
+
+  private triggerImpact(color: string, strength: number, label: string): void {
+    const maxLife = 0.32 + Math.min(0.28, strength * 0.16);
+    if (this.impact && this.impact.life > maxLife * 0.45 && this.impact.strength > strength) return;
+    this.impact = { color, strength, label, life: maxLife, maxLife };
+  }
+
+  private renderScreenImpact(ctx: CanvasRenderingContext2D): void {
+    if (!this.impact) return;
+
+    const t = 1 - this.impact.life / this.impact.maxLife;
+    const alpha = Math.max(0, this.impact.life / this.impact.maxLife);
+    const wobble = Math.sin(performance.now() / 26) * this.impact.strength * alpha * 6;
+    const ringRadius = 70 + t * (190 + this.impact.strength * 90);
+
+    ctx.save();
+
+    ctx.globalAlpha = alpha * 0.085 * this.impact.strength;
+    ctx.fillStyle = this.impact.color;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    ctx.globalAlpha = alpha * 0.34;
+    ctx.strokeStyle = this.impact.color;
+    ctx.lineWidth = 5 + this.impact.strength * 4;
+    ctx.strokeRect(8 + wobble, 8 - wobble, ctx.canvas.width - 16, ctx.canvas.height - 16);
+
+    ctx.globalAlpha = alpha * 0.42;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(ctx.canvas.width / 2, ctx.canvas.height / 2, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if (this.impact.strength >= 0.8) {
+      ctx.globalAlpha = alpha * 0.78;
+      ctx.textAlign = "center";
+      ctx.font = "bold 16px monospace";
+      ctx.fillStyle = this.impact.color;
+      ctx.fillText(this.impact.label, ctx.canvas.width / 2, ctx.canvas.height / 2 - ringRadius * 0.45);
+    }
+
+    ctx.restore();
   }
 
   private renderSpawnWarnings(ctx: CanvasRenderingContext2D): void {
