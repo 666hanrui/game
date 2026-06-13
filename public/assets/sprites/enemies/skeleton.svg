@@ -7,21 +7,21 @@
       <stop offset="100%" stop-color="#607d8b"/>
     </radialGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="62%">
-      <stop offset="0%" stop-color="#cfd8dc" stop-opacity="0.28"/>
+      <stop offset="0%" stop-color="#cfd8dc" stop-opacity="0.3"/>
       <stop offset="100%" stop-color="#cfd8dc" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <path d="M256 76 L406 224 L256 436 L106 224 Z" fill="url(#body)" stroke="#78909c" stroke-width="12"/>
-    <path d="M172 228 C172 174 211 138 256 138 C301 138 340 174 340 228 C340 266 314 292 292 304 L292 354 L220 354 L220 304 C198 292 172 266 172 228 Z" fill="#eceff1" stroke="#607d8b" stroke-width="9"/>
-    <circle cx="218" cy="232" r="27" fill="#263238" opacity="0.88"/>
-    <circle cx="294" cy="232" r="27" fill="#263238" opacity="0.88"/>
-    <path d="M256 252 L235 297 L277 297 Z" fill="#455a64" opacity="0.76"/>
-    <path d="M216 324 H296" stroke="#455a64" stroke-width="9"/>
-    <path d="M233 316 V347 M256 316 V351 M279 316 V347" stroke="#78909c" stroke-width="6"/>
-    <path d="M188 178 C222 149 290 149 324 178" stroke="#ffffff" stroke-width="9" fill="none" opacity="0.62"/>
-    <path d="M144 224 L108 224 M404 224 L368 224" stroke="#ffffff" stroke-width="9" opacity="0.35"/>
-    <path d="M211 382 L180 423 M301 382 L332 423" stroke="#78909c" stroke-width="11" opacity="0.65"/>
+    <path d="M256 67 L416 224 L256 448 L96 224 Z" fill="url(#body)" stroke="#546e7a" stroke-width="16"/>
+    <path d="M169 228 C169 172 209 134 256 134 C303 134 343 172 343 228 C343 267 316 294 294 307 L294 360 L218 360 L218 307 C196 294 169 267 169 228 Z" fill="#eceff1" stroke="#607d8b" stroke-width="12"/>
+    <circle cx="217" cy="232" r="31" fill="#263238" opacity="0.9"/>
+    <circle cx="295" cy="232" r="31" fill="#263238" opacity="0.9"/>
+    <path d="M256 251 L232 301 L280 301 Z" fill="#455a64" opacity="0.78"/>
+    <path d="M214 326 H298" stroke="#455a64" stroke-width="11"/>
+    <path d="M231 317 V351 M256 317 V356 M281 317 V351" stroke="#78909c" stroke-width="7"/>
+    <path d="M187 177 C222 146 290 146 325 177" stroke="#ffffff" stroke-width="11" fill="none" opacity="0.64"/>
+    <path d="M143 224 L101 224 M411 224 L369 224" stroke="#ffffff" stroke-width="11" opacity="0.35"/>
+    <path d="M210 386 L174 432 M302 386 L338 432" stroke="#78909c" stroke-width="13" opacity="0.68"/>
   </g>
 </svg>
