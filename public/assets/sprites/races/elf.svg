@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Elf Race</title>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="58%">
+      <stop offset="0%" stop-color="#e8f5e9" stop-opacity="0.98"/>
+      <stop offset="54%" stop-color="#81c784" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="b" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#c8f7c5"/>
+      <stop offset="60%" stop-color="#81c784"/>
+      <stop offset="100%" stop-color="#2e7d32"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="216" fill="url(#g)"/>
+  <path d="M166 231L62 142l49 126z" fill="#66bb6a" stroke="#e8f5e9" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M346 231l104-89-49 126z" fill="#66bb6a" stroke="#e8f5e9" stroke-width="6" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="264" rx="98" ry="128" fill="url(#b)" stroke="#f1fff2" stroke-width="8"/>
+  <path d="M184 186c33-38 113-38 146 0-22-68-124-68-146 0z" fill="#1b5e20" opacity="0.62"/>
+  <path d="M204 250c17-13 32-15 48-5" fill="none" stroke="#143718" stroke-width="8" stroke-linecap="round"/>
+  <path d="M308 250c-17-13-32-15-48-5" fill="none" stroke="#143718" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="219" cy="274" r="7" fill="#0d2a10"/>
+  <circle cx="293" cy="274" r="7" fill="#0d2a10"/>
+  <path d="M224 323c21 16 43 16 64 0" fill="none" stroke="#0d2a10" stroke-width="7" stroke-linecap="round" opacity="0.62"/>
+  <path d="M123 363c69-5 119-27 151-67" fill="none" stroke="#c8e6c9" stroke-width="10" stroke-linecap="round" opacity="0.68"/>
+  <path d="M390 363c-66-11-112-36-141-76" fill="none" stroke="#c8e6c9" stroke-width="10" stroke-linecap="round" opacity="0.52"/>
+  <path d="M259 112c-15 55-49 84-103 88 45 19 87 8 126-35z" fill="#a5d6a7" opacity="0.84"/>
+</svg>
