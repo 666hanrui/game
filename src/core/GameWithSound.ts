@@ -5,6 +5,7 @@ import type { Enemy } from "../entities/Enemy";
 import { DIFFICULTIES, DifficultyId, getCurrentDifficulty, getCurrentDifficultyId, setCurrentDifficulty } from "../systems/DifficultySystem";
 import { LuckyUpgradePanel } from "../ui/LuckyUpgradePanel";
 import { StatsPanel } from "../ui/StatsPanel";
+import { BuildEffectOverlay } from "../ui/BuildEffectOverlay";
 
 interface GameSoundSnapshot {
   hp: number;
@@ -41,6 +42,7 @@ export class GameWithSound extends Game {
   private queuedEnemyShots: QueuedEnemyShot[] = [];
   private difficultyRects: { x: number; y: number; w: number; h: number; id: DifficultyId }[] = [];
   private statsPanel = new StatsPanel();
+  private buildEffects = new BuildEffectOverlay();
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -69,8 +71,23 @@ export class GameWithSound extends Game {
 
   render(): void {
     super.render();
+    if (this.phase === "playing" || this.phase === "paused") {
+      this.renderBuildEffects();
+      this.renderStatsPanel();
+    }
     if (this.phase === "menu") this.renderDifficultySelector();
-    if (this.phase === "playing" || this.phase === "paused") this.renderStatsPanel();
+  }
+
+  private renderBuildEffects(): void {
+    this.buildEffects.render(this.ctx, {
+      camera: this.camera,
+      player: this.player,
+      weaponId: this.selectedWeapon?.id,
+      skills: this.appliedSkills,
+      screenW: this.w,
+      screenH: this.h,
+      time: this.gameTime,
+    });
   }
 
   private renderStatsPanel(): void {
