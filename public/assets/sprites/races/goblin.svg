@@ -14,20 +14,20 @@
   </defs>
   <circle cx="256" cy="256" r="218" fill="url(#glow)"/>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="256" cy="389" rx="86" ry="34" fill="#10270d" opacity="0.28"/>
-    <path d="M172 236 L55 181 L103 288 Z" fill="#689f38" stroke="#e6ffcf" stroke-width="9"/>
-    <path d="M340 236 L457 181 L409 288 Z" fill="#689f38" stroke="#e6ffcf" stroke-width="9"/>
-    <ellipse cx="256" cy="277" rx="108" ry="94" fill="url(#body)" stroke="#e6ffcf" stroke-width="9"/>
-    <path d="M186 209 C219 158 293 158 326 209 C294 192 218 192 186 209 Z" fill="#244d13" opacity="0.82"/>
-    <path d="M180 333 C199 386 313 386 332 333 C304 354 208 354 180 333 Z" fill="#244d13" opacity="0.34"/>
-    <path d="M203 253 L242 240" stroke="#153810" stroke-width="11"/>
-    <path d="M309 253 L270 240" stroke="#153810" stroke-width="11"/>
-    <circle cx="221" cy="272" r="10" fill="#fff59d"/>
-    <circle cx="291" cy="272" r="10" fill="#fff59d"/>
-    <path d="M216 324 C239 340 273 340 296 324" fill="none" stroke="#153810" stroke-width="9"/>
-    <path d="M228 330 L214 362 L244 344 Z" fill="#f1f8e9" stroke="#153810" stroke-width="4"/>
-    <path d="M284 330 L298 362 L268 344 Z" fill="#f1f8e9" stroke="#153810" stroke-width="4"/>
-    <path d="M176 345 L130 394" stroke="#33691e" stroke-width="18" opacity="0.7"/>
-    <path d="M336 345 L382 394" stroke="#33691e" stroke-width="18" opacity="0.7"/>
+    <ellipse cx="256" cy="393" rx="92" ry="30" fill="#10270d" opacity="0.3"/>
+    <path d="M174 233 L45 174 L101 294 Z" fill="#689f38" stroke="#e6ffcf" stroke-width="12"/>
+    <path d="M338 233 L467 174 L411 294 Z" fill="#689f38" stroke="#e6ffcf" stroke-width="12"/>
+    <ellipse cx="256" cy="278" rx="111" ry="91" fill="url(#body)" stroke="#e6ffcf" stroke-width="12"/>
+    <path d="M185 208 C218 155 294 155 327 208 C292 190 220 190 185 208 Z" fill="#244d13" opacity="0.86"/>
+    <path d="M178 333 C200 389 312 389 334 333 C303 356 209 356 178 333 Z" fill="#244d13" opacity="0.36"/>
+    <path d="M201 252 L243 239" stroke="#153810" stroke-width="13"/>
+    <path d="M311 252 L269 239" stroke="#153810" stroke-width="13"/>
+    <circle cx="221" cy="272" r="11" fill="#fff59d"/>
+    <circle cx="291" cy="272" r="11" fill="#fff59d"/>
+    <path d="M215 324 C239 341 273 341 297 324" fill="none" stroke="#153810" stroke-width="10"/>
+    <path d="M227 330 L211 366 L246 344 Z" fill="#f1f8e9" stroke="#153810" stroke-width="5"/>
+    <path d="M285 330 L301 366 L266 344 Z" fill="#f1f8e9" stroke="#153810" stroke-width="5"/>
+    <path d="M174 347 L123 399" stroke="#33691e" stroke-width="21" opacity="0.72"/>
+    <path d="M338 347 L389 399" stroke="#33691e" stroke-width="21" opacity="0.72"/>
   </g>
 </svg>
