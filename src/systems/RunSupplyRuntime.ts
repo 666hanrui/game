@@ -1,62 +1,23 @@
 import type { GameWithSound } from "../core/GameWithSound";
 import { Projectile } from "../entities/Projectile";
-import { RUN_ITEMS } from "../data/runItems";
+import { getRunItem } from "../data/runItems";
 import type { RunItemDef } from "../data/runItems";
-
-export type RuntimeSupplyId =
-  | "magnet"
-  | "shield"
-  | "haste_potion"
-  | "power_potion"
-  | "health_pack"
-  | "regen_dew"
-  | "crit_potion"
-  | "frost_bomb"
-  | "thunder_stone"
-  | "quake_stone"
-  | "decoy_doll"
-  | "turret_pack";
-
-type ConstructId = "decoy_doll" | "turret_pack";
-
-interface RuntimeSupplyDrop {
-  id: RuntimeSupplyId;
-  x: number;
-  y: number;
-  age: number;
-  life: number;
-  seed: number;
-}
-
-interface RuntimeEffect {
-  id: RuntimeSupplyId;
-  label: string;
-  color: string;
-  duration: number;
-  remaining: number;
-}
-
-interface RuntimeConstruct {
-  id: ConstructId;
-  x: number;
-  y: number;
-  age: number;
-  life: number;
-  fireTimer: number;
-  seed: number;
-}
-
-interface FloatingSupplyText {
-  x: number;
-  y: number;
-  text: string;
-  color: string;
-  life: number;
-  maxLife: number;
-}
-
-const WORLD_W = 2400;
-const WORLD_H = 2400;
+import type {
+  ConstructId,
+  FloatingSupplyText,
+  RuntimeConstruct,
+  RuntimeEffect,
+  RuntimeSupplyDrop,
+  RuntimeSupplyId,
+} from "./runSupplyTypes";
+import {
+  getSupplyColor,
+  getSupplyLabel,
+  pickBossBonusSupplyId,
+  pickRuntimeSupplyId,
+  RUN_SUPPLY_WORLD,
+  shouldClearRunSupplyOnPhase,
+} from "./runSupplyConfig";
 
 export class RunSupplyRuntime {
   private drops: RuntimeSupplyDrop[] = [];
@@ -107,7 +68,7 @@ export class RunSupplyRuntime {
   }
 
   private shouldClearOnPhase(): boolean {
-    return this.game.phase === "menu" || this.game.phase === "meta_upgrade" || this.game.phase === "result";
+    return shouldClearRunSupplyOnPhase(this.game.phase);
   }
 
   private updateTimers(dt: number): void {
@@ -140,7 +101,7 @@ export class RunSupplyRuntime {
 
     if (this.game.bossKills > this.lastBossKills) {
       this.spawnNearPlayer("shield", 80, 220);
-      this.spawnNearPlayer(this.pickBossBonusId(), 100, 260);
+      this.spawnNearPlayer(pickBossBonusSupplyId(), 100, 260);
       this.spawnNearPlayer(Math.random() < 0.55 ? "health_pack" : "regen_dew", 110, 280);
       this.spawnNearPlayer(Math.random() < 0.5 ? "turret_pack" : "decoy_doll", 120, 320);
       this.lastBossKills = this.game.bossKills;
@@ -207,14 +168,14 @@ export class RunSupplyRuntime {
     const speed = 700;
     const damage = 18 + Math.floor(this.game.waveNum * 1.2);
     this.game.projectiles.push(new Projectile(turret.x, turret.y, (dx / len) * speed, (dy / len) * speed, false, damage, "energy"));
-    this.game.particles.push(...this.makeBurst(turret.x, turret.y, this.colorFor("turret_pack"), 4, 2.4, 95));
+    this.game.particles.push(...this.makeBurst(turret.x, turret.y, getSupplyColor("turret_pack"), 4, 2.4, 95));
     turret.fireTimer = Math.max(0.28, 0.62 - Math.min(0.22, this.game.waveNum * 0.006));
   }
 
   private activate(id: RuntimeSupplyId): void {
     const item = this.getItem(id);
-    const label = item?.name ?? this.labelFor(id);
-    const color = item?.color ?? this.colorFor(id);
+    const label = item?.name ?? getSupplyLabel(id);
+    const color = item?.color ?? getSupplyColor(id);
 
     if (id === "magnet") {
       this.addOrRefreshEffect(id, label, color, 8);
@@ -294,10 +255,10 @@ export class RunSupplyRuntime {
     this.game.player.hp = this.hpBeforeUpdate;
     this.shieldCharges--;
     if (this.shieldCharges <= 0) this.effects = this.effects.filter((effect) => effect.id !== "shield");
-    else this.addOrRefreshEffect("shield", `护盾 x${this.shieldCharges}`, this.colorFor("shield"), 8);
+    else this.addOrRefreshEffect("shield", `护盾 x${this.shieldCharges}`, getSupplyColor("shield"), 8);
 
-    this.floatText(this.game.player.pos.x, this.game.player.pos.y - 46, "护盾抵挡", this.colorFor("shield"));
-    this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, this.colorFor("shield"), 16, 4, 170));
+    this.floatText(this.game.player.pos.x, this.game.player.pos.y - 46, "护盾抵挡", getSupplyColor("shield"));
+    this.game.particles.push(...this.makeBurst(this.game.player.pos.x, this.game.player.pos.y, getSupplyColor("shield"), 16, 4, 170));
 
     if (this.game.phase === "result" && this.game.player.hp > 0) this.game.phase = "playing";
   }
@@ -392,8 +353,8 @@ export class RunSupplyRuntime {
   private spawnConstruct(id: ConstructId, color: string, text: string, life: number): void {
     const angle = Math.random() * Math.PI * 2;
     const dist = 46 + Math.random() * 34;
-    const x = this.clamp(this.game.player.pos.x + Math.cos(angle) * dist, 45, WORLD_W - 45);
-    const y = this.clamp(this.game.player.pos.y + Math.sin(angle) * dist, 45, WORLD_H - 45);
+    const x = this.clamp(this.game.player.pos.x + Math.cos(angle) * dist, 45, RUN_SUPPLY_WORLD.width - 45);
+    const y = this.clamp(this.game.player.pos.y + Math.sin(angle) * dist, 45, RUN_SUPPLY_WORLD.height - 45);
     this.constructs.push({ id, x, y, age: 0, life, fireTimer: 0.15, seed: Math.random() * 1000 });
     this.floatText(x, y - 32, text, color);
     this.game.particles.push(...this.makeBurst(x, y, color, 18, 3.2, 150));
@@ -469,39 +430,14 @@ export class RunSupplyRuntime {
   private spawnNearPlayer(id: RuntimeSupplyId, minDist: number, maxDist: number): void {
     const angle = Math.random() * Math.PI * 2;
     const dist = minDist + Math.random() * (maxDist - minDist);
-    const x = this.clamp(this.game.player.pos.x + Math.cos(angle) * dist, 48, WORLD_W - 48);
-    const y = this.clamp(this.game.player.pos.y + Math.sin(angle) * dist, 48, WORLD_H - 48);
+    const x = this.clamp(this.game.player.pos.x + Math.cos(angle) * dist, 48, RUN_SUPPLY_WORLD.width - 48);
+    const y = this.clamp(this.game.player.pos.y + Math.sin(angle) * dist, 48, RUN_SUPPLY_WORLD.height - 48);
     this.drops.push({ id, x, y, age: 0, life: 18, seed: Math.random() * 1000 });
   }
 
   private pickSpawnId(): RuntimeSupplyId {
     const hpRate = this.game.player.hp / Math.max(1, this.game.player.maxHp);
-    const roll = Math.random();
-
-    if (hpRate < 0.38) {
-      if (roll < 0.28) return "health_pack";
-      if (roll < 0.44) return "regen_dew";
-      if (roll < 0.58) return "shield";
-      if (roll < 0.7) return "decoy_doll";
-    }
-
-    if (roll < 0.14) return "magnet";
-    if (roll < 0.27) return "haste_potion";
-    if (roll < 0.4) return "power_potion";
-    if (roll < 0.51) return "health_pack";
-    if (roll < 0.61) return "regen_dew";
-    if (roll < 0.7) return "crit_potion";
-    if (roll < 0.78) return "shield";
-    if (roll < 0.85) return "frost_bomb";
-    if (roll < 0.91) return "thunder_stone";
-    if (roll < 0.96) return "quake_stone";
-    if (roll < 0.985) return "decoy_doll";
-    return "turret_pack";
-  }
-
-  private pickBossBonusId(): RuntimeSupplyId {
-    const pool: RuntimeSupplyId[] = ["haste_potion", "power_potion", "crit_potion", "frost_bomb", "regen_dew", "thunder_stone", "quake_stone", "turret_pack"];
-    return pool[Math.floor(Math.random() * pool.length)];
+    return pickRuntimeSupplyId(hpRate);
   }
 
   private findNearestEnemy(x: number, y: number, maxDist: number) {
@@ -538,7 +474,7 @@ export class RunSupplyRuntime {
     for (const drop of this.drops) {
       const sp = this.game.camera.worldToScreen(drop.x, drop.y, this.game.w, this.game.h);
       const item = this.getItem(drop.id);
-      const color = item?.color ?? this.colorFor(drop.id);
+      const color = item?.color ?? getSupplyColor(drop.id);
       const icon = item?.icon ?? "◆";
       const pulse = 1 + Math.sin((drop.age + drop.seed) * 5) * 0.08;
       const fade = Math.min(1, Math.max(0.18, (drop.life - drop.age) / 4));
@@ -575,7 +511,7 @@ export class RunSupplyRuntime {
   private renderConstructs(ctx: CanvasRenderingContext2D): void {
     for (const construct of this.constructs) {
       const sp = this.game.camera.worldToScreen(construct.x, construct.y, this.game.w, this.game.h);
-      const color = this.colorFor(construct.id);
+      const color = getSupplyColor(construct.id);
       const pct = Math.max(0, 1 - construct.age / construct.life);
       const pulse = 1 + Math.sin((construct.age + construct.seed) * 5) * 0.06;
 
@@ -615,7 +551,7 @@ export class RunSupplyRuntime {
 
     if (this.hasEffect("magnet")) {
       ctx.globalAlpha = 0.18;
-      ctx.strokeStyle = this.colorFor("magnet");
+      ctx.strokeStyle = getSupplyColor("magnet");
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, 72 + Math.sin(this.game.gameTime * 5) * 5, 0, Math.PI * 2);
@@ -624,7 +560,7 @@ export class RunSupplyRuntime {
 
     if (this.hasEffect("regen_dew")) {
       ctx.globalAlpha = 0.2;
-      ctx.strokeStyle = this.colorFor("regen_dew");
+      ctx.strokeStyle = getSupplyColor("regen_dew");
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, this.game.player.radius + 22 + Math.sin(this.game.gameTime * 4) * 4, 0, Math.PI * 2);
@@ -633,7 +569,7 @@ export class RunSupplyRuntime {
 
     if (this.hasEffect("crit_potion")) {
       ctx.globalAlpha = 0.18;
-      ctx.strokeStyle = this.colorFor("crit_potion");
+      ctx.strokeStyle = getSupplyColor("crit_potion");
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, this.game.player.radius + 27, this.game.gameTime * 2, this.game.gameTime * 2 + Math.PI * 1.35);
@@ -642,7 +578,7 @@ export class RunSupplyRuntime {
 
     if (this.shieldCharges > 0) {
       ctx.globalAlpha = 0.36;
-      ctx.strokeStyle = this.colorFor("shield");
+      ctx.strokeStyle = getSupplyColor("shield");
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, this.game.player.radius + 13 + Math.sin(this.game.gameTime * 6) * 2, 0, Math.PI * 2);
@@ -718,45 +654,11 @@ export class RunSupplyRuntime {
   }
 
   private getItem(id: RuntimeSupplyId): RunItemDef | undefined {
-    return RUN_ITEMS.find((item) => item.id === id);
+    return getRunItem(id);
   }
 
   private hasEffect(id: RuntimeSupplyId): boolean {
     return this.effects.some((effect) => effect.id === id && effect.remaining > 0);
-  }
-
-  private labelFor(id: RuntimeSupplyId): string {
-    switch (id) {
-      case "magnet": return "磁铁";
-      case "shield": return "护盾";
-      case "haste_potion": return "急速药剂";
-      case "power_potion": return "攻击药剂";
-      case "health_pack": return "血包";
-      case "regen_dew": return "回春露";
-      case "crit_potion": return "暴击药剂";
-      case "frost_bomb": return "冰霜炸弹";
-      case "thunder_stone": return "雷击符石";
-      case "quake_stone": return "地裂符石";
-      case "decoy_doll": return "诱饵人偶";
-      case "turret_pack": return "机械炮台";
-    }
-  }
-
-  private colorFor(id: RuntimeSupplyId | ConstructId): string {
-    switch (id) {
-      case "magnet": return "#42a5f5";
-      case "shield": return "#80deea";
-      case "haste_potion": return "#ffd54f";
-      case "power_potion": return "#ff8a65";
-      case "health_pack": return "#66bb6a";
-      case "regen_dew": return "#81c784";
-      case "crit_potion": return "#ffeb3b";
-      case "frost_bomb": return "#90caf9";
-      case "thunder_stone": return "#b388ff";
-      case "quake_stone": return "#bc8f5a";
-      case "decoy_doll": return "#ffcc80";
-      case "turret_pack": return "#4dd0e1";
-    }
   }
 
   private clamp(value: number, min: number, max: number): number {
