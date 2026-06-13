@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Skeleton Enemy</title>
+  <defs><radialGradient id="g" cx="45%" cy="35%" r="72%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#cfd8dc"/><stop offset="100%" stop-color="#607d8b"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="#cfd8dc" opacity="0.16"/>
+  <path d="M256 88 L392 224 L256 414 L120 224 Z" fill="url(#g)" stroke="#78909c" stroke-width="10"/>
+  <path d="M174 225 C174 177 211 145 256 145 C301 145 338 177 338 225 C338 263 314 290 288 303 V350 H224 V303 C198 290 174 263 174 225 Z" fill="#eceff1" stroke="#607d8b" stroke-width="8"/>
+  <circle cx="219" cy="230" r="25" fill="#263238" opacity="0.86"/>
+  <circle cx="293" cy="230" r="25" fill="#263238" opacity="0.86"/>
+  <path d="M256 251 L238 292 H274 Z" fill="#455a64" opacity="0.72"/>
+  <path d="M218 322 H294" stroke="#455a64" stroke-width="8" stroke-linecap="round"/>
+  <path d="M235 315 V343M256 315 V346M277 315 V343" stroke="#78909c" stroke-width="6" stroke-linecap="round"/>
+  <path d="M188 178 C221 151 291 151 324 178" stroke="#ffffff" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.62"/>
+</svg>
