@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Drone Core Icon</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="60%"><stop offset="0%" stop-color="#e3f2fd"/><stop offset="55%" stop-color="#42a5f5" stop-opacity="0.72"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient><linearGradient id="b" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#90caf9"/><stop offset="100%" stop-color="#1565c0"/></linearGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="72" fill="url(#b)" stroke="#e3f2fd" stroke-width="9"/>
+  <circle cx="256" cy="256" r="30" fill="#0d47a1" opacity="0.62"/>
+  <path d="M204 204 L142 142M308 204 L370 142M204 308 L142 370M308 308 L370 370" stroke="#bbdefb" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="132" cy="132" r="44" fill="#42a5f5" stroke="#e3f2fd" stroke-width="8"/>
+  <circle cx="380" cy="132" r="44" fill="#42a5f5" stroke="#e3f2fd" stroke-width="8"/>
+  <circle cx="132" cy="380" r="44" fill="#42a5f5" stroke="#e3f2fd" stroke-width="8"/>
+  <circle cx="380" cy="380" r="44" fill="#42a5f5" stroke="#e3f2fd" stroke-width="8"/>
+  <path d="M102 132 H162M350 132 H410M102 380 H162M350 380 H410" stroke="#e3f2fd" stroke-width="8" stroke-linecap="round" opacity="0.68"/>
+</svg>
