@@ -1,12 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="Slime enemy sprite">
   <title>Slime Enemy</title>
-  <defs><radialGradient id="g" cx="42%" cy="35%" r="70%"><stop offset="0%" stop-color="#e8f5e9"/><stop offset="45%" stop-color="#66bb6a"/><stop offset="100%" stop-color="#1b5e20"/></radialGradient></defs>
-  <circle cx="256" cy="256" r="220" fill="#66bb6a" opacity="0.16"/>
-  <path d="M103 301 C103 209 165 145 256 145 C347 145 409 209 409 301 C409 370 351 417 256 417 C161 417 103 370 103 301 Z" fill="url(#g)" stroke="#388e3c" stroke-width="10"/>
-  <path d="M148 294 C184 329 328 329 364 294 C348 370 164 370 148 294 Z" fill="#2e7d32" opacity="0.32"/>
-  <ellipse cx="199" cy="264" rx="18" ry="24" fill="#0b2d13" opacity="0.82"/>
-  <ellipse cx="313" cy="264" rx="18" ry="24" fill="#0b2d13" opacity="0.82"/>
-  <path d="M211 332 C240 350 272 350 301 332" fill="none" stroke="#0b2d13" stroke-width="9" stroke-linecap="round" opacity="0.58"/>
-  <ellipse cx="207" cy="203" rx="48" ry="26" fill="#ffffff" opacity="0.38" transform="rotate(-22 207 203)"/>
-  <circle cx="342" cy="196" r="15" fill="#ffffff" opacity="0.22"/>
+  <defs>
+    <radialGradient id="body" cx="42%" cy="35%" r="72%">
+      <stop offset="0%" stop-color="#e8f5e9"/>
+      <stop offset="46%" stop-color="#66bb6a"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="62%">
+      <stop offset="0%" stop-color="#66bb6a" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#66bb6a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="256" cy="392" rx="130" ry="36" fill="#0b2d13" opacity="0.24"/>
+    <path d="M94 308 C94 214 159 146 244 146 C285 146 315 158 338 183 C382 201 418 246 418 309 C418 379 357 422 256 422 C155 422 94 379 94 308 Z" fill="url(#body)" stroke="#388e3c" stroke-width="12"/>
+    <path d="M139 306 C177 342 335 342 373 306 C356 379 156 379 139 306 Z" fill="#2e7d32" opacity="0.35"/>
+    <ellipse cx="198" cy="262" rx="20" ry="27" fill="#0b2d13" opacity="0.86"/>
+    <ellipse cx="314" cy="262" rx="20" ry="27" fill="#0b2d13" opacity="0.86"/>
+    <path d="M213 333 C241 351 271 351 299 333" fill="none" stroke="#0b2d13" stroke-width="10" opacity="0.58"/>
+    <ellipse cx="205" cy="203" rx="52" ry="28" fill="#ffffff" opacity="0.38" transform="rotate(-22 205 203)"/>
+    <circle cx="347" cy="196" r="16" fill="#ffffff" opacity="0.22"/>
+    <path d="M105 322 C134 309 157 309 183 324" fill="none" stroke="#a5d6a7" stroke-width="8" opacity="0.48"/>
+    <path d="M329 324 C357 308 386 309 414 325" fill="none" stroke="#a5d6a7" stroke-width="8" opacity="0.42"/>
+  </g>
 </svg>
