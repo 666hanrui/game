@@ -13,6 +13,7 @@ function main(): void {
   const hubCamp = new HubCampPanel();
   const runSupply = new RunSupplyRuntime(game);
   let showHubCamp = true;
+  let lastPhase = game.phase;
 
   canvas.addEventListener("click", (e) => {
     if (!showHubCamp || game.phase !== "menu") return;
@@ -44,6 +45,9 @@ function main(): void {
     runSupply.beforeGameUpdate();
     game.update(dt);
     runSupply.afterGameUpdate(dt);
+
+    if (lastPhase === "result" && game.phase === "menu") showHubCamp = true;
+    lastPhase = game.phase;
 
     if (showHubCamp && game.phase === "menu") {
       hubCamp.render(game.ctx, game.w, game.h);
