@@ -54,6 +54,12 @@ const MARTIAL_SKILLS: Skill[] = [
   { id: "spear_shadow", name: "枪影", description: "长枪主线：额外刺出一道枪影", school: "martial", weapon: "spear", rarity: "common", maxLevel: 5, mods: { projectileCount: 1 } },
   { id: "spear_force", name: "破阵枪", description: "长枪主线：基础伤害 +14", school: "martial", weapon: "spear", rarity: "common", maxLevel: 5, mods: { damage: 14 } },
   { id: "pierce", name: "贯穿", description: "长枪分支：强化直线穿刺手感，伤害和暴击提升", school: "martial", weapon: "spear", rarity: "rare", maxLevel: 3, mods: { damage: 8, critChance: 0.08 }, special: "pierce" },
+
+  // 狼牙棒 / 钝器
+  { id: "mace_weight", name: "重型狼牙棒", description: "钝器主线：大幅提高单次重击伤害，但保持慢节奏", school: "martial", weapon: "mace", rarity: "common", maxLevel: 6, mods: { damage: 18, attackCooldown: 0.035 }, special: "mace_weight" },
+  { id: "armor_breaker", name: "碎甲钉", description: "钝器分支：震地和重击会削弱敌人护甲", school: "martial", weapon: "mace", rarity: "rare", maxLevel: 4, mods: { damage: 10 }, special: "armor_break" },
+  { id: "earthquake", name: "震地波", description: "钝器分支：周期性重击产生更大范围震地", school: "martial", weapon: "mace", rarity: "rare", maxLevel: 4, mods: { damage: 8 }, special: "earthquake" },
+  { id: "bone_crusher", name: "碎骨重击", description: "钝器技巧：暴击伤害提高，适合处理坦克和 Boss", school: "martial", weapon: "mace", rarity: "epic", maxLevel: 3, mods: { damage: 14, critChance: 0.06, critMultiplier: 0.55 }, special: "bone_crusher" },
 ];
 
 const MAGIC_SKILLS: Skill[] = [
