@@ -1,30 +1,43 @@
 import { vec2, Vec2 } from "../utils/math";
 
+export type ProjectileKind = "arrow" | "magic" | "heavy_magic" | "energy" | "blade" | "drone";
+
 export class Projectile {
   pos: Vec2;
   vel: Vec2;
   fromEnemy: boolean;
   damage: number;
+  kind: ProjectileKind;
   alive = true;
   private maxLife = 3;
   private life = 0;
 
-  constructor(x: number, y: number, vx: number, vy: number, fromEnemy: boolean, damage: number) {
+  constructor(x: number, y: number, vx: number, vy: number, fromEnemy: boolean, damage: number, kind: ProjectileKind = "arrow") {
     this.pos = vec2(x, y);
     this.vel = vec2(vx, vy);
     this.fromEnemy = fromEnemy;
     this.damage = damage;
+    this.kind = kind;
   }
 
   update(dt: number): void {
     this.pos.x += this.vel.x * dt;
     this.pos.y += this.vel.y * dt;
     this.life += dt;
-    if (this.life > this.maxLife) { this.alive = false; }
+    if (this.life > this.maxLife) this.alive = false;
   }
 
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
     const angle = Math.atan2(this.vel.y, this.vel.x);
+    if (this.kind === "magic") return this.renderOrb(ctx, sx, sy, "#ce93d8", "#f3e5f5", 6);
+    if (this.kind === "heavy_magic") return this.renderOrb(ctx, sx, sy, "#ab47bc", "#e1bee7", 9);
+    if (this.kind === "energy") return this.renderEnergy(ctx, sx, sy, angle);
+    if (this.kind === "blade") return this.renderBlade(ctx, sx, sy, angle);
+    if (this.kind === "drone") return this.renderOrb(ctx, sx, sy, "#42a5f5", "#e3f2fd", 5);
+    return this.renderArrow(ctx, sx, sy, angle);
+  }
+
+  private renderArrow(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
     const color = this.fromEnemy ? "#ef5350" : "#ffeb3b";
     const headColor = this.fromEnemy ? "#ff8a80" : "#fff9c4";
 
@@ -32,7 +45,6 @@ export class Projectile {
     ctx.translate(sx, sy);
     ctx.rotate(angle);
 
-    // 拖尾
     const trail = ctx.createLinearGradient(-28, 0, 6, 0);
     trail.addColorStop(0, "rgba(255,255,255,0)");
     trail.addColorStop(1, color + "aa");
@@ -45,11 +57,9 @@ export class Projectile {
     ctx.closePath();
     ctx.fill();
 
-    // 箭身
     ctx.fillStyle = color;
     ctx.fillRect(-9, -1.5, 14, 3);
 
-    // 箭头
     ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.moveTo(7, -4);
@@ -58,10 +68,84 @@ export class Projectile {
     ctx.closePath();
     ctx.fill();
 
-    // 中心亮点
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.fillRect(-4, -0.6, 8, 1.2);
+    ctx.restore();
+  }
 
+  private renderOrb(ctx: CanvasRenderingContext2D, sx: number, sy: number, color: string, core: string, radius: number): void {
+    const pulse = 1 + Math.sin(this.life * 18) * 0.08;
+    const glow = ctx.createRadialGradient(sx, sy, 1, sx, sy, radius * 4);
+    glow.addColorStop(0, color + "bb");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sx, sy, radius * 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(sx, sy, radius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(sx - radius * 0.25, sy - radius * 0.25, radius * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private renderEnergy(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+
+    const trail = ctx.createLinearGradient(-24, 0, 10, 0);
+    trail.addColorStop(0, "rgba(77,208,225,0)");
+    trail.addColorStop(1, "rgba(77,208,225,0.9)");
+    ctx.fillStyle = trail;
+    ctx.beginPath();
+    ctx.moveTo(-24, -5);
+    ctx.lineTo(10, 0);
+    ctx.lineTo(-24, 5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#4dd0e1";
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(0, -7);
+    ctx.lineTo(-10, 0);
+    ctx.lineTo(0, 7);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "#e0f7fa";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private renderBlade(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle + this.life * 16);
+
+    ctx.fillStyle = "#cfd8dc";
+    ctx.strokeStyle = "#78909c";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(7, 0);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-7, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 }
