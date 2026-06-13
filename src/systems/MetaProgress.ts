@@ -33,8 +33,13 @@ export interface MetaBonuses {
 
 export interface PurchaseResult {
   ok: boolean;
+  id?: MetaUpgradeId;
+  name?: string;
+  level?: number;
   reason?: string;
   spent?: number;
+  need?: number;
+  lack?: number;
   total?: number;
 }
 
@@ -98,21 +103,34 @@ export class MetaProgress {
 
   purchaseUpgrade(id: MetaUpgradeId): PurchaseResult {
     const def = META_UPGRADES.find((u) => u.id === id);
-    if (!def) return { ok: false, reason: "未知强化" };
+    if (!def) return { ok: false, id, reason: "未知强化" };
 
     const levels = this.getUpgradeLevels();
     const level = levels[id];
-    if (level >= def.maxLevel) return { ok: false, reason: "已满级" };
+    if (level >= def.maxLevel) {
+      return { ok: false, id, name: def.name, level, reason: "已满级" };
+    }
 
     const cost = this.getUpgradeCost(id);
     const soul = this.getSoulCrystals();
-    if (soul < cost) return { ok: false, reason: "魂晶不足" };
+    if (soul < cost) {
+      return { ok: false, id, name: def.name, level, reason: "魂晶不足", need: cost, lack: cost - soul, total: soul };
+    }
 
     levels[id] = level + 1;
     const total = soul - cost;
     this.saveUpgradeLevels(levels);
     this.setSoulCrystals(total);
-    return { ok: true, spent: cost, total };
+    return { ok: true, id, name: def.name, level: levels[id], spent: cost, total };
+  }
+
+  resetAll(): void {
+    try {
+      window.localStorage.removeItem(SOUL_KEY);
+      window.localStorage.removeItem(UPGRADE_KEY);
+    } catch {
+      // localStorage 不可用时忽略。
+    }
   }
 
   getBonuses(): MetaBonuses {
