@@ -211,10 +211,10 @@ export class Game {
 
   startNextWave(): void {
     this.waveNum++;
-    const count = this.wave.getEnemyCount(this.waveNum);
     const hpMult = this.wave.getHPMultiplier(this.waveNum);
     const spdMult = this.wave.getSpeedMultiplier(this.waveNum);
-    for (let i = 0; i < count; i++) this.enemies.push(new Enemy(WORLD_W, WORLD_H, hpMult, spdMult));
+    const roles = this.wave.getRolesForWave(this.waveNum);
+    for (const role of roles) this.enemies.push(new Enemy(WORLD_W, WORLD_H, hpMult, spdMult, role));
   }
 
   private spawnMapXP(): void {
@@ -345,6 +345,29 @@ export class Game {
     }
   }
 
+  private updateEnemyShots(): void {
+    for (const enemy of this.enemies) {
+      if (!enemy.alive || !enemy.canShoot()) continue;
+      const dx = this.player.pos.x - enemy.pos.x;
+      const dy = this.player.pos.y - enemy.pos.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const speed = enemy.role === "boss" ? 330 : 280;
+      const damage = enemy.role === "boss" ? 18 : 10;
+      const kind: ProjectileKind = enemy.role === "boss" ? "heavy_magic" : "energy";
+
+      this.projectiles.push(new Projectile(enemy.pos.x, enemy.pos.y, (dx / len) * speed, (dy / len) * speed, true, damage, kind));
+      if (enemy.role === "boss") {
+        for (const offset of [-0.28, 0.28]) {
+          const cos = Math.cos(offset);
+          const sin = Math.sin(offset);
+          const x = (dx / len) * cos - (dy / len) * sin;
+          const y = (dx / len) * sin + (dy / len) * cos;
+          this.projectiles.push(new Projectile(enemy.pos.x, enemy.pos.y, x * speed, y * speed, true, 12, "energy"));
+        }
+      }
+    }
+  }
+
   private explodeAt(x: number, y: number, radius: number, damage: number, exclude: Enemy): void {
     for (const e of this.enemies) {
       if (!e.alive || e === exclude) continue;
@@ -385,6 +408,7 @@ export class Game {
     for (const p of this.projectiles) p.update(dt);
     this.projectiles = this.projectiles.filter((p) => p.alive);
     for (const e of this.enemies) e.update(dt, this.player.pos);
+    this.updateEnemyShots();
     for (const pk of this.pickups) pk.update(dt);
     this.pickups = this.pickups.filter((pk) => pk.alive);
 
@@ -423,6 +447,14 @@ export class Game {
     }
 
     const now = performance.now() / 1000;
+    for (const p of this.projectiles) {
+      if (!p.alive || !p.fromEnemy) continue;
+      if (distance(p.pos, this.player.pos) < this.player.radius + p.hitRadius) {
+        this.combat.dealDamageToPlayer(this.player, p.damage, now);
+        p.alive = false;
+      }
+    }
+
     for (const e of this.enemies) {
       if (!e.alive) continue;
       if (this.combat.enemyTouchesPlayer(e, this.player)) this.combat.dealDamageToPlayer(this.player, e.damage, now);
@@ -457,10 +489,13 @@ export class Game {
 
   private onKill(enemy: Enemy): void {
     this.kills++;
-    const xpValue = this.xp.xpPerKill;
+    const reward = enemy.rewardMultiplier;
+    const xpValue = Math.floor(this.xp.xpPerKill * reward);
     this.xp.addXP(xpValue);
     this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
-    if (Math.random() < 0.12) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", 18));
+
+    const healChance = enemy.role === "boss" ? 1 : enemy.role === "elite" ? 0.55 : 0.12;
+    if (Math.random() < healChance) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", enemy.role === "boss" ? 55 : 18));
 
     if (this.hasSkill("bloodlust")) {
       const heal = Math.max(1, Math.floor(this.player.maxHp * 0.08 * this.skillCount("bloodlust")));
