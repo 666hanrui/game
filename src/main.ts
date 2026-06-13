@@ -1,5 +1,6 @@
 import { GameWithSound } from "./core/GameWithSound";
 import { HubCampPanel } from "./ui/HubCampPanel";
+import { RunSupplyRuntime } from "./systems/RunSupplyRuntime";
 
 function main(): void {
   const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -10,6 +11,7 @@ function main(): void {
 
   const game = new GameWithSound(canvas);
   const hubCamp = new HubCampPanel();
+  const runSupply = new RunSupplyRuntime(game);
   let showHubCamp = true;
 
   canvas.addEventListener("click", (e) => {
@@ -39,12 +41,15 @@ function main(): void {
     if (dt > 0.1) dt = 0.1;
     lastTime = now;
 
+    runSupply.beforeGameUpdate();
     game.update(dt);
+    runSupply.afterGameUpdate(dt);
 
     if (showHubCamp && game.phase === "menu") {
       hubCamp.render(game.ctx, game.w, game.h);
     } else {
       game.render();
+      runSupply.render(game.ctx);
     }
 
     requestAnimationFrame(loop);
