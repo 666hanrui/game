@@ -1,18 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128" role="img" aria-label="Mace weapon sprite">
   <title>Mace</title>
-  <g transform="rotate(-35 64 64)">
-    <rect x="58" y="42" width="12" height="70" rx="5" fill="#6d4c41" stroke="#3e2723" stroke-width="4"/>
-    <circle cx="64" cy="34" r="24" fill="#9e9e9e" stroke="#424242" stroke-width="5"/>
-    <g fill="#eeeeee" stroke="#616161" stroke-width="2">
-      <path d="M64 2 L71 18 H57 Z"/>
-      <path d="M64 66 L57 50 H71 Z"/>
-      <path d="M32 34 L48 27 V41 Z"/>
-      <path d="M96 34 L80 41 V27 Z"/>
-      <path d="M42 12 L56 21 L47 30 Z"/>
-      <path d="M86 12 L81 30 L72 21 Z"/>
-      <path d="M42 56 L47 38 L56 47 Z"/>
-      <path d="M86 56 L72 47 L81 38 Z"/>
+  <defs>
+    <radialGradient id="head" cx="38%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#f5f5f5"/>
+      <stop offset="48%" stop-color="#9e9e9e"/>
+      <stop offset="100%" stop-color="#424242"/>
+    </radialGradient>
+    <linearGradient id="handle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8d6e63"/>
+      <stop offset="100%" stop-color="#3e2723"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(-35 64 64)" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="64" cy="111" rx="15" ry="6" fill="#000" opacity="0.22"/>
+    <rect x="57" y="43" width="14" height="73" rx="6" fill="url(#handle)" stroke="#2b160f" stroke-width="4"/>
+    <path d="M51 82 H77" stroke="#bcaaa4" stroke-width="5" opacity="0.7"/>
+    <path d="M53 101 H75" stroke="#bcaaa4" stroke-width="5" opacity="0.55"/>
+    <circle cx="64" cy="34" r="29" fill="url(#head)" stroke="#2f2f2f" stroke-width="6"/>
+    <g fill="#eeeeee" stroke="#424242" stroke-width="3.4">
+      <path d="M64 -2 L75 20 H53 Z"/>
+      <path d="M64 70 L53 48 H75 Z"/>
+      <path d="M28 34 L50 23 V45 Z"/>
+      <path d="M100 34 L78 45 V23 Z"/>
+      <path d="M37 8 L58 18 L45 32 Z"/>
+      <path d="M91 8 L83 32 L70 18 Z"/>
+      <path d="M37 60 L45 36 L58 50 Z"/>
+      <path d="M91 60 L70 50 L83 36 Z"/>
     </g>
-    <circle cx="64" cy="34" r="9" fill="#bdbdbd" opacity="0.75"/>
+    <circle cx="64" cy="34" r="10" fill="#f5f5f5" opacity="0.45"/>
+    <path d="M45 34 C50 20 78 20 83 34" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.45"/>
+    <rect x="52" y="67" width="24" height="9" rx="4" fill="#5d4037" stroke="#2b160f" stroke-width="3"/>
   </g>
 </svg>
