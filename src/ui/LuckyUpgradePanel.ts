@@ -86,23 +86,19 @@ export class LuckyUpgradePanel {
 
     const totalW = 3 * this.cardW + 2 * this.gap;
     const startX = (w - totalW) / 2;
-    const startY = h / 2 - this.cardH / 2;
+    const idealY = h / 2 - this.cardH / 2 + 12;
+    const startY = Math.max(124, Math.min(idealY, h - this.cardH - 104));
 
     ctx.fillStyle = "#ffeb3b";
     ctx.font = "bold 22px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("⬆ 升级！选择一项强化", w / 2, startY - 50);
+    ctx.fillText("⬆ 升级！选择一项强化", w / 2, startY - 74);
 
     ctx.fillStyle = "rgba(255,255,255,0.38)";
     ctx.font = "11px monospace";
-    ctx.fillText("强化会随机出现不同稀有度：普通 / 稀有 / 史诗 / 传说 / 钻石", w / 2, startY - 28);
+    ctx.fillText("强化会随机出现不同稀有度：普通 / 稀有 / 史诗 / 传说 / 钻石", w / 2, startY - 52);
 
-    const heatText = this.upgradesSinceDiamond >= DIAMOND_PITY_THRESHOLD
-      ? "幸运热度已满：本次必出钻石候选"
-      : `幸运热度 ${this.upgradesSinceDiamond}/${DIAMOND_PITY_THRESHOLD} · 连续未选钻石会提高钻石概率`;
-    ctx.fillStyle = this.upgradesSinceDiamond >= DIAMOND_PITY_THRESHOLD ? "#80deea" : "rgba(128,222,234,0.55)";
-    ctx.font = "bold 11px monospace";
-    ctx.fillText(heatText, w / 2, startY - 10);
+    this.drawLuckyHeat(ctx, w / 2, startY - 27);
 
     for (let i = 0; i < this.cards.length; i++) {
       const skill = this.cards[i];
@@ -114,6 +110,7 @@ export class LuckyUpgradePanel {
       const sprite = assets?.get(meta.assetGroup ?? "", meta.assetId);
       const color = this.getRarityColor(skill.rarity);
       const label = this.getRarityLabel(skill.rarity);
+      const isDiamond = skill.rarity === "diamond";
 
       this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, skill });
 
@@ -122,15 +119,19 @@ export class LuckyUpgradePanel {
       this.roundRect(ctx, cx - 5, cy - 5, this.cardW + 10, this.cardH + 10, 14);
       ctx.fill();
 
-      ctx.fillStyle = "#151525";
+      if (isDiamond) this.drawDiamondHalo(ctx, cx, cy, this.cardW, this.cardH);
+
+      ctx.fillStyle = isDiamond ? "#101c2a" : "#151525";
       ctx.strokeStyle = color;
-      ctx.lineWidth = skill.rarity === "diamond" ? 4 : skill.rarity === "legendary" ? 3 : 2;
+      ctx.lineWidth = isDiamond ? 4.5 : skill.rarity === "legendary" ? 3 : 2;
       this.roundRect(ctx, cx, cy, this.cardW, this.cardH, 12);
       ctx.fill();
       ctx.stroke();
 
+      if (isDiamond) this.drawDiamondFrame(ctx, cx, cy, this.cardW, this.cardH);
+
       ctx.fillStyle = color;
-      ctx.fillRect(cx, cy, this.cardW, 6);
+      ctx.fillRect(cx, cy, this.cardW, isDiamond ? 8 : 6);
 
       ctx.fillStyle = meta.color;
       ctx.font = "10px monospace";
@@ -138,13 +139,13 @@ export class LuckyUpgradePanel {
       ctx.fillText(meta.icon + " " + meta.name, cx + 12, cy + 28);
 
       ctx.textAlign = "right";
-      ctx.fillStyle = "rgba(255,255,255,0.58)";
+      ctx.fillStyle = isDiamond ? "#e1f5fe" : "rgba(255,255,255,0.58)";
       ctx.fillText(levelText, cx + this.cardW - 12, cy + 28);
 
       this.drawIconBubble(ctx, cx + this.cardW / 2, cy + 68, 45, meta.color, sprite, meta.icon, skill.rarity);
 
       ctx.fillStyle = "#fff";
-      ctx.font = skill.rarity === "diamond" ? "bold 17px monospace" : "bold 16px monospace";
+      ctx.font = isDiamond ? "bold 17px monospace" : "bold 16px monospace";
       ctx.textAlign = "center";
       ctx.fillText(skill.name, cx + this.cardW / 2, cy + 112);
 
@@ -152,19 +153,24 @@ export class LuckyUpgradePanel {
       ctx.font = "bold 12px monospace";
       ctx.fillText(`${label} · x${RARITY_MULT[skill.rarity].toFixed(skill.rarity === "common" ? 0 : 2)}`, cx + this.cardW / 2, cy + 134);
 
-      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      const dividerY = isDiamond ? cy + 166 : cy + 148;
+      if (isDiamond) {
+        this.drawDiamondBadge(ctx, cx + this.cardW / 2, cy + 150);
+      }
+
+      ctx.strokeStyle = isDiamond ? "rgba(179,229,252,0.34)" : "rgba(255,255,255,0.14)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx + 12, cy + 148);
-      ctx.lineTo(cx + this.cardW - 12, cy + 148);
+      ctx.moveTo(cx + 12, dividerY);
+      ctx.lineTo(cx + this.cardW - 12, dividerY);
       ctx.stroke();
 
-      ctx.fillStyle = "#aaa";
-      ctx.font = "12px monospace";
+      ctx.fillStyle = isDiamond ? "#dff7ff" : "#aaa";
+      ctx.font = isDiamond ? "11px monospace" : "12px monospace";
       ctx.textAlign = "left";
-      this.wrapText(ctx, skill.description, cx + 12, cy + 170, this.cardW - 24, 17);
+      this.wrapText(ctx, skill.description, cx + 12, isDiamond ? cy + 185 : cy + 170, this.cardW - 24, isDiamond ? 16 : 17);
 
-      ctx.fillStyle = "#555";
+      ctx.fillStyle = isDiamond ? "rgba(179,229,252,0.85)" : "#555";
       ctx.font = "bold 20px monospace";
       ctx.textAlign = "center";
       ctx.fillText(`${i + 1}`, cx + this.cardW / 2, cy + this.cardH + 24);
@@ -299,6 +305,102 @@ export class LuckyUpgradePanel {
     ctx.fillText(active ? `刷新强化 ×${this.refreshesLeft}` : "刷新已用完", r.x + r.w / 2, r.y + 24);
   }
 
+  private drawLuckyHeat(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const full = this.upgradesSinceDiamond >= DIAMOND_PITY_THRESHOLD;
+    const heat = Math.min(DIAMOND_PITY_THRESHOLD, this.upgradesSinceDiamond);
+    const pct = heat / DIAMOND_PITY_THRESHOLD;
+    const w = full ? 392 : 360;
+    const h = 22;
+
+    ctx.save();
+    ctx.fillStyle = full ? "rgba(128,222,234,0.16)" : "rgba(128,222,234,0.08)";
+    ctx.strokeStyle = full ? "#b3e5fc" : "rgba(128,222,234,0.45)";
+    ctx.lineWidth = full ? 2 : 1;
+    this.roundRect(ctx, x - w / 2, y - h / 2, w, h, 11);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    this.roundRect(ctx, x - w / 2 + 9, y + 3, w - 18, 4, 2);
+    ctx.fill();
+    ctx.fillStyle = full ? "#e1f5fe" : "#80deea";
+    this.roundRect(ctx, x - w / 2 + 9, y + 3, (w - 18) * pct, 4, 2);
+    ctx.fill();
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 11px monospace";
+    ctx.fillStyle = full ? "#e1f5fe" : "rgba(179,229,252,0.82)";
+    ctx.fillText(full ? "幸运热度已满 · 本次必出钻石候选" : `幸运热度 ${heat}/${DIAMOND_PITY_THRESHOLD} · 连续未选钻石会提高概率`, x, y - 3);
+    ctx.restore();
+  }
+
+  private drawDiamondHalo(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+    ctx.save();
+    const glow = ctx.createLinearGradient(x, y, x + w, y + h);
+    glow.addColorStop(0, "rgba(255,255,255,0.32)");
+    glow.addColorStop(0.42, "rgba(128,222,234,0.22)");
+    glow.addColorStop(1, "rgba(66,165,245,0.18)");
+    ctx.fillStyle = glow;
+    this.roundRect(ctx, x - 10, y - 10, w + 20, h + 20, 18);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private drawDiamondFrame(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.75)";
+    ctx.lineWidth = 1.2;
+    this.roundRect(ctx, x + 5, y + 5, w - 10, h - 10, 9);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(179,229,252,0.82)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y + 18);
+    ctx.lineTo(x + 48, y + 6);
+    ctx.moveTo(x + w - 18, y + h - 18);
+    ctx.lineTo(x + w - 48, y + h - 6);
+    ctx.moveTo(x + w - 18, y + 18);
+    ctx.lineTo(x + w - 48, y + 6);
+    ctx.moveTo(x + 18, y + h - 18);
+    ctx.lineTo(x + 48, y + h - 6);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,0.78)";
+    for (const p of [
+      [x + 27, y + 38],
+      [x + w - 34, y + 58],
+      [x + 35, y + h - 44],
+      [x + w - 38, y + h - 60],
+    ]) {
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  private drawDiamondBadge(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    const w = 166;
+    const h = 20;
+    ctx.save();
+    const grad = ctx.createLinearGradient(x - w / 2, y, x + w / 2, y);
+    grad.addColorStop(0, "rgba(179,229,252,0.18)");
+    grad.addColorStop(0.5, "rgba(255,255,255,0.22)");
+    grad.addColorStop(1, "rgba(128,222,234,0.18)");
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = "#b3e5fc";
+    ctx.lineWidth = 1.4;
+    this.roundRect(ctx, x - w / 2, y - h / 2, w, h, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#e1f5fe";
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("◇ 钻石质变 · 路线超载", x, y + 4);
+    ctx.restore();
+  }
+
   private getSkillMeta(skill: Skill): CardMeta {
     if (skill.weapon) {
       const weapon = getWeapon(skill.weapon);
@@ -321,7 +423,7 @@ export class LuckyUpgradePanel {
 
   private getRarityColor(rarity: SkillRarity): string {
     switch (rarity) {
-      case "diamond": return "#80deea";
+      case "diamond": return "#b3e5fc";
       case "legendary": return "#ffca28";
       case "epic": return "#ce93d8";
       case "rare": return "#42a5f5";
@@ -331,7 +433,7 @@ export class LuckyUpgradePanel {
 
   private getRarityGlow(rarity: SkillRarity): string {
     switch (rarity) {
-      case "diamond": return "rgba(128,222,234,0.22)";
+      case "diamond": return "rgba(179,229,252,0.32)";
       case "legendary": return "rgba(255,202,40,0.18)";
       case "epic": return "rgba(206,147,216,0.14)";
       case "rare": return "rgba(66,165,245,0.1)";
@@ -352,11 +454,23 @@ export class LuckyUpgradePanel {
 
     ctx.fillStyle = "rgba(255,255,255,0.07)";
     ctx.strokeStyle = rarityColor;
-    ctx.lineWidth = rarity === "diamond" ? 2.4 : 1.5;
+    ctx.lineWidth = rarity === "diamond" ? 2.8 : 1.5;
     ctx.beginPath();
     ctx.arc(x, y, size * 0.47, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+
+    if (rarity === "diamond") {
+      ctx.strokeStyle = "rgba(255,255,255,0.76)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y - size * 0.63);
+      ctx.lineTo(x + size * 0.16, y - size * 0.47);
+      ctx.lineTo(x, y - size * 0.31);
+      ctx.lineTo(x - size * 0.16, y - size * 0.47);
+      ctx.closePath();
+      ctx.stroke();
+    }
 
     if (img) {
       ctx.drawImage(img, x - size * 0.32, y - size * 0.32, size * 0.64, size * 0.64);
