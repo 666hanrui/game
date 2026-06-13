@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Diamond prism arrow rain visual effect">
+  <title>Diamond Prism Rain</title>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="62%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.92"/>
+      <stop offset="42%" stop-color="#90caf9" stop-opacity="0.62"/>
+      <stop offset="100%" stop-color="#0b1020" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#b3e5fc"/>
+      <stop offset="100%" stop-color="#42a5f5"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="236" fill="url(#bg)"/>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 42 L344 154 L256 266 L168 154 Z" fill="#e3f2fd" stroke="#ffffff" stroke-width="10" opacity="0.92"/>
+    <path d="M256 42 L256 266 M168 154 H344" stroke="#42a5f5" stroke-width="6" opacity="0.5"/>
+    <g stroke="url(#beam)" stroke-width="13" opacity="0.95">
+      <path d="M106 110 L183 414"/>
+      <path d="M178 83 L224 434"/>
+      <path d="M256 72 L256 454"/>
+      <path d="M334 83 L288 434"/>
+      <path d="M406 110 L329 414"/>
+    </g>
+    <g fill="#ffffff" stroke="#42a5f5" stroke-width="5" opacity="0.95">
+      <path d="M183 414 L162 374 L204 379 Z"/>
+      <path d="M224 434 L204 392 L246 394 Z"/>
+      <path d="M256 454 L235 411 L277 411 Z"/>
+      <path d="M288 434 L266 394 L308 392 Z"/>
+      <path d="M329 414 L308 379 L350 374 Z"/>
+    </g>
+    <path d="M108 274 C185 234 326 234 404 274" fill="none" stroke="#e1f5fe" stroke-width="9" opacity="0.58"/>
+    <circle cx="141" cy="174" r="6" fill="#ffffff" opacity="0.9"/>
+    <circle cx="374" cy="189" r="7" fill="#ffffff" opacity="0.85"/>
+    <circle cx="302" cy="121" r="5" fill="#ffffff" opacity="0.82"/>
+  </g>
+</svg>
