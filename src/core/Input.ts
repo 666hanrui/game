@@ -38,26 +38,49 @@ export class Input {
     this.canvas = canvas;
     this.isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-    if (!this.isMobile) {
-      this.setupKeyboard();
-      this.setupMouse();
-    }
+    // 键盘鼠标永远启用。触摸只作为额外输入，不再和桌面输入二选一。
+    this.setupKeyboard();
+    this.setupMouse();
     this.setupTouch();
   }
 
   private setupKeyboard(): void {
-    window.addEventListener("keydown", (e) => this.keys.add(e.key.toLowerCase()));
+    window.addEventListener("keydown", (e) => {
+      const key = e.key.toLowerCase();
+      this.keys.add(key);
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+        e.preventDefault();
+      }
+    });
     window.addEventListener("keyup", (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener("blur", () => {
+      this.keys.clear();
+      this.mouseDown = false;
+      this.leftStick = null;
+      this.rightStick = null;
+      this.state.moveDir = vec2(0, 0);
+      this.state.shooting = false;
+    });
   }
 
   private setupMouse(): void {
-    this.canvas.addEventListener("mousemove", (e) => {
+    const syncMouse = (e: MouseEvent) => {
       const r = this.canvas.getBoundingClientRect();
       this.mouseScreenX = e.clientX - r.left;
       this.mouseScreenY = e.clientY - r.top;
+    };
+
+    this.canvas.addEventListener("mousemove", syncMouse);
+    this.canvas.addEventListener("mouseenter", syncMouse);
+    this.canvas.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      syncMouse(e);
+      this.mouseDown = true;
+      e.preventDefault();
     });
-    this.canvas.addEventListener("mousedown", (e) => { if (e.button === 0) this.mouseDown = true; });
-    this.canvas.addEventListener("mouseup", (e) => { if (e.button === 0) this.mouseDown = false; });
+    window.addEventListener("mouseup", (e) => {
+      if (e.button === 0) this.mouseDown = false;
+    });
     this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
@@ -137,42 +160,18 @@ export class Input {
   }
 
   update(): void {
-    if (this.isMobile) {
-      this.updateMobile();
-    } else {
-      this.updatePC();
-    }
-  }
+    const keyboardMove = this.getKeyboardMoveDir();
+    let moveDir = keyboardMove;
+    let shooting = this.mouseDown || this.keys.has("j") || this.keys.has(" ");
 
-  private updatePC(): void {
-    let dx = 0, dy = 0;
-    if (this.keys.has("w") || this.keys.has("arrowup"))    dy -= 1;
-    if (this.keys.has("s") || this.keys.has("arrowdown"))  dy += 1;
-    if (this.keys.has("a") || this.keys.has("arrowleft"))  dx -= 1;
-    if (this.keys.has("d") || this.keys.has("arrowright")) dx += 1;
+    const mouseAim = this.getMouseAimDir();
+    let aimDir = mouseAim ?? this.state.aimDir;
 
-    const len = Math.sqrt(dx * dx + dy * dy);
-    this.state.moveDir = len > 0 ? vec2(dx / len, dy / len) : vec2(0, 0);
-
-    const cx = this.cssWidth() / 2;
-    const cy = this.cssHeight() / 2;
-    const aimDx = this.mouseScreenX - cx;
-    const aimDy = this.mouseScreenY - cy;
-    const aimLen = Math.sqrt(aimDx * aimDx + aimDy * aimDy);
-    if (aimLen > 4) {
-      this.state.aimDir = vec2(aimDx / aimLen, aimDy / aimLen);
-    }
-    this.state.shooting = this.mouseDown;
-  }
-
-  private updateMobile(): void {
     if (this.leftStick) {
       const dx = (this.leftStick.knobX - this.leftStick.baseX) / this.stickRadius;
       const dy = (this.leftStick.knobY - this.leftStick.baseY) / this.stickRadius;
       const len = Math.sqrt(dx * dx + dy * dy);
-      this.state.moveDir = len > 0.1 ? vec2(dx / len * Math.min(len, 1), dy / len * Math.min(len, 1)) : vec2(0, 0);
-    } else {
-      this.state.moveDir = vec2(0, 0);
+      if (len > 0.1) moveDir = vec2(dx / len * Math.min(len, 1), dy / len * Math.min(len, 1));
     }
 
     if (this.rightStick) {
@@ -180,23 +179,42 @@ export class Input {
       const dy = this.rightStick.knobY - this.rightStick.baseY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > 5) {
-        this.state.aimDir = vec2(dx / dist, dy / dist);
-        this.state.shooting = true;
-      } else {
-        this.state.shooting = false;
+        aimDir = vec2(dx / dist, dy / dist);
+        shooting = true;
       }
-    } else {
-      this.state.shooting = false;
     }
+
+    this.state.moveDir = moveDir;
+    this.state.aimDir = aimDir;
+    this.state.shooting = shooting;
+  }
+
+  private getKeyboardMoveDir(): Vec2 {
+    let dx = 0, dy = 0;
+    if (this.keys.has("w") || this.keys.has("arrowup")) dy -= 1;
+    if (this.keys.has("s") || this.keys.has("arrowdown")) dy += 1;
+    if (this.keys.has("a") || this.keys.has("arrowleft")) dx -= 1;
+    if (this.keys.has("d") || this.keys.has("arrowright")) dx += 1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    return len > 0 ? vec2(dx / len, dy / len) : vec2(0, 0);
+  }
+
+  private getMouseAimDir(): Vec2 | null {
+    const cx = this.cssWidth() / 2;
+    const cy = this.cssHeight() / 2;
+    const aimDx = this.mouseScreenX - cx;
+    const aimDy = this.mouseScreenY - cy;
+    const aimLen = Math.sqrt(aimDx * aimDx + aimDy * aimDy);
+    if (aimLen <= 4) return null;
+    return vec2(aimDx / aimLen, aimDy / aimLen);
   }
 
   isKeyDown(key: string): boolean {
-    if (this.isMobile) return false;
     return this.keys.has(key.toLowerCase());
   }
 
   renderSticks(ctx: CanvasRenderingContext2D): void {
-    if (!this.isMobile) return;
+    if (!this.isMobile && !this.leftStick && !this.rightStick) return;
     const rd = (stick: Stick | null, color: string) => {
       if (!stick) return;
       ctx.strokeStyle = color;
