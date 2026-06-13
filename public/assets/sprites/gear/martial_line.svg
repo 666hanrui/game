@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Line Rush Route Icon</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="60%"><stop offset="0%" stop-color="#fff3e0"/><stop offset="55%" stop-color="#ffb74d" stop-opacity="0.72"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="128" fill="#e65100" opacity="0.14"/>
+  <path d="M136 356 L356 136" stroke="#ffcc80" stroke-width="28" stroke-linecap="round" opacity="0.92"/>
+  <circle cx="356" cy="136" r="38" fill="#ffe0b2" stroke="#ff9800" stroke-width="8"/>
+  <circle cx="256" cy="256" r="54" fill="none" stroke="#ffe0b2" stroke-width="12" opacity="0.7"/>
+  <path d="M144 252 H368" stroke="#ffb74d" stroke-width="9" stroke-linecap="round" opacity="0.52"/>
+  <path d="M256 144 V368" stroke="#ffb74d" stroke-width="9" stroke-linecap="round" opacity="0.52"/>
+</svg>
