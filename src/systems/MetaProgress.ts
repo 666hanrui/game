@@ -1,3 +1,5 @@
+import { getCurrentDifficulty } from "./DifficultySystem";
+
 export interface RunRewardInput {
   wave: number;
   kills: number;
@@ -162,7 +164,8 @@ export class MetaProgress {
     const levelReward = Math.max(0, input.level - 1) * 2;
     const bossReward = input.bossKills * 18;
     const goalReward = input.goalsCompleted * 10;
-    return Math.max(1, waveReward + killReward + levelReward + bossReward + goalReward);
+    const base = Math.max(1, waveReward + killReward + levelReward + bossReward + goalReward);
+    return Math.max(1, Math.floor(base * getCurrentDifficulty().soulRewardMult));
   }
 
   private saveUpgradeLevels(levels: MetaUpgradeLevels): void {
