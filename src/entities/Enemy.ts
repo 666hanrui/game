@@ -30,6 +30,8 @@ export class Enemy {
   private def: EnemyDef;
   private hitFlash = 0;
   private anim = 0;
+  private slowTimer = 0;
+  private slowFactor = 1;
 
   constructor(worldW: number, worldH: number, hpMult: number, spdMult: number) {
     const margin = 80;
@@ -51,11 +53,22 @@ export class Enemy {
 
   update(dt: number, playerPos: Vec2): void {
     if (!this.alive) return;
+
+    if (this.slowTimer > 0) {
+      this.slowTimer -= dt;
+      if (this.slowTimer <= 0) this.slowFactor = 1;
+    }
+
     const d = direction(this.pos, playerPos);
-    this.pos.x += d.x * this.speed * dt;
-    this.pos.y += d.y * this.speed * dt;
+    this.pos.x += d.x * this.speed * this.slowFactor * dt;
+    this.pos.y += d.y * this.speed * this.slowFactor * dt;
     this.anim += dt * 5;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+  }
+
+  applySlow(factor: number, duration: number): void {
+    this.slowFactor = Math.min(this.slowFactor, factor);
+    this.slowTimer = Math.max(this.slowTimer, duration);
   }
 
   takeDamage(dmg: number): boolean {
@@ -67,7 +80,16 @@ export class Enemy {
 
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
     const def = this.def;
-    const fill = this.hitFlash > 0 ? "#fff" : def.color;
+    const slowed = this.slowTimer > 0;
+    const fill = this.hitFlash > 0 ? "#fff" : slowed ? "#90caf9" : def.color;
+
+    if (slowed) {
+      ctx.strokeStyle = "rgba(144,202,249,0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 6 + Math.sin(this.anim) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     // 身体
     ctx.fillStyle = fill;
@@ -101,7 +123,7 @@ export class Enemy {
 
     // 血条
     if (this.hp < this.maxHp) {
-      const bw = 24, bh = 3, py = sy - this.radius - 6, pct = this.hp / this.maxHp;
+      const bw = 24, bh = 3, py = sy - this.radius - 6, pct = Math.max(0, this.hp / this.maxHp);
       ctx.fillStyle = "#222";
       ctx.fillRect(sx - bw / 2, py, bw, bh);
       ctx.fillStyle = "#ef5350";
