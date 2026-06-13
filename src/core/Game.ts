@@ -184,6 +184,8 @@ export class Game {
     if (weaponId === "wand") { cooldown -= 0.03; }
     if (weaponId === "flying_blade") { dmg -= 3; cooldown -= 0.05; }
     if (weaponId === "energy_core") { dmg += 6; }
+    if (weaponId === "spear") { dmg += 12; cooldown += 0.04; }
+    if (weaponId === "orb") { dmg += 4; cooldown += 0.04; }
 
     for (const skill of this.appliedSkills) {
       if (skill.mods.maxHp) hp += skill.mods.maxHp;
@@ -239,6 +241,7 @@ export class Game {
       case "energy_core": return "energy";
       case "flying_blade": return "blade";
       case "drone_core": return "energy";
+      case "orb": return "magic";
       default: return "arrow";
     }
   }
@@ -249,31 +252,60 @@ export class Game {
       case "wand": return 560;
       case "flying_blade": return 520;
       case "energy_core": return 650;
+      case "spear": return 760;
+      case "orb": return 460;
       default: return 600;
     }
   }
 
-  private createProjectile(dir: Vec2, angleOffset = 0, damage = this.player.damage, kind = this.projectileKind()): Projectile {
+  private createProjectile(dir: Vec2, angleOffset = 0, damage = this.player.damage, kind = this.projectileKind(), speedOverride?: number): Projectile {
     const cos = Math.cos(angleOffset);
     const sin = Math.sin(angleOffset);
     const x = dir.x * cos - dir.y * sin;
     const y = dir.x * sin + dir.y * cos;
-    const speed = this.projectileSpeed();
+    const speed = speedOverride ?? this.projectileSpeed();
     return new Projectile(this.player.pos.x, this.player.pos.y, x * speed, y * speed, false, damage, kind);
   }
 
   private fireWeapon(): void {
     const baseDir = this.input.state.aimDir;
+    const weaponId = this.selectedWeapon?.id;
+
+    if (weaponId === "orb") {
+      const count = 3 + this.player.projectileExtra;
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * 0.32;
+        this.projectiles.push(this.createProjectile(baseDir, offset, Math.floor(this.player.damage * 0.75), "magic", 460));
+      }
+      return;
+    }
+
+    if (weaponId === "spear") {
+      this.projectiles.push(this.createProjectile(baseDir, 0, this.player.damage, "arrow", 760));
+      for (let i = 0; i < this.player.projectileExtra; i++) {
+        const offset = (i + 1) * 0.07 * (i % 2 === 0 ? 1 : -1);
+        this.projectiles.push(this.createProjectile(baseDir, offset, Math.floor(this.player.damage * 0.78), "arrow", 760));
+      }
+      return;
+    }
+
     this.projectiles.push(this.createProjectile(baseDir));
 
+    const spreadStep = weaponId === "flying_blade" ? 0.24 : 0.15;
     for (let i = 0; i < this.player.projectileExtra; i++) {
-      const angle = (i + 1) * 0.15 * (i % 2 === 0 ? 1 : -1);
+      const angle = (i + 1) * spreadStep * (i % 2 === 0 ? 1 : -1);
       this.projectiles.push(this.createProjectile(baseDir, angle));
     }
 
-    if (this.selectedWeapon?.id === "staff") {
+    if (weaponId === "staff") {
       this.projectiles.push(this.createProjectile(baseDir, 0.28, Math.floor(this.player.damage * 0.7), "heavy_magic"));
       this.projectiles.push(this.createProjectile(baseDir, -0.28, Math.floor(this.player.damage * 0.7), "heavy_magic"));
+    }
+
+    if (weaponId === "energy_core" && this.hasSkill("energy_refraction")) {
+      const count = this.skillCount("energy_refraction");
+      this.projectiles.push(this.createProjectile(baseDir, 0.34, Math.floor(this.player.damage * (0.55 + count * 0.08)), "energy", 640));
+      this.projectiles.push(this.createProjectile(baseDir, -0.34, Math.floor(this.player.damage * (0.55 + count * 0.08)), "energy", 640));
     }
   }
 
@@ -287,7 +319,7 @@ export class Game {
       const dy = target.pos.y - p.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
       const speed = Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y) || 600;
-      const blend = Math.min(1, dt * 5);
+      const blend = Math.min(1, dt * (5 + this.skillCount("tracking") * 1.5));
       p.vel.x += ((dx / len) * speed - p.vel.x) * blend;
       p.vel.y += ((dy / len) * speed - p.vel.y) * blend;
     }
@@ -297,7 +329,8 @@ export class Game {
     const count = this.skillCount("drone") + (this.selectedWeapon?.id === "drone_core" ? 1 : 0);
     if (count <= 0) return;
 
-    const rate = 1.4 + count * 0.35;
+    const swarm = this.skillCount("drone_swarm");
+    const rate = 1.4 + count * 0.35 + swarm * 0.28;
     const gate = Math.floor(this.gameTime * rate);
     const prevGate = Math.floor((this.gameTime - dt) * rate);
     if (gate === prevGate) return;
@@ -308,7 +341,7 @@ export class Game {
       const dx = target.pos.x - this.player.pos.x;
       const dy = target.pos.y - this.player.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5, "drone"));
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5 + swarm * 4, "drone"));
     }
   }
 
@@ -367,7 +400,21 @@ export class Game {
 
           if (this.hasSkill("frost_arrow")) e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
           if (this.hasSkill("fireball")) this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
-          if (this.selectedWeapon?.id === "staff") this.explodeAt(e.pos.x, e.pos.y, 70, Math.max(3, Math.floor(dmg * 0.35)), e);
+
+          if (this.selectedWeapon?.id === "staff") {
+            const bloom = this.skillCount("spell_bloom");
+            this.explodeAt(e.pos.x, e.pos.y, 70 + bloom * 26, Math.max(3, Math.floor(dmg * (0.35 + bloom * 0.12))), e);
+          }
+
+          if (this.selectedWeapon?.id === "flying_blade" && this.hasSkill("whirl_blade")) {
+            const whirl = this.skillCount("whirl_blade");
+            this.explodeAt(e.pos.x, e.pos.y, 38 + whirl * 10, Math.max(2, Math.floor(dmg * (0.22 + whirl * 0.06))), e);
+          }
+
+          if (this.selectedWeapon?.id === "spear" && this.hasSkill("pierce")) {
+            const pierce = this.skillCount("pierce");
+            this.explodeAt(e.pos.x, e.pos.y, 45 + pierce * 12, Math.max(3, Math.floor(dmg * (0.25 + pierce * 0.08))), e);
+          }
 
           if (defeated) this.onKill(e);
           break;
