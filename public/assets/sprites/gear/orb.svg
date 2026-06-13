@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Orb Route Icon</title>
+  <defs><radialGradient id="g" cx="50%" cy="45%" r="60%"><stop offset="0%" stop-color="#e1f5fe"/><stop offset="54%" stop-color="#90caf9" stop-opacity="0.72"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient><radialGradient id="b" cx="35%" cy="30%" r="70%"><stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#90caf9"/><stop offset="100%" stop-color="#1565c0"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="86" fill="url(#b)" stroke="#e1f5fe" stroke-width="9"/>
+  <ellipse cx="256" cy="256" rx="150" ry="58" fill="none" stroke="#e1f5fe" stroke-width="11" opacity="0.7" transform="rotate(-18 256 256)"/>
+  <ellipse cx="256" cy="256" rx="150" ry="58" fill="none" stroke="#64b5f6" stroke-width="8" opacity="0.45" transform="rotate(24 256 256)"/>
+  <circle cx="194" cy="194" r="20" fill="#ffffff" opacity="0.72"/>
+  <circle cx="344" cy="319" r="13" fill="#e1f5fe" opacity="0.66"/>
+</svg>
