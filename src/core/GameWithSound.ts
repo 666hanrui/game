@@ -43,6 +43,7 @@ export class GameWithSound extends Game {
   private difficultyRects: { x: number; y: number; w: number; h: number; id: DifficultyId }[] = [];
   private statsPanel = new StatsPanel();
   private buildEffects = new BuildEffectOverlay();
+  private buildPowerTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -65,16 +66,15 @@ export class GameWithSound extends Game {
     const before = this.snapshot();
     super.update(dt);
     this.updateBossPatterns(dt);
+    this.updateBuildPower(dt);
     const after = this.snapshot();
     this.updateSounds(before, after);
   }
 
   render(): void {
     super.render();
-    if (this.phase === "playing" || this.phase === "paused") {
-      this.renderBuildEffects();
-      this.renderStatsPanel();
-    }
+    if (this.phase === "playing") this.renderBuildEffects();
+    if (this.phase === "playing" || this.phase === "paused") this.renderStatsPanel();
     if (this.phase === "menu") this.renderDifficultySelector();
   }
 
@@ -102,6 +102,134 @@ export class GameWithSound extends Game {
       bossKills: this.bossKills,
       skills: this.appliedSkills,
     });
+  }
+
+  private updateBuildPower(dt: number): void {
+    if (this.phase !== "playing" || !this.selectedWeapon) return;
+    const score = this.getBuildPowerScore();
+    if (score < 7) return;
+
+    this.buildPowerTimer -= dt;
+    if (this.buildPowerTimer > 0) return;
+
+    const weaponId = this.selectedWeapon.id;
+    if (this.isMagicWeapon(weaponId)) {
+      this.castArcaneNova(score);
+      this.buildPowerTimer = Math.max(0.42, 1.55 - score * 0.055);
+    } else if (weaponId === "bow") {
+      this.fireArrowRain(score);
+      this.buildPowerTimer = Math.max(0.36, 1.25 - score * 0.045);
+    } else if (this.isMartialWeapon(weaponId)) {
+      this.releaseWeaponAura(score);
+      this.buildPowerTimer = Math.max(0.36, 1.18 - score * 0.045);
+    } else if (this.isTechWeapon(weaponId)) {
+      this.fireTechVolley(score);
+      this.buildPowerTimer = Math.max(0.32, 1.05 - score * 0.04);
+    }
+  }
+
+  private getBuildPowerScore(): number {
+    return this.appliedSkills.length + this.player.projectileExtra * 1.6 + this.player.critChance * 10 + Math.max(0, this.player.damage - 45) / 18;
+  }
+
+  private castArcaneNova(score: number): void {
+    const count = Math.min(20, 6 + Math.floor(score / 1.6));
+    const kind: ProjectileKind = this.selectedWeapon?.id === "staff" ? "heavy_magic" : "magic";
+    const speed = this.selectedWeapon?.id === "orb" ? 380 : 460;
+    const damage = Math.max(6, Math.floor(this.player.damage * (0.32 + Math.min(0.28, score * 0.012))));
+    const offset = performance.now() / 1000;
+
+    for (let i = 0; i < count; i++) {
+      const angle = offset + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, kind));
+    }
+  }
+
+  private fireArrowRain(score: number): void {
+    const target = this.findBuildTarget();
+    const base = target ? Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x) : Math.random() * Math.PI * 2;
+    const count = Math.min(12, 3 + this.player.projectileExtra + Math.floor(score / 4));
+    const spread = 0.95;
+    const speed = 720;
+    const damage = Math.max(5, Math.floor(this.player.damage * 0.42));
+
+    for (let i = 0; i < count; i++) {
+      const t = count <= 1 ? 0.5 : i / (count - 1);
+      const angle = base - spread / 2 + spread * t;
+      const sx = this.player.pos.x - Math.cos(angle) * 36 + (Math.random() - 0.5) * 36;
+      const sy = this.player.pos.y - Math.sin(angle) * 36 + (Math.random() - 0.5) * 36;
+      this.projectiles.push(new Projectile(sx, sy, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "arrow"));
+    }
+  }
+
+  private releaseWeaponAura(score: number): void {
+    const spear = this.selectedWeapon?.id === "spear";
+    const count = spear ? Math.min(8, 3 + Math.floor(score / 4)) : Math.min(12, 4 + Math.floor(score / 3));
+    const speed = spear ? 790 : 610;
+    const damage = Math.max(6, Math.floor(this.player.damage * (spear ? 0.54 : 0.42)));
+    const base = Math.atan2(this.input.state.aimDir.y, this.input.state.aimDir.x);
+
+    for (let i = 0; i < count; i++) {
+      const angle = spear
+        ? base + (i - (count - 1) / 2) * 0.18
+        : base + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, spear ? "arrow" : "blade"));
+    }
+  }
+
+  private fireTechVolley(score: number): void {
+    const targets = this.enemies
+      .filter((e) => e.alive)
+      .sort((a, b) => this.dist2(a.pos.x, a.pos.y) - this.dist2(b.pos.x, b.pos.y))
+      .slice(0, Math.min(8, 2 + Math.floor(score / 4)));
+
+    if (targets.length <= 0) return;
+
+    const kind: ProjectileKind = this.selectedWeapon?.id === "drone_core" ? "drone" : "energy";
+    const speed = kind === "drone" ? 660 : 760;
+    const damage = Math.max(5, Math.floor(this.player.damage * (kind === "drone" ? 0.34 : 0.46)));
+    const shots = Math.min(10, targets.length + this.player.projectileExtra);
+
+    for (let i = 0; i < shots; i++) {
+      const target = targets[i % targets.length];
+      const dx = target.pos.x - this.player.pos.x;
+      const dy = target.pos.y - this.player.pos.y;
+      const base = Math.atan2(dy, dx) + (i - shots / 2) * 0.035;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(base) * speed, Math.sin(base) * speed, false, damage, kind));
+    }
+  }
+
+  private findBuildTarget(): Enemy | null {
+    let best: Enemy | null = null;
+    let bestD = Infinity;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const d = this.dist2(e.pos.x, e.pos.y);
+      const weight = e.role === "boss" ? d * 0.35 : e.role === "elite" ? d * 0.55 : d;
+      if (weight < bestD) {
+        bestD = weight;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  private dist2(x: number, y: number): number {
+    const dx = x - this.player.pos.x;
+    const dy = y - this.player.pos.y;
+    return dx * dx + dy * dy;
+  }
+
+  private isMagicWeapon(id: string): boolean {
+    return id === "wand" || id === "staff" || id === "orb";
+  }
+
+  private isMartialWeapon(id: string): boolean {
+    return id === "flying_blade" || id === "spear";
+  }
+
+  private isTechWeapon(id: string): boolean {
+    return id === "drone_core" || id === "energy_core";
   }
 
   private handleDifficultyClick(e: MouseEvent): void {
