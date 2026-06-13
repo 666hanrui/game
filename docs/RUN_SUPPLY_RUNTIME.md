@@ -23,6 +23,8 @@
 
 重要边界：局内补给只服务单局战斗节奏，不作为宝箱主奖励。
 
+说明：`src/data/runItems.ts` 中还存在一些预埋补给，例如聚宝符、净化符、狂暴药剂、佣兵号角、亡骨号角、丰收印记、猎魂灯等；这些暂未进入 `RuntimeSupplyId`，不属于当前运行时刷新池。检查 ID 是否遗漏时，应以“已经写入 `RuntimeSupplyId` 且已有 activate / pickSpawnId / colorFor / labelFor 处理”为准。
+
 ## 实现文件
 
 ### src/systems/RunSupplyRuntime.ts
