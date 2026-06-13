@@ -66,16 +66,11 @@ export class Enemy {
     let dmgMod = 1;
 
     switch (role) {
-      case "fast":
-        radiusMod = 0.78; hpMod = 0.62; spdRoleMod = 1.75; dmgMod = 0.75; break;
-      case "tank":
-        radiusMod = 1.35; hpMod = 2.25; spdRoleMod = 0.62; dmgMod = 1.25; break;
-      case "ranged":
-        radiusMod = 0.98; hpMod = 0.85; spdRoleMod = 0.82; dmgMod = 0.9; break;
-      case "elite":
-        radiusMod = 1.45; hpMod = 3.1; spdRoleMod = 1.08; dmgMod = 1.65; break;
-      case "boss":
-        radiusMod = 2.35; hpMod = 12; spdRoleMod = 0.72; dmgMod = 2.3; break;
+      case "fast": radiusMod = 0.78; hpMod = 0.62; spdRoleMod = 1.75; dmgMod = 0.75; break;
+      case "tank": radiusMod = 1.35; hpMod = 2.25; spdRoleMod = 0.62; dmgMod = 1.25; break;
+      case "ranged": radiusMod = 0.98; hpMod = 0.85; spdRoleMod = 0.82; dmgMod = 0.9; break;
+      case "elite": radiusMod = 1.45; hpMod = 3.1; spdRoleMod = 1.08; dmgMod = 1.65; break;
+      case "boss": radiusMod = 2.35; hpMod = 12; spdRoleMod = 0.72; dmgMod = 2.3; break;
     }
 
     this.radius = Math.floor(this.def.radius * radiusMod);
@@ -84,6 +79,10 @@ export class Enemy {
     this.speed = randRange(this.def.spdBase * 0.8, this.def.spdBase * 1.2) * spdMult * spdRoleMod;
     this.damage = Math.floor(this.damage * dmgMod);
     this.shootTimer = randRange(0.5, 1.8);
+  }
+
+  get assetId(): string {
+    return this.type;
   }
 
   update(dt: number, playerPos: Vec2): void {
@@ -106,7 +105,6 @@ export class Enemy {
         this.pos.x += d.x * this.speed * this.slowFactor * dt;
         this.pos.y += d.y * this.speed * this.slowFactor * dt;
       } else {
-        // 保持距离时横向游走
         this.pos.x += -d.y * this.speed * 0.45 * this.slowFactor * dt;
         this.pos.y += d.x * this.speed * 0.45 * this.slowFactor * dt;
       }
@@ -151,10 +149,9 @@ export class Enemy {
     }
   }
 
-  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+  renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, sprite?: HTMLImageElement | null): void {
     const def = this.def;
     const slowed = this.slowTimer > 0;
-    const fill = this.hitFlash > 0 ? "#fff" : slowed ? "#90caf9" : this.roleColor(def.color);
 
     if (this.role === "elite" || this.role === "boss") {
       ctx.strokeStyle = this.role === "boss" ? "rgba(255,213,79,0.75)" : "rgba(239,83,80,0.6)";
@@ -172,24 +169,32 @@ export class Enemy {
       ctx.stroke();
     }
 
-    ctx.fillStyle = fill;
-    ctx.strokeStyle = def.strokeColor;
-    ctx.lineWidth = this.role === "boss" ? 3 : 2;
-    ctx.beginPath();
-
-    switch (this.type) {
-      case "slime": this.ellipse(ctx, sx, sy, this.radius, this.radius * 0.8 + Math.sin(this.anim) * 2); break;
-      case "spider": this.polygon(ctx, sx, sy, this.radius, 6); break;
-      case "skeleton": this.polygon(ctx, sx, sy, this.radius, 4); break;
+    if (sprite) {
+      const size = this.radius * 2.45;
+      ctx.save();
+      if (this.hitFlash > 0) ctx.globalAlpha = 0.65;
+      ctx.drawImage(sprite, sx - size / 2, sy - size / 2, size, size);
+      ctx.restore();
+    } else {
+      const fill = this.hitFlash > 0 ? "#fff" : slowed ? "#90caf9" : this.roleColor(def.color);
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = def.strokeColor;
+      ctx.lineWidth = this.role === "boss" ? 3 : 2;
+      ctx.beginPath();
+      switch (this.type) {
+        case "slime": this.ellipse(ctx, sx, sy, this.radius, this.radius * 0.8 + Math.sin(this.anim) * 2); break;
+        case "spider": this.polygon(ctx, sx, sy, this.radius, 6); break;
+        case "skeleton": this.polygon(ctx, sx, sy, this.radius, 4); break;
+      }
+      ctx.fill();
+      ctx.stroke();
     }
-    ctx.fill();
-    ctx.stroke();
 
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillStyle = "rgba(0,0,0,0.52)";
     ctx.font = `${this.role === "boss" ? 14 : 10}px monospace`;
     ctx.textAlign = "center";
     const roleText = ROLE_LABEL[this.role];
-    ctx.fillText(roleText || def.label, sx, sy + 4);
+    if (roleText) ctx.fillText(roleText, sx, sy + 4);
 
     if (this.hp < this.maxHp || this.role === "elite" || this.role === "boss") {
       const bw = this.role === "boss" ? 70 : this.role === "elite" ? 42 : 24;
