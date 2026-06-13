@@ -1,4 +1,5 @@
 import { GameWithSound } from "./core/GameWithSound";
+import { HubCampPanel } from "./ui/HubCampPanel";
 
 function main(): void {
   const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -8,6 +9,27 @@ function main(): void {
   }
 
   const game = new GameWithSound(canvas);
+  const hubCamp = new HubCampPanel();
+  let showHubCamp = true;
+
+  canvas.addEventListener("click", (e) => {
+    if (!showHubCamp || game.phase !== "menu") return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const action = hubCamp.handleClick(x, y);
+
+    if (action === "start") {
+      showHubCamp = false;
+      return;
+    }
+
+    if (action) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, true);
 
   let lastTime = performance.now();
 
@@ -18,7 +40,12 @@ function main(): void {
     lastTime = now;
 
     game.update(dt);
-    game.render();
+
+    if (showHubCamp && game.phase === "menu") {
+      hubCamp.render(game.ctx, game.w, game.h);
+    } else {
+      game.render();
+    }
 
     requestAnimationFrame(loop);
   }
