@@ -1,6 +1,7 @@
 import { Skill, SkillSchool, ALL_SKILLS } from "../data/skills";
 import { School, SCHOOLS, getSchool } from "../data/schools";
 import { Race, RACES } from "../data/races";
+import { Weapon, getWeaponsBySchool, getWeapon } from "../data/weapons";
 
 // 升级面板：显示 3 张技能卡，处理点击选择
 export class UpgradePanel {
@@ -13,7 +14,7 @@ export class UpgradePanel {
   private cardRects: { x: number; y: number; w: number; h: number; skill: Skill }[] = [];
   private ownedIds: string[] = [];
 
-  generateChoices(playerSchool: SkillSchool | null, ownedIds: string[]): Skill[] {
+  generateChoices(playerSchool: SkillSchool | null, ownedIds: string[], weaponId: string | null = null): Skill[] {
     this.ownedIds = [...ownedIds];
 
     const available = ALL_SKILLS.filter((s: Skill) => {
@@ -21,7 +22,8 @@ export class UpgradePanel {
       return ownedCount < s.maxLevel;
     });
 
-    const schoolPool = available.filter((s: Skill) => s.school === playerSchool);
+    const weaponPool = available.filter((s: Skill) => s.school === playerSchool && s.weapon === weaponId);
+    const schoolPool = available.filter((s: Skill) => s.school === playerSchool && !s.weapon);
     const neutralPool = available.filter((s: Skill) => s.school === "neutral");
     const otherPool = available.filter((s: Skill) => s.school !== playerSchool && s.school !== "neutral");
 
@@ -38,9 +40,10 @@ export class UpgradePanel {
       const roll = Math.random();
       let pick: Skill | null = null;
 
-      // 选定体系后，升级优先围绕该体系允许的武器路线继续成长
-      if (roll < 0.72) pick = pickFrom(schoolPool);
-      if (!pick && roll < 0.92) pick = pickFrom(neutralPool);
+      // 选定武器后，升级优先围绕这把武器继续成长
+      if (roll < 0.72) pick = pickFrom(weaponPool);
+      if (!pick && roll < 0.84) pick = pickFrom(schoolPool);
+      if (!pick && roll < 0.94) pick = pickFrom(neutralPool);
       if (!pick) pick = pickFrom(otherPool);
       if (!pick) pick = pickFrom(available);
 
@@ -57,10 +60,7 @@ export class UpgradePanel {
 
   handleClick(canvasX: number, canvasY: number): Skill | null {
     for (const rect of this.cardRects) {
-      if (
-        canvasX >= rect.x && canvasX <= rect.x + rect.w &&
-        canvasY >= rect.y && canvasY <= rect.y + rect.h
-      ) {
+      if (canvasX >= rect.x && canvasX <= rect.x + rect.w && canvasY >= rect.y && canvasY <= rect.y + rect.h) {
         this.selected = rect.skill;
         return rect.skill;
       }
@@ -82,13 +82,13 @@ export class UpgradePanel {
 
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.font = "11px monospace";
-    ctx.fillText("体系决定武器大类，同一武器路线可以持续叠加成长", w / 2, startY - 14);
+    ctx.fillText("同一武器路线可以持续升级，例如弓箭从单发一路成长到箭雨", w / 2, startY - 14);
 
     for (let i = 0; i < this.cards.length; i++) {
       const skill = this.cards[i];
       const cx = startX + i * (this.cardW + this.gap);
       const cy = startY;
-      const meta = this.getSchoolMeta(skill.school);
+      const meta = this.getSkillMeta(skill);
       const level = this.ownedIds.filter((id) => id === skill.id).length;
       const levelText = skill.maxLevel === 1 ? "唯一" : `Lv.${level + 1}/${skill.maxLevel}`;
 
@@ -147,9 +147,13 @@ export class UpgradePanel {
     ctx.fillText("点击选择  ·  键盘 1/2/3 快速选择", w / 2, startY + this.cardH + 48);
   }
 
-  private getSchoolMeta(school: SkillSchool): { name: string; icon: string; color: string } {
-    if (school === "neutral") return { name: "通用强化", icon: "✦", color: "#b0bec5" };
-    const s = getSchool(school);
+  private getSkillMeta(skill: Skill): { name: string; icon: string; color: string } {
+    if (skill.weapon) {
+      const weapon = getWeapon(skill.weapon);
+      if (weapon) return { name: weapon.name, icon: weapon.icon, color: weapon.color };
+    }
+    if (skill.school === "neutral") return { name: "通用强化", icon: "✦", color: "#b0bec5" };
+    const s = getSchool(skill.school);
     return { name: s.name, icon: s.icon, color: s.color };
   }
 
@@ -193,7 +197,6 @@ export class UpgradePanel {
   }
 }
 
-// ============ 种族选择面板 ============
 export class RacePanel {
   private cardW = 150;
   private cardH = 178;
@@ -298,7 +301,6 @@ export class RacePanel {
   }
 }
 
-// ============ 体系选择面板 ============
 export class SchoolPanel {
   private cardW = 210;
   private cardH = 150;
@@ -332,30 +334,134 @@ export class SchoolPanel {
       const cx = sx + i * (this.cardW + this.gap);
       const cy = sy;
       this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, school });
-
-      ctx.fillStyle = "#1a1a2e";
-      ctx.strokeStyle = school.color;
-      ctx.lineWidth = 2;
-      this.roundRect(ctx, cx, cy, this.cardW, this.cardH, 8);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = school.color;
-      ctx.font = "bold 18px monospace";
-      ctx.fillText(school.icon + " " + school.name, cx + this.cardW / 2, cy + 34);
-
-      ctx.fillStyle = "#aaa";
-      ctx.font = "12px monospace";
-      ctx.fillText(school.description, cx + this.cardW / 2, cy + 62);
-
-      ctx.fillStyle = "#777";
-      ctx.font = "10px monospace";
-      this.wrapTextCenter(ctx, school.theme, cx + this.cardW / 2, cy + 90, this.cardW - 24, 15);
+      this.drawCard(ctx, cx, cy, this.cardW, this.cardH, school.color, school.icon + " " + school.name, school.description, school.theme);
     }
 
     ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.font = "12px monospace";
-    ctx.fillText("点击选择 · 当前优先完善古武体系下的弓箭路线", w / 2, sy + this.cardH + 40);
+    ctx.fillText("点击选择体系", w / 2, sy + this.cardH + 40);
+  }
+
+  private drawCard(ctx: CanvasRenderingContext2D, x: number, y: number, cw: number, ch: number, color: string, title: string, desc: string, theme: string): void {
+    ctx.fillStyle = "#1a1a2e";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    this.roundRect(ctx, x, y, cw, ch, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = "bold 18px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(title, x + cw / 2, y + 34);
+    ctx.fillStyle = "#aaa";
+    ctx.font = "12px monospace";
+    ctx.fillText(desc, x + cw / 2, y + 62);
+    ctx.fillStyle = "#777";
+    ctx.font = "10px monospace";
+    this.wrapTextCenter(ctx, theme, x + cw / 2, y + 90, cw - 24, 15);
+  }
+
+  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  private wrapTextCenter(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number): void {
+    const words = text.split("");
+    let line = "";
+    let ly = y;
+    for (let i = 0; i < words.length; i++) {
+      const test = line + words[i];
+      if (ctx.measureText(test).width > maxW && line.length > 0) {
+        ctx.fillText(line, x, ly);
+        line = words[i];
+        ly += lineH;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line, x, ly);
+  }
+}
+
+export class WeaponPanel {
+  private cardW = 210;
+  private cardH = 150;
+  private gap = 16;
+  private cardRects: { x: number; y: number; w: number; h: number; weapon: Weapon }[] = [];
+  private weapons: Weapon[] = [];
+
+  setSchool(school: SkillSchool | null): void {
+    this.weapons = getWeaponsBySchool(school);
+  }
+
+  handleClick(cx: number, cy: number): Weapon | null {
+    for (const r of this.cardRects) {
+      if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) return r.weapon;
+    }
+    return null;
+  }
+
+  render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    this.cardRects = [];
+    const count = Math.max(1, this.weapons.length);
+    const cols = Math.min(3, count);
+    const rows = Math.ceil(count / cols);
+    const totalH = rows * this.cardH + (rows - 1) * this.gap;
+    const sy = h / 2 - totalH / 2 + 18;
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 24px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("选择你的武器", w / 2, sy - 52);
+
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "11px monospace";
+    ctx.fillText("武器决定后续升级路线，选弓箭就会持续刷弓箭成长", w / 2, sy - 30);
+
+    for (let i = 0; i < this.weapons.length; i++) {
+      const weapon = this.weapons[i];
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const countInRow = Math.min(cols, this.weapons.length - row * cols);
+      const rowW = countInRow * this.cardW + (countInRow - 1) * this.gap;
+      const cx = (w - rowW) / 2 + col * (this.cardW + this.gap);
+      const cy = sy + row * (this.cardH + this.gap);
+      this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, weapon });
+      this.drawWeapon(ctx, cx, cy, weapon);
+    }
+
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.font = "12px monospace";
+    ctx.fillText("点击选择武器", w / 2, sy + totalH + 38);
+  }
+
+  private drawWeapon(ctx: CanvasRenderingContext2D, x: number, y: number, weapon: Weapon): void {
+    ctx.fillStyle = "#1a1a2e";
+    ctx.strokeStyle = weapon.color;
+    ctx.lineWidth = 2;
+    this.roundRect(ctx, x, y, this.cardW, this.cardH, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = weapon.color;
+    ctx.font = "bold 18px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(weapon.icon + " " + weapon.name, x + this.cardW / 2, y + 34);
+    ctx.fillStyle = "#aaa";
+    ctx.font = "12px monospace";
+    ctx.fillText(weapon.description, x + this.cardW / 2, y + 62);
+    ctx.fillStyle = "#777";
+    ctx.font = "10px monospace";
+    this.wrapTextCenter(ctx, weapon.theme, x + this.cardW / 2, y + 90, this.cardW - 24, 15);
   }
 
   private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
