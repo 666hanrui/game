@@ -1,4 +1,4 @@
-import { EnemyRole } from "../entities/Enemy";
+import type { EnemyRole } from "../entities/Enemy";
 
 // 波次管理器：控制每波敌人数和强度曲线
 export class WaveSystem {
