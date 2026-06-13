@@ -1,6 +1,6 @@
 import { Player } from "../entities/Player";
 import { Enemy } from "../entities/Enemy";
-import { Projectile } from "../entities/Projectile";
+import { Projectile, ProjectileKind } from "../entities/Projectile";
 import { Pickup } from "../entities/Pickup";
 import { Input } from "./Input";
 import { Camera } from "./Camera";
@@ -13,7 +13,7 @@ import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
 import { Weapon } from "../data/weapons";
-import { distance, randRange, vec2 } from "../utils/math";
+import { distance, randRange, vec2, Vec2 } from "../utils/math";
 
 export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "weapon_choice" | "result";
 
@@ -99,30 +99,11 @@ export class Game {
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
 
-    if (this.phase === "result") {
-      this.restart();
-      return;
-    }
-    if (this.phase === "menu") {
-      const race = this.racePanel.handleClick(cx, cy);
-      if (race) this.selectRace(race);
-      return;
-    }
-    if (this.phase === "school_choice") {
-      const school = this.schoolPanel.handleClick(cx, cy);
-      if (school) this.selectSchool(school);
-      return;
-    }
-    if (this.phase === "weapon_choice") {
-      const weapon = this.weaponPanel.handleClick(cx, cy);
-      if (weapon) this.selectWeapon(weapon);
-      return;
-    }
-    if (this.phase === "upgrade") {
-      const skill = this.upgradePanel.handleClick(cx, cy);
-      if (skill) this.applySkill(skill);
-      return;
-    }
+    if (this.phase === "result") { this.restart(); return; }
+    if (this.phase === "menu") { const race = this.racePanel.handleClick(cx, cy); if (race) this.selectRace(race); return; }
+    if (this.phase === "school_choice") { const school = this.schoolPanel.handleClick(cx, cy); if (school) this.selectSchool(school); return; }
+    if (this.phase === "weapon_choice") { const weapon = this.weaponPanel.handleClick(cx, cy); if (weapon) this.selectWeapon(weapon); return; }
+    if (this.phase === "upgrade") { const skill = this.upgradePanel.handleClick(cx, cy); if (skill) this.applySkill(skill); return; }
   }
 
   private restart(): void {
@@ -167,11 +148,7 @@ export class Game {
 
   private selectWeapon(weapon: Weapon): void {
     this.selectedWeapon = weapon;
-    this.upgradePanel.generateChoices(
-      this.selectedSchool?.id as SkillSchool,
-      this.appliedSkillIds,
-      this.selectedWeapon.id,
-    );
+    this.upgradePanel.generateChoices(this.selectedSchool?.id as SkillSchool, this.appliedSkillIds, this.selectedWeapon.id);
     this.phase = "upgrade";
   }
 
@@ -202,6 +179,12 @@ export class Game {
     let critChance = 0;
     let critMult = 1.5;
 
+    const weaponId = this.selectedWeapon?.id;
+    if (weaponId === "staff") { dmg += 10; cooldown += 0.08; }
+    if (weaponId === "wand") { cooldown -= 0.03; }
+    if (weaponId === "flying_blade") { dmg -= 3; cooldown -= 0.05; }
+    if (weaponId === "energy_core") { dmg += 6; }
+
     for (const skill of this.appliedSkills) {
       if (skill.mods.maxHp) hp += skill.mods.maxHp;
       if (skill.mods.speed) spd += skill.mods.speed;
@@ -215,7 +198,7 @@ export class Game {
     this.player.maxHp = hp;
     this.player.hp = Math.min(this.player.hp, hp);
     this.player.speed = spd;
-    this.player.damage = dmg;
+    this.player.damage = Math.max(1, dmg);
     this.player.radius = Math.max(10, Math.floor(16 * race.radiusMod));
     this.player.attackCooldown = Math.max(0.08, cooldown);
     this.player.projectileExtra = projExtra;
@@ -229,9 +212,7 @@ export class Game {
     const count = this.wave.getEnemyCount(this.waveNum);
     const hpMult = this.wave.getHPMultiplier(this.waveNum);
     const spdMult = this.wave.getSpeedMultiplier(this.waveNum);
-    for (let i = 0; i < count; i++) {
-      this.enemies.push(new Enemy(WORLD_W, WORLD_H, hpMult, spdMult));
-    }
+    for (let i = 0; i < count; i++) this.enemies.push(new Enemy(WORLD_W, WORLD_H, hpMult, spdMult));
   }
 
   private spawnMapXP(): void {
@@ -246,12 +227,54 @@ export class Game {
     for (const e of this.enemies) {
       if (!e.alive) continue;
       const d = distance(vec2(x, y), e.pos);
-      if (d < best) {
-        best = d;
-        result = e;
-      }
+      if (d < best) { best = d; result = e; }
     }
     return result;
+  }
+
+  private projectileKind(): ProjectileKind {
+    switch (this.selectedWeapon?.id) {
+      case "wand": return "magic";
+      case "staff": return "heavy_magic";
+      case "energy_core": return "energy";
+      case "flying_blade": return "blade";
+      case "drone_core": return "energy";
+      default: return "arrow";
+    }
+  }
+
+  private projectileSpeed(): number {
+    switch (this.selectedWeapon?.id) {
+      case "staff": return 500;
+      case "wand": return 560;
+      case "flying_blade": return 520;
+      case "energy_core": return 650;
+      default: return 600;
+    }
+  }
+
+  private createProjectile(dir: Vec2, angleOffset = 0, damage = this.player.damage, kind = this.projectileKind()): Projectile {
+    const cos = Math.cos(angleOffset);
+    const sin = Math.sin(angleOffset);
+    const x = dir.x * cos - dir.y * sin;
+    const y = dir.x * sin + dir.y * cos;
+    const speed = this.projectileSpeed();
+    return new Projectile(this.player.pos.x, this.player.pos.y, x * speed, y * speed, false, damage, kind);
+  }
+
+  private fireWeapon(): void {
+    const baseDir = this.input.state.aimDir;
+    this.projectiles.push(this.createProjectile(baseDir));
+
+    for (let i = 0; i < this.player.projectileExtra; i++) {
+      const angle = (i + 1) * 0.15 * (i % 2 === 0 ? 1 : -1);
+      this.projectiles.push(this.createProjectile(baseDir, angle));
+    }
+
+    if (this.selectedWeapon?.id === "staff") {
+      this.projectiles.push(this.createProjectile(baseDir, 0.28, Math.floor(this.player.damage * 0.7), "heavy_magic"));
+      this.projectiles.push(this.createProjectile(baseDir, -0.28, Math.floor(this.player.damage * 0.7), "heavy_magic"));
+    }
   }
 
   private updateTrackingArrows(dt: number): void {
@@ -260,21 +283,18 @@ export class Game {
       if (!p.alive || p.fromEnemy) continue;
       const target = this.findNearestEnemy(p.pos.x, p.pos.y, 420);
       if (!target) continue;
-
       const dx = target.pos.x - p.pos.x;
       const dy = target.pos.y - p.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
       const speed = Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y) || 600;
       const blend = Math.min(1, dt * 5);
-      const tx = (dx / len) * speed;
-      const ty = (dy / len) * speed;
-      p.vel.x += (tx - p.vel.x) * blend;
-      p.vel.y += (ty - p.vel.y) * blend;
+      p.vel.x += ((dx / len) * speed - p.vel.x) * blend;
+      p.vel.y += ((dy / len) * speed - p.vel.y) * blend;
     }
   }
 
   private updateDrone(dt: number): void {
-    const count = this.skillCount("drone");
+    const count = this.skillCount("drone") + (this.selectedWeapon?.id === "drone_core" ? 1 : 0);
     if (count <= 0) return;
 
     const rate = 1.4 + count * 0.35;
@@ -288,7 +308,7 @@ export class Game {
       const dx = target.pos.x - this.player.pos.x;
       const dy = target.pos.y - this.player.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5));
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5, "drone"));
     }
   }
 
@@ -302,9 +322,7 @@ export class Game {
   }
 
   update(dt: number): void {
-    if (this.phase === "menu") return;
-    if (this.phase === "school_choice") return;
-    if (this.phase === "weapon_choice") return;
+    if (this.phase === "menu" || this.phase === "school_choice" || this.phase === "weapon_choice") return;
 
     if (this.phase === "upgrade") {
       if (this.input.isKeyDown("1") && this.upgradePanel.cards.length >= 1) this.applySkill(this.upgradePanel.cards[0]);
@@ -320,24 +338,11 @@ export class Game {
     this.player.update(dt, this.input, WORLD_W, WORLD_H);
 
     this.xpSpawnTimer -= dt;
-    if (this.xpSpawnTimer <= 0) {
-      this.spawnMapXP();
-      this.xpSpawnTimer = this.xpSpawnInterval;
-    }
+    if (this.xpSpawnTimer <= 0) { this.spawnMapXP(); this.xpSpawnTimer = this.xpSpawnInterval; }
 
     this.shootTimer -= dt;
     if (this.input.state.shooting && this.shootTimer <= 0) {
-      const proj = this.player.shoot(this.input.state.aimDir);
-      this.projectiles.push(proj);
-      for (let i = 0; i < this.player.projectileExtra; i++) {
-        const angle = (i + 1) * 0.15 * (i % 2 === 0 ? 1 : -1);
-        const cos = Math.cos(angle), sin = Math.sin(angle);
-        const spreadDir = {
-          x: this.input.state.aimDir.x * cos - this.input.state.aimDir.y * sin,
-          y: this.input.state.aimDir.x * sin + this.input.state.aimDir.y * cos,
-        };
-        this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, spreadDir.x * 600, spreadDir.y * 600, false, this.player.damage));
-      }
+      this.fireWeapon();
       this.shootTimer = this.player.attackCooldown;
     }
 
@@ -362,6 +367,7 @@ export class Game {
 
           if (this.hasSkill("frost_arrow")) e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
           if (this.hasSkill("fireball")) this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
+          if (this.selectedWeapon?.id === "staff") this.explodeAt(e.pos.x, e.pos.y, 70, Math.max(3, Math.floor(dmg * 0.35)), e);
 
           if (defeated) this.onKill(e);
           break;
@@ -389,15 +395,9 @@ export class Game {
       this.applyAllMods();
       if (this.player.maxHp > oldMaxHp) this.player.hp = Math.min(this.player.maxHp, this.player.hp + (this.player.maxHp - oldMaxHp));
 
-      if (!this.selectedSchool) {
-        this.phase = "school_choice";
-      } else if (!this.selectedWeapon) {
-        this.weaponPanel.setSchool(this.selectedSchool.id as SkillSchool);
-        this.phase = "weapon_choice";
-      } else {
-        this.upgradePanel.generateChoices(this.selectedSchool.id as SkillSchool, this.appliedSkillIds, this.selectedWeapon.id);
-        this.phase = "upgrade";
-      }
+      if (!this.selectedSchool) this.phase = "school_choice";
+      else if (!this.selectedWeapon) { this.weaponPanel.setSchool(this.selectedSchool.id as SkillSchool); this.phase = "weapon_choice"; }
+      else { this.upgradePanel.generateChoices(this.selectedSchool.id as SkillSchool, this.appliedSkillIds, this.selectedWeapon.id); this.phase = "upgrade"; }
     }
 
     this.camera.follow(this.player.pos.x, this.player.pos.y);
@@ -410,11 +410,9 @@ export class Game {
 
   private onKill(enemy: Enemy): void {
     this.kills++;
-
     const xpValue = this.xp.xpPerKill;
     this.xp.addXP(xpValue);
     this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
-
     if (Math.random() < 0.12) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", 18));
 
     if (this.hasSkill("bloodlust")) {
@@ -485,22 +483,13 @@ export class Game {
     const br = toScreen(WORLD_W, WORLD_H);
     ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
 
-    for (const pk of this.pickups) {
-      const sp = toScreen(pk.pos.x, pk.pos.y);
-      pk.renderAt(ctx, sp.x, sp.y);
-    }
-    for (const p of this.projectiles) {
-      const sp = toScreen(p.pos.x, p.pos.y);
-      p.renderAt(ctx, sp.x, sp.y);
-    }
-    for (const e of this.enemies) {
-      const sp = toScreen(e.pos.x, e.pos.y);
-      e.renderAt(ctx, sp.x, sp.y);
-    }
+    for (const pk of this.pickups) { const sp = toScreen(pk.pos.x, pk.pos.y); pk.renderAt(ctx, sp.x, sp.y); }
+    for (const p of this.projectiles) { const sp = toScreen(p.pos.x, p.pos.y); p.renderAt(ctx, sp.x, sp.y); }
+    for (const e of this.enemies) { const sp = toScreen(e.pos.x, e.pos.y); e.renderAt(ctx, sp.x, sp.y); }
 
     const psp = toScreen(this.player.pos.x, this.player.pos.y);
     const color = this.selectedRace?.color ?? "#4fc3f7";
-    this.player.renderAt(ctx, psp.x, psp.y, this.input.state.aimDir, color);
+    this.player.renderAt(ctx, psp.x, psp.y, this.input.state.aimDir, color, this.selectedWeapon?.id);
 
     this.input.renderSticks(ctx);
 
