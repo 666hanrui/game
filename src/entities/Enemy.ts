@@ -1,5 +1,6 @@
-import { vec2, Vec2, direction, randRange } from "../utils/math";
+import { vec2, Vec2, direction, randRange, distance } from "../utils/math";
 
+export type EnemyRole = "basic" | "fast" | "tank" | "ranged" | "elite" | "boss";
 type EnemyType = "slime" | "spider" | "skeleton";
 
 interface EnemyDef {
@@ -8,15 +9,25 @@ interface EnemyDef {
   radius: number;
   hpBase: number;
   spdBase: number;
+  label: string;
 }
 
 const DEFS: Record<EnemyType, EnemyDef> = {
-  slime:   { color: "#66bb6a", strokeColor: "#388e3c", radius: 13, hpBase: 35, spdBase: 70 },
-  spider:  { color: "#8d6e63", strokeColor: "#4e342e", radius: 15, hpBase: 55, spdBase: 90 },
-  skeleton:{ color: "#cfd8dc", strokeColor: "#78909c", radius: 14, hpBase: 65, spdBase: 60 },
+  slime:    { color: "#66bb6a", strokeColor: "#388e3c", radius: 13, hpBase: 35, spdBase: 70, label: "●" },
+  spider:   { color: "#8d6e63", strokeColor: "#4e342e", radius: 15, hpBase: 55, spdBase: 90, label: "✶" },
+  skeleton: { color: "#cfd8dc", strokeColor: "#78909c", radius: 14, hpBase: 65, spdBase: 60, label: "✚" },
 };
 
 const TYPES: EnemyType[] = ["slime", "spider", "skeleton"];
+
+const ROLE_LABEL: Record<EnemyRole, string> = {
+  basic: "",
+  fast: "迅",
+  tank: "厚",
+  ranged: "射",
+  elite: "精",
+  boss: "王",
+};
 
 export class Enemy {
   pos: Vec2;
@@ -26,14 +37,16 @@ export class Enemy {
   maxHp: number;
   damage = 10;
   alive = true;
+  role: EnemyRole;
   private type: EnemyType;
   private def: EnemyDef;
   private hitFlash = 0;
   private anim = 0;
   private slowTimer = 0;
   private slowFactor = 1;
+  private shootTimer = 0;
 
-  constructor(worldW: number, worldH: number, hpMult: number, spdMult: number) {
+  constructor(worldW: number, worldH: number, hpMult: number, spdMult: number, role: EnemyRole = "basic") {
     const margin = 80;
     const side = Math.floor(Math.random() * 4);
     switch (side) {
@@ -43,12 +56,34 @@ export class Enemy {
       default: this.pos = vec2(margin, randRange(margin, worldH - margin)); break;
     }
 
+    this.role = role;
     this.type = TYPES[Math.floor(Math.random() * TYPES.length)];
     this.def = DEFS[this.type];
-    this.radius = this.def.radius;
-    this.hp = Math.floor(this.def.hpBase * hpMult);
+
+    let radiusMod = 1;
+    let hpMod = 1;
+    let spdRoleMod = 1;
+    let dmgMod = 1;
+
+    switch (role) {
+      case "fast":
+        radiusMod = 0.78; hpMod = 0.62; spdRoleMod = 1.75; dmgMod = 0.75; break;
+      case "tank":
+        radiusMod = 1.35; hpMod = 2.25; spdRoleMod = 0.62; dmgMod = 1.25; break;
+      case "ranged":
+        radiusMod = 0.98; hpMod = 0.85; spdRoleMod = 0.82; dmgMod = 0.9; break;
+      case "elite":
+        radiusMod = 1.45; hpMod = 3.1; spdRoleMod = 1.08; dmgMod = 1.65; break;
+      case "boss":
+        radiusMod = 2.35; hpMod = 12; spdRoleMod = 0.72; dmgMod = 2.3; break;
+    }
+
+    this.radius = Math.floor(this.def.radius * radiusMod);
+    this.hp = Math.floor(this.def.hpBase * hpMult * hpMod);
     this.maxHp = this.hp;
-    this.speed = randRange(this.def.spdBase * 0.8, this.def.spdBase * 1.2) * spdMult;
+    this.speed = randRange(this.def.spdBase * 0.8, this.def.spdBase * 1.2) * spdMult * spdRoleMod;
+    this.damage = Math.floor(this.damage * dmgMod);
+    this.shootTimer = randRange(0.5, 1.8);
   }
 
   update(dt: number, playerPos: Vec2): void {
@@ -60,10 +95,37 @@ export class Enemy {
     }
 
     const d = direction(this.pos, playerPos);
-    this.pos.x += d.x * this.speed * this.slowFactor * dt;
-    this.pos.y += d.y * this.speed * this.slowFactor * dt;
+    const dist = distance(this.pos, playerPos);
+
+    if (this.role === "ranged" || this.role === "boss") {
+      const desired = this.role === "boss" ? 260 : 230;
+      if (dist < desired * 0.72) {
+        this.pos.x -= d.x * this.speed * 0.82 * this.slowFactor * dt;
+        this.pos.y -= d.y * this.speed * 0.82 * this.slowFactor * dt;
+      } else if (dist > desired * 1.15) {
+        this.pos.x += d.x * this.speed * this.slowFactor * dt;
+        this.pos.y += d.y * this.speed * this.slowFactor * dt;
+      } else {
+        // 保持距离时横向游走
+        this.pos.x += -d.y * this.speed * 0.45 * this.slowFactor * dt;
+        this.pos.y += d.x * this.speed * 0.45 * this.slowFactor * dt;
+      }
+    } else {
+      this.pos.x += d.x * this.speed * this.slowFactor * dt;
+      this.pos.y += d.y * this.speed * this.slowFactor * dt;
+    }
+
     this.anim += dt * 5;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+    if (this.role === "ranged" || this.role === "boss") this.shootTimer -= dt;
+  }
+
+  canShoot(): boolean {
+    if (!this.alive) return false;
+    if (this.role !== "ranged" && this.role !== "boss") return false;
+    if (this.shootTimer > 0) return false;
+    this.shootTimer = this.role === "boss" ? 1.0 : 1.8;
+    return true;
   }
 
   applySlow(factor: number, duration: number): void {
@@ -78,10 +140,29 @@ export class Enemy {
     return false;
   }
 
+  get rewardMultiplier(): number {
+    switch (this.role) {
+      case "fast": return 1.1;
+      case "tank": return 1.5;
+      case "ranged": return 1.35;
+      case "elite": return 3.2;
+      case "boss": return 10;
+      default: return 1;
+    }
+  }
+
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
     const def = this.def;
     const slowed = this.slowTimer > 0;
-    const fill = this.hitFlash > 0 ? "#fff" : slowed ? "#90caf9" : def.color;
+    const fill = this.hitFlash > 0 ? "#fff" : slowed ? "#90caf9" : this.roleColor(def.color);
+
+    if (this.role === "elite" || this.role === "boss") {
+      ctx.strokeStyle = this.role === "boss" ? "rgba(255,213,79,0.75)" : "rgba(239,83,80,0.6)";
+      ctx.lineWidth = this.role === "boss" ? 4 : 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 9 + Math.sin(this.anim) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     if (slowed) {
       ctx.strokeStyle = "rgba(144,202,249,0.55)";
@@ -91,43 +172,45 @@ export class Enemy {
       ctx.stroke();
     }
 
-    // 身体
     ctx.fillStyle = fill;
     ctx.strokeStyle = def.strokeColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = this.role === "boss" ? 3 : 2;
     ctx.beginPath();
 
     switch (this.type) {
-      case "slime":
-        // 歪圆
-        this.ellipse(ctx, sx, sy, this.radius, this.radius * 0.8 + Math.sin(this.anim) * 2);
-        break;
-      case "spider":
-        // 六边形
-        this.polygon(ctx, sx, sy, this.radius, 6);
-        break;
-      case "skeleton":
-        // 菱形
-        this.polygon(ctx, sx, sy, this.radius, 4);
-        break;
+      case "slime": this.ellipse(ctx, sx, sy, this.radius, this.radius * 0.8 + Math.sin(this.anim) * 2); break;
+      case "spider": this.polygon(ctx, sx, sy, this.radius, 6); break;
+      case "skeleton": this.polygon(ctx, sx, sy, this.radius, 4); break;
     }
     ctx.fill();
     ctx.stroke();
 
-    // 类型标志
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.font = "10px monospace";
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.font = `${this.role === "boss" ? 14 : 10}px monospace`;
     ctx.textAlign = "center";
-    const label = this.type === "slime" ? "●" : this.type === "spider" ? "✶" : "✚";
-    ctx.fillText(label, sx, sy + 4);
+    const roleText = ROLE_LABEL[this.role];
+    ctx.fillText(roleText || def.label, sx, sy + 4);
 
-    // 血条
-    if (this.hp < this.maxHp) {
-      const bw = 24, bh = 3, py = sy - this.radius - 6, pct = Math.max(0, this.hp / this.maxHp);
+    if (this.hp < this.maxHp || this.role === "elite" || this.role === "boss") {
+      const bw = this.role === "boss" ? 70 : this.role === "elite" ? 42 : 24;
+      const bh = this.role === "boss" ? 6 : 3;
+      const py = sy - this.radius - 10;
+      const pct = Math.max(0, this.hp / this.maxHp);
       ctx.fillStyle = "#222";
       ctx.fillRect(sx - bw / 2, py, bw, bh);
-      ctx.fillStyle = "#ef5350";
+      ctx.fillStyle = this.role === "boss" ? "#ffd54f" : "#ef5350";
       ctx.fillRect(sx - bw / 2, py, bw * pct, bh);
+    }
+  }
+
+  private roleColor(base: string): string {
+    switch (this.role) {
+      case "fast": return "#ffee58";
+      case "tank": return "#78909c";
+      case "ranged": return "#42a5f5";
+      case "elite": return "#ef5350";
+      case "boss": return "#ff8f00";
+      default: return base;
     }
   }
 
