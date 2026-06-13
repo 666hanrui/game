@@ -1,6 +1,6 @@
 import { vec2, Vec2, direction, randRange, distance } from "../utils/math";
 
-export type EnemyRole = "basic" | "fast" | "tank" | "ranged" | "elite" | "boss";
+export type EnemyRole = "basic" | "fast" | "tank" | "ranged" | "bomber" | "summoner" | "healer" | "elite" | "boss";
 type EnemyType = "slime" | "spider" | "skeleton";
 
 interface EnemyDef {
@@ -26,6 +26,9 @@ const ROLE_LABEL: Record<EnemyRole, string> = {
   fast: "迅",
   tank: "厚",
   ranged: "射",
+  bomber: "爆",
+  summoner: "召",
+  healer: "疗",
   elite: "精",
   boss: "王",
 };
@@ -45,6 +48,7 @@ export class Enemy {
   private def: EnemyDef;
   private hitFlash = 0;
   private armorFlash = 0;
+  private healFlash = 0;
   private anim = 0;
   private slowTimer = 0;
   private slowFactor = 1;
@@ -76,6 +80,9 @@ export class Enemy {
       case "fast": radiusMod = 0.82; hpMod = 0.7; spdRoleMod = 1.95; dmgMod = 0.9; armorMod = 0.35; break;
       case "tank": radiusMod = 1.42; hpMod = 2.65; spdRoleMod = 0.68; dmgMod = 1.38; armorMod = 3.6; break;
       case "ranged": radiusMod = 1.02; hpMod = 1.05; spdRoleMod = 0.9; dmgMod = 1.05; armorMod = 0.8; break;
+      case "bomber": radiusMod = 0.95; hpMod = 0.8; spdRoleMod = 1.58; dmgMod = 1.95; armorMod = 0.55; break;
+      case "summoner": radiusMod = 1.12; hpMod = 1.7; spdRoleMod = 0.74; dmgMod = 0.8; armorMod = 1.2; break;
+      case "healer": radiusMod = 1.02; hpMod = 1.35; spdRoleMod = 0.82; dmgMod = 0.7; armorMod = 0.85; break;
       case "elite": radiusMod = 1.55; hpMod = 3.8; spdRoleMod = 1.22; dmgMod = 1.9; armorMod = 2.8; break;
       case "boss": radiusMod = 2.55; hpMod = 15; spdRoleMod = 0.78; dmgMod = 2.75; armorMod = 5.5; break;
     }
@@ -108,8 +115,8 @@ export class Enemy {
     const sideY = d.x * this.strafeSign;
     const speed = this.speed * this.slowFactor * this.aggression;
 
-    if (this.role === "ranged" || this.role === "boss") {
-      const desired = this.role === "boss" ? 300 : 255;
+    if (this.role === "ranged" || this.role === "boss" || this.role === "summoner" || this.role === "healer") {
+      const desired = this.role === "boss" ? 300 : this.role === "summoner" ? 285 : this.role === "healer" ? 235 : 255;
       if (dist < desired * 0.65) {
         this.pos.x -= d.x * speed * 0.92 * dt;
         this.pos.y -= d.y * speed * 0.92 * dt;
@@ -117,9 +124,15 @@ export class Enemy {
         this.pos.x += d.x * speed * dt;
         this.pos.y += d.y * speed * dt;
       } else {
-        this.pos.x += sideX * speed * (this.role === "boss" ? 0.58 : 0.68) * dt;
-        this.pos.y += sideY * speed * (this.role === "boss" ? 0.58 : 0.68) * dt;
+        const strafe = this.role === "boss" ? 0.58 : this.role === "summoner" ? 0.52 : 0.68;
+        this.pos.x += sideX * speed * strafe * dt;
+        this.pos.y += sideY * speed * strafe * dt;
       }
+    } else if (this.role === "bomber") {
+      const approach = dist > 64 ? 1.16 : 0.42;
+      const strafe = dist > 110 ? 0.32 : 0.08;
+      this.pos.x += (d.x * speed * approach + sideX * speed * strafe) * dt;
+      this.pos.y += (d.y * speed * approach + sideY * speed * strafe) * dt;
     } else if (this.role === "fast" || this.role === "elite") {
       const approach = dist > 105 ? 0.82 : 0.28;
       const strafe = this.role === "elite" ? 0.72 : 0.95;
@@ -137,6 +150,7 @@ export class Enemy {
     this.anim += dt * 5;
     if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.armorFlash > 0) this.armorFlash -= dt;
+    if (this.healFlash > 0) this.healFlash -= dt;
     if (this.role === "ranged" || this.role === "boss") this.shootTimer -= dt;
   }
 
@@ -151,6 +165,14 @@ export class Enemy {
   applySlow(factor: number, duration: number): void {
     this.slowFactor = Math.min(this.slowFactor, factor);
     this.slowTimer = Math.max(this.slowTimer, duration);
+  }
+
+  heal(amount: number): number {
+    if (!this.alive || this.hp >= this.maxHp) return 0;
+    const before = this.hp;
+    this.hp = Math.min(this.maxHp, this.hp + Math.max(0, Math.floor(amount)));
+    this.healFlash = 0.22;
+    return this.hp - before;
   }
 
   breakArmor(amount: number): number {
@@ -174,6 +196,9 @@ export class Enemy {
       case "fast": return 1.15;
       case "tank": return 1.65;
       case "ranged": return 1.5;
+      case "bomber": return 1.45;
+      case "summoner": return 2.25;
+      case "healer": return 1.9;
       case "elite": return 3.6;
       case "boss": return 12;
       default: return 1;
@@ -189,6 +214,22 @@ export class Enemy {
       ctx.lineWidth = this.role === "boss" ? 4 : 3;
       ctx.beginPath();
       ctx.arc(sx, sy, this.radius + 9 + Math.sin(this.anim) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.role === "bomber") {
+      ctx.strokeStyle = `rgba(255,112,67,${0.35 + Math.sin(this.anim * 2.2) * 0.18})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 8 + Math.sin(this.anim * 1.8) * 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.healFlash > 0) {
+      ctx.strokeStyle = "rgba(129,199,132,0.9)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 8 + Math.sin(this.anim) * 2, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -237,14 +278,14 @@ export class Enemy {
     const roleText = ROLE_LABEL[this.role];
     if (roleText) ctx.fillText(roleText, sx, sy + 4);
 
-    if (this.hp < this.maxHp || this.role === "elite" || this.role === "boss") {
-      const bw = this.role === "boss" ? 70 : this.role === "elite" ? 42 : 24;
+    if (this.hp < this.maxHp || this.role === "elite" || this.role === "boss" || this.role === "summoner" || this.role === "healer") {
+      const bw = this.role === "boss" ? 70 : this.role === "elite" ? 42 : this.role === "summoner" ? 38 : 24;
       const bh = this.role === "boss" ? 6 : 3;
       const py = sy - this.radius - 10;
       const pct = Math.max(0, this.hp / this.maxHp);
       ctx.fillStyle = "#222";
       ctx.fillRect(sx - bw / 2, py, bw, bh);
-      ctx.fillStyle = this.role === "boss" ? "#ffd54f" : "#ef5350";
+      ctx.fillStyle = this.role === "boss" ? "#ffd54f" : this.role === "healer" ? "#81c784" : this.role === "summoner" ? "#b39ddb" : "#ef5350";
       ctx.fillRect(sx - bw / 2, py, bw * pct, bh);
 
       if (this.maxArmor > 0 && this.armor > 0) {
@@ -301,6 +342,45 @@ export class Enemy {
       ctx.moveTo(sx, sy + r - 7);
       ctx.lineTo(sx, sy + r + 5);
       ctx.stroke();
+    } else if (this.role === "bomber") {
+      ctx.strokeStyle = "rgba(255,112,67,0.96)";
+      ctx.fillStyle = "rgba(255,112,67,0.25)";
+      ctx.lineWidth = 3;
+      const r = this.radius + 8;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + this.anim * 0.12;
+        const rr = i % 2 === 0 ? r + 4 : r - 2;
+        const x = sx + Math.cos(a) * rr;
+        const y = sy + Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (this.role === "summoner") {
+      ctx.strokeStyle = "rgba(179,157,219,0.96)";
+      ctx.lineWidth = 3;
+      const r = this.radius + 9;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, this.anim * 0.22, this.anim * 0.22 + Math.PI * 1.35);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy, r + 6, -this.anim * 0.18, -this.anim * 0.18 + Math.PI * 1.1);
+      ctx.stroke();
+    } else if (this.role === "healer") {
+      ctx.strokeStyle = "rgba(129,199,132,0.96)";
+      ctx.lineWidth = 4;
+      const r = this.radius + 7;
+      ctx.beginPath();
+      ctx.moveTo(sx - r * 0.55, sy);
+      ctx.lineTo(sx + r * 0.55, sy);
+      ctx.moveTo(sx, sy - r * 0.55);
+      ctx.lineTo(sx, sy + r * 0.55);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.stroke();
     } else if (this.role === "elite") {
       ctx.strokeStyle = "rgba(239,83,80,0.95)";
       ctx.fillStyle = "rgba(239,83,80,0.35)";
@@ -355,6 +435,9 @@ export class Enemy {
       case "fast": return "#ffee58";
       case "tank": return "#78909c";
       case "ranged": return "#42a5f5";
+      case "bomber": return "#ff7043";
+      case "summoner": return "#b39ddb";
+      case "healer": return "#81c784";
       case "elite": return "#ef5350";
       case "boss": return "#ff8f00";
       default: return base;
