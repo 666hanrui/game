@@ -34,46 +34,77 @@ export class Player {
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, aimDir: Vec2, color: string): void {
     const angle = Math.atan2(aimDir.y, aimDir.x);
 
-    // 弓（身体后方的弧形）
-    ctx.strokeStyle = "#c8a96e";
-    ctx.lineWidth = 2.5;
+    // 外圈光晕，让角色从深色背景里跳出来
+    const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, this.radius + 18);
+    glow.addColorStop(0, color + "aa");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    const bowR = this.radius + 4;
-    const bowStart = angle - Math.PI + 0.5;
-    const bowEnd = angle - Math.PI - 0.5;
-    ctx.arc(sx, sy, bowR, bowStart, bowEnd);
+    ctx.arc(sx, sy, this.radius + 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 瞄准辅助线
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx + Math.cos(angle) * (this.radius + 5), sy + Math.sin(angle) * (this.radius + 5));
+    ctx.lineTo(sx + Math.cos(angle) * 48, sy + Math.sin(angle) * 48);
+    ctx.stroke();
+
+    // 弓
+    ctx.strokeStyle = "#c8a96e";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    const bowR = this.radius + 6;
+    const bowStart = angle - Math.PI + 0.55;
+    const bowEnd = angle - Math.PI - 0.55;
+    ctx.arc(sx, sy, bowR, bowStart, bowEnd, true);
     ctx.stroke();
 
     // 弓弦
-    ctx.strokeStyle = "#ddd";
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "#f5f5f5";
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(sx + Math.cos(bowStart) * bowR, sy + Math.sin(bowStart) * bowR);
     ctx.lineTo(sx + Math.cos(bowEnd) * bowR, sy + Math.sin(bowEnd) * bowR);
     ctx.stroke();
 
-    // 身体（种族颜色圆形）
+    // 箭搭在弓上
+    ctx.strokeStyle = "#fff9c4";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx - Math.cos(angle) * 6, sy - Math.sin(angle) * 6);
+    ctx.lineTo(sx + Math.cos(angle) * 24, sy + Math.sin(angle) * 24);
+    ctx.stroke();
+
+    // 身体
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(sx, sy, this.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // 方向指示器（三角形指向瞄准方向）
-    const tipX = sx + Math.cos(angle) * (this.radius + 2);
-    const tipY = sy + Math.sin(angle) * (this.radius + 2);
+    // 内部高光
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.beginPath();
+    ctx.arc(sx - this.radius * 0.35, sy - this.radius * 0.35, this.radius * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 方向指示器
+    const tipX = sx + Math.cos(angle) * (this.radius + 3);
+    const tipY = sy + Math.sin(angle) * (this.radius + 3);
     ctx.fillStyle = "#fff";
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
     ctx.lineTo(
-      sx + Math.cos(angle - 2.2) * 10,
-      sy + Math.sin(angle - 2.2) * 10,
+      sx + Math.cos(angle - 2.25) * 10,
+      sy + Math.sin(angle - 2.25) * 10,
     );
     ctx.lineTo(
-      sx + Math.cos(angle + 2.2) * 10,
-      sy + Math.sin(angle + 2.2) * 10,
+      sx + Math.cos(angle + 2.25) * 10,
+      sy + Math.sin(angle + 2.25) * 10,
     );
     ctx.closePath();
     ctx.fill();
