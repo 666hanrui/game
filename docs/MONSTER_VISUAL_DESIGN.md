@@ -103,10 +103,10 @@ public/assets/sprites/enemies/
 当前代码中的角色类型：
 
 ```ts
-basic | fast | tank | ranged | elite | boss
+basic | fast | tank | ranged | bomber | summoner | healer | elite | boss
 ```
 
-本轮没有新增怪物类型，没有改刷怪逻辑，只在 `src/entities/Enemy.ts` 的渲染层增加了角色轮廓标记。
+本轮没有新增怪物行为，没有改主循环，只在 `src/entities/Enemy.ts` 的渲染层强化角色轮廓标记。
 
 ### basic 普通怪
 
@@ -129,6 +129,39 @@ basic | fast | tank | ranged | elite | boss
 - 外层瞄准环和四向准星。
 - 目标是让玩家提前意识到它会打远程弹。
 
+### bomber 爆炸怪
+
+定位：高危险、贴脸威胁、快爆了。
+
+视觉关键词：
+
+- 主色使用橙红色。
+- 外层 12 齿爆裂轮廓，比普通圆环更像危险爆点。
+- 顶部增加引线和火星，小尺寸下也能靠“爆裂轮廓 + 火星”识别。
+- 小地图使用橙红色菱形，离屏提示显示“爆”。
+
+### summoner 召唤怪
+
+定位：后排支援、持续制造压力。
+
+视觉关键词：
+
+- 主色使用紫色。
+- 外层双旋转环表现法术蓄力。
+- 内部五芒召唤阵和轨道光点，避免只看成普通紫色怪。
+- 小地图使用紫色方块，离屏提示显示“召”。
+
+### healer 治疗怪
+
+定位：支援、回血、优先击杀目标。
+
+视觉关键词：
+
+- 主色使用绿色。
+- 外层光环 + 粗十字，突出治疗/支援含义。
+- 辅助小光圈模拟治疗光点。
+- 小地图使用绿色圆点，离屏提示显示“疗”。
+
 ### elite 精英怪
 
 - 上方和左右加尖刺标记。
@@ -139,13 +172,26 @@ basic | fast | tank | ranged | elite | boss
 - 外层大圆环 + 顶部王冠轮廓。
 - 目标是在混战中保持最高优先级识别。
 
-## 四、后续建议
+## 四、小地图视觉规则
+
+小地图不承载复杂造型，只做“颜色 + 简单形状 + 离屏文字”的快速识别：
+
+```text
+boss      黄色圆点 / B
+elite     红色圆点 / E
+bomber    橙红菱形 / 爆
+summoner  紫色方块 / 召
+healer    绿色圆点 / 疗
+normal    橙色小圆点 / !
+```
+
+## 五、后续建议
 
 如果后面要继续做更细的怪物美术，建议不要直接在主循环里新增逻辑，可以先拆成两层：
 
 ```text
 EnemyType：slime / spider / skeleton / future_xxx
-EnemyRole：basic / fast / tank / ranged / elite / boss
+EnemyRole：basic / fast / tank / ranged / bomber / summoner / healer / elite / boss
 ```
 
 资源映射可以进一步扩展为：
