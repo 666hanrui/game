@@ -7,21 +7,21 @@
       <stop offset="100%" stop-color="#1b5e20"/>
     </radialGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="62%">
-      <stop offset="0%" stop-color="#66bb6a" stop-opacity="0.3"/>
+      <stop offset="0%" stop-color="#66bb6a" stop-opacity="0.32"/>
       <stop offset="100%" stop-color="#66bb6a" stop-opacity="0"/>
     </radialGradient>
   </defs>
   <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="256" cy="392" rx="130" ry="36" fill="#0b2d13" opacity="0.24"/>
-    <path d="M94 308 C94 214 159 146 244 146 C285 146 315 158 338 183 C382 201 418 246 418 309 C418 379 357 422 256 422 C155 422 94 379 94 308 Z" fill="url(#body)" stroke="#388e3c" stroke-width="12"/>
-    <path d="M139 306 C177 342 335 342 373 306 C356 379 156 379 139 306 Z" fill="#2e7d32" opacity="0.35"/>
-    <ellipse cx="198" cy="262" rx="20" ry="27" fill="#0b2d13" opacity="0.86"/>
-    <ellipse cx="314" cy="262" rx="20" ry="27" fill="#0b2d13" opacity="0.86"/>
-    <path d="M213 333 C241 351 271 351 299 333" fill="none" stroke="#0b2d13" stroke-width="10" opacity="0.58"/>
-    <ellipse cx="205" cy="203" rx="52" ry="28" fill="#ffffff" opacity="0.38" transform="rotate(-22 205 203)"/>
-    <circle cx="347" cy="196" r="16" fill="#ffffff" opacity="0.22"/>
-    <path d="M105 322 C134 309 157 309 183 324" fill="none" stroke="#a5d6a7" stroke-width="8" opacity="0.48"/>
-    <path d="M329 324 C357 308 386 309 414 325" fill="none" stroke="#a5d6a7" stroke-width="8" opacity="0.42"/>
+    <ellipse cx="256" cy="397" rx="139" ry="34" fill="#0b2d13" opacity="0.26"/>
+    <path d="M87 310 C87 213 155 143 244 143 C286 143 318 156 342 182 C389 200 425 248 425 311 C425 385 361 428 256 428 C151 428 87 385 87 310 Z" fill="url(#body)" stroke="#1b5e20" stroke-width="16"/>
+    <path d="M136 306 C178 345 334 345 376 306 C358 382 154 382 136 306 Z" fill="#2e7d32" opacity="0.38"/>
+    <ellipse cx="198" cy="262" rx="22" ry="29" fill="#0b2d13" opacity="0.9"/>
+    <ellipse cx="314" cy="262" rx="22" ry="29" fill="#0b2d13" opacity="0.9"/>
+    <path d="M212 334 C240 354 272 354 300 334" fill="none" stroke="#0b2d13" stroke-width="12" opacity="0.62"/>
+    <ellipse cx="204" cy="202" rx="55" ry="30" fill="#ffffff" opacity="0.4" transform="rotate(-22 204 202)"/>
+    <circle cx="349" cy="195" r="18" fill="#ffffff" opacity="0.24"/>
+    <path d="M99 322 C132 306 159 308 187 326" fill="none" stroke="#a5d6a7" stroke-width="10" opacity="0.5"/>
+    <path d="M325 326 C356 307 389 308 421 327" fill="none" stroke="#a5d6a7" stroke-width="10" opacity="0.44"/>
   </g>
 </svg>
