@@ -14,17 +14,17 @@
   </defs>
   <circle cx="256" cy="256" r="216" fill="url(#glow)"/>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="256" cy="383" rx="72" ry="32" fill="#0b2d13" opacity="0.22"/>
-    <path d="M176 210 L67 128 L119 265 Z" fill="#66bb6a" stroke="#f1fff2" stroke-width="10"/>
-    <path d="M336 210 L445 128 L393 265 Z" fill="#66bb6a" stroke="#f1fff2" stroke-width="10"/>
-    <path d="M199 326 C213 269 231 239 256 239 C281 239 299 269 313 326 L324 410 C289 428 223 428 188 410 Z" fill="url(#body)" stroke="#f1fff2" stroke-width="9"/>
-    <circle cx="256" cy="179" r="55" fill="#f2dfc7" stroke="#f1fff2" stroke-width="9"/>
-    <path d="M198 168 C224 101 302 103 326 168 C297 148 227 148 198 168 Z" fill="#1b5e20"/>
-    <path d="M194 321 C153 315 122 296 101 264" fill="none" stroke="#c8e6c9" stroke-width="13" opacity="0.72"/>
-    <path d="M318 321 C359 315 390 296 411 264" fill="none" stroke="#c8e6c9" stroke-width="13" opacity="0.72"/>
-    <circle cx="235" cy="190" r="6" fill="#0d2a10"/>
-    <circle cx="277" cy="190" r="6" fill="#0d2a10"/>
-    <path d="M237 217 C249 225 263 225 275 217" fill="none" stroke="#0d2a10" stroke-width="5" opacity="0.55"/>
-    <path d="M218 105 C193 134 166 147 135 145 C169 168 208 158 245 116 Z" fill="#a5d6a7" opacity="0.86"/>
+    <ellipse cx="256" cy="388" rx="75" ry="28" fill="#0b2d13" opacity="0.22"/>
+    <path d="M176 207 L53 117 L112 271 Z" fill="#66bb6a" stroke="#f1fff2" stroke-width="13"/>
+    <path d="M336 207 L459 117 L400 271 Z" fill="#66bb6a" stroke="#f1fff2" stroke-width="13"/>
+    <path d="M197 325 C212 267 231 238 256 238 C281 238 300 267 315 325 L328 414 C291 433 221 433 184 414 Z" fill="url(#body)" stroke="#f1fff2" stroke-width="12"/>
+    <circle cx="256" cy="178" r="57" fill="#f2dfc7" stroke="#f1fff2" stroke-width="12"/>
+    <path d="M196 168 C222 99 304 101 328 168 C297 147 226 147 196 168 Z" fill="#1b5e20"/>
+    <path d="M194 321 C149 315 116 294 94 260" fill="none" stroke="#c8e6c9" stroke-width="16" opacity="0.76"/>
+    <path d="M318 321 C363 315 396 294 418 260" fill="none" stroke="#c8e6c9" stroke-width="16" opacity="0.76"/>
+    <circle cx="235" cy="190" r="7" fill="#0d2a10"/>
+    <circle cx="277" cy="190" r="7" fill="#0d2a10"/>
+    <path d="M237 218 C249 226 263 226 275 218" fill="none" stroke="#0d2a10" stroke-width="6" opacity="0.58"/>
+    <path d="M218 104 C191 134 163 149 130 146 C166 171 207 160 247 115 Z" fill="#a5d6a7" opacity="0.9"/>
   </g>
 </svg>
