@@ -21,6 +21,7 @@ export class Input {
   private mouseScreenX = 0;
   private mouseScreenY = 0;
   private mouseDown = false;
+  private hasMouseAim = false;
 
   private leftStick: Stick | null = null;
   private rightStick: Stick | null = null;
@@ -31,35 +32,50 @@ export class Input {
   public state: InputState = {
     moveDir: vec2(0, 0),
     aimDir: vec2(1, 0),
-    shooting: false,
+    shooting: true,
   };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-    // 键盘鼠标永远启用。触摸只作为额外输入，不再和桌面输入二选一。
     this.setupKeyboard();
     this.setupMouse();
     this.setupTouch();
   }
 
+  private rememberKey(e: KeyboardEvent): void {
+    const key = e.key.toLowerCase();
+    const code = e.code.toLowerCase();
+    this.keys.add(key);
+    this.keys.add(code);
+  }
+
+  private forgetKey(e: KeyboardEvent): void {
+    const key = e.key.toLowerCase();
+    const code = e.code.toLowerCase();
+    this.keys.delete(key);
+    this.keys.delete(code);
+  }
+
   private setupKeyboard(): void {
     window.addEventListener("keydown", (e) => {
+      this.rememberKey(e);
       const key = e.key.toLowerCase();
-      this.keys.add(key);
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+      const code = e.code.toLowerCase();
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "j"].includes(key) ||
+          ["keyw", "keya", "keys", "keyd", "space", "keyj"].includes(code)) {
         e.preventDefault();
       }
     });
-    window.addEventListener("keyup", (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener("keyup", (e) => this.forgetKey(e));
     window.addEventListener("blur", () => {
       this.keys.clear();
       this.mouseDown = false;
       this.leftStick = null;
       this.rightStick = null;
       this.state.moveDir = vec2(0, 0);
-      this.state.shooting = false;
+      this.state.shooting = true;
     });
   }
 
@@ -68,6 +84,7 @@ export class Input {
       const r = this.canvas.getBoundingClientRect();
       this.mouseScreenX = e.clientX - r.left;
       this.mouseScreenY = e.clientY - r.top;
+      this.hasMouseAim = true;
     };
 
     this.canvas.addEventListener("mousemove", syncMouse);
@@ -162,7 +179,10 @@ export class Input {
   update(): void {
     const keyboardMove = this.getKeyboardMoveDir();
     let moveDir = keyboardMove;
-    let shooting = this.mouseDown || this.keys.has("j") || this.keys.has(" ");
+
+    // 先保证战斗一定能出手：进入 playing 后 Game 会持续读取 shooting。
+    // 鼠标左键 / J / 空格仍然保留为显式射击输入，但不再要求玩家必须按住。
+    let shooting = true || this.mouseDown || this.hasAny(["j", "keyj", " ", "space"]);
 
     const mouseAim = this.getMouseAimDir();
     let aimDir = mouseAim ?? this.state.aimDir;
@@ -189,17 +209,22 @@ export class Input {
     this.state.shooting = shooting;
   }
 
+  private hasAny(keys: string[]): boolean {
+    return keys.some((key) => this.keys.has(key));
+  }
+
   private getKeyboardMoveDir(): Vec2 {
     let dx = 0, dy = 0;
-    if (this.keys.has("w") || this.keys.has("arrowup")) dy -= 1;
-    if (this.keys.has("s") || this.keys.has("arrowdown")) dy += 1;
-    if (this.keys.has("a") || this.keys.has("arrowleft")) dx -= 1;
-    if (this.keys.has("d") || this.keys.has("arrowright")) dx += 1;
+    if (this.hasAny(["w", "keyw", "arrowup"])) dy -= 1;
+    if (this.hasAny(["s", "keys", "arrowdown"])) dy += 1;
+    if (this.hasAny(["a", "keya", "arrowleft"])) dx -= 1;
+    if (this.hasAny(["d", "keyd", "arrowright"])) dx += 1;
     const len = Math.sqrt(dx * dx + dy * dy);
     return len > 0 ? vec2(dx / len, dy / len) : vec2(0, 0);
   }
 
   private getMouseAimDir(): Vec2 | null {
+    if (!this.hasMouseAim) return this.state.aimDir;
     const cx = this.cssWidth() / 2;
     const cy = this.cssHeight() / 2;
     const aimDx = this.mouseScreenX - cx;
@@ -210,7 +235,10 @@ export class Input {
   }
 
   isKeyDown(key: string): boolean {
-    return this.keys.has(key.toLowerCase());
+    const lower = key.toLowerCase();
+    if (lower === " ") return this.hasAny([" ", "space"]);
+    if (lower.length === 1 && lower >= "a" && lower <= "z") return this.hasAny([lower, `key${lower}`]);
+    return this.keys.has(lower);
   }
 
   renderSticks(ctx: CanvasRenderingContext2D): void {
