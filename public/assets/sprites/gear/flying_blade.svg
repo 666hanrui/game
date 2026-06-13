@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Flying Blade Route Icon</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="60%"><stop offset="0%" stop-color="#ffebee"/><stop offset="56%" stop-color="#ef5350" stop-opacity="0.72"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="132" fill="#b71c1c" opacity="0.16"/>
+  <path d="M256 115 C304 165 331 207 337 256 C293 237 255 206 224 162 C231 142 242 126 256 115 Z" fill="#ffcdd2" stroke="#ef5350" stroke-width="8"/>
+  <path d="M397 294 C329 312 279 310 225 288 C264 260 310 242 365 236 C381 251 392 270 397 294 Z" fill="#ffcdd2" stroke="#ef5350" stroke-width="8"/>
+  <path d="M159 337 C179 268 204 226 250 190 C257 237 250 286 226 337 C204 345 181 345 159 337 Z" fill="#ffcdd2" stroke="#ef5350" stroke-width="8"/>
+  <circle cx="256" cy="256" r="40" fill="#ef5350" stroke="#fff" stroke-width="8"/>
+  <circle cx="256" cy="256" r="104" fill="none" stroke="#ffcdd2" stroke-width="10" opacity="0.55" stroke-dasharray="18 18"/>
+</svg>
