@@ -1,7 +1,7 @@
 // 技能定义
 
 export type SkillRarity = "common" | "rare" | "epic";
-export type SkillSchool = "tech" | "martial" | "magic" | "neutral";
+export type SkillSchool = "archer" | "blade" | "magic" | "neutral";
 
 export interface Skill {
   id: string;
@@ -28,155 +28,106 @@ export interface Skill {
   special?: string;
 }
 
-// ==================== 中立技能（所有体系可选）====================
+// ==================== 通用成长（所有武器可选）====================
 const NEUTRAL_SKILLS: Skill[] = [
   {
-    id: "vitality", name: "生命强化", description: "最大生命 +20", school: "neutral", rarity: "common", maxLevel: 3,
+    id: "vitality", name: "生命强化", description: "最大生命 +20", school: "neutral", rarity: "common", maxLevel: 4,
     mods: { maxHp: 20 },
   },
   {
-    id: "quickshot", name: "快速射击", description: "攻速 +15%", school: "neutral", rarity: "common", maxLevel: 3,
-    mods: { attackCooldown: -0.06 },
-  },
-  {
-    id: "power_shot", name: "强力箭", description: "伤害 +10", school: "neutral", rarity: "common", maxLevel: 5,
-    mods: { damage: 10 },
-  },
-  {
-    id: "sprint", name: "疾跑", description: "移速 +10%", school: "neutral", rarity: "common", maxLevel: 3,
+    id: "swift_feet", name: "轻盈步伐", description: "移速 +10%", school: "neutral", rarity: "common", maxLevel: 4,
     mods: { speed: 26 },
+  },
+  {
+    id: "strong_arm", name: "强弓臂力", description: "基础伤害 +8", school: "neutral", rarity: "common", maxLevel: 6,
+    mods: { damage: 8 },
+  },
+  {
+    id: "focus", name: "专注射击", description: "暴击率 +6%，暴击伤害 +20%", school: "neutral", rarity: "rare", maxLevel: 4,
+    mods: { critChance: 0.06, critMultiplier: 0.2 },
   },
 ];
 
-// ==================== 科技系 ====================
-const TECH_SKILLS: Skill[] = [
+// ==================== 弓箭手：核心流派，支持持续升级 ====================
+const ARCHER_SKILLS: Skill[] = [
   {
-    id: "double_shot", name: "双发芯片", description: "额外射 1 支箭", school: "tech", rarity: "rare", maxLevel: 2,
+    id: "multi_arrow", name: "多重箭", description: "每级额外射出 1 支箭；叠满后接近一次十发", school: "archer", rarity: "common", maxLevel: 9,
     mods: { projectileCount: 1 },
   },
   {
-    id: "drone", name: "无人机", description: "召唤 1 架浮游炮（自动攻击）", school: "tech", rarity: "epic", maxLevel: 3,
-    mods: { damage: 5 },
-    special: "drone",
+    id: "rapid_draw", name: "快速拉弓", description: "射击间隔缩短，箭雨更密", school: "archer", rarity: "common", maxLevel: 5,
+    mods: { attackCooldown: -0.04 },
   },
   {
-    id: "emp", name: "电磁脉冲", description: "击杀敌人时释放范围电击", school: "tech", rarity: "rare", maxLevel: 1,
-    mods: {},
-    special: "emp_on_kill",
-  },
-  {
-    id: "magazine", name: "弹夹扩容", description: "每波开始时额外 +3 支散射箭", school: "tech", rarity: "common", maxLevel: 3,
-    mods: {},
-    special: "burst_on_wave",
-  },
-  {
-    id: "tracking", name: "追踪模组", description: "箭矢轻微追踪敌人", school: "tech", rarity: "rare", maxLevel: 1,
-    mods: { damage: 5 },
+    id: "tracking", name: "追踪箭", description: "箭矢会轻微追踪附近敌人，可继续强化追踪手感", school: "archer", rarity: "rare", maxLevel: 3,
+    mods: { damage: 3 },
     special: "tracking",
   },
   {
-    id: "overcharge", name: "超载", description: "伤害 +25%，但子弹速度降低", school: "tech", rarity: "rare", maxLevel: 2,
-    mods: { damage: 25, attackCooldown: 0.08 },
+    id: "fireball", name: "爆炸箭", description: "命中后产生范围爆炸；升级提高爆炸范围", school: "archer", rarity: "rare", maxLevel: 3,
+    mods: { damage: 5 },
+    special: "fireball",
   },
   {
-    id: "shrapnel", name: "破片弹", description: "命中敌人时向周围射出 3 枚碎片", school: "tech", rarity: "epic", maxLevel: 2,
-    mods: { damage: 8 },
-    special: "shrapnel",
+    id: "frost_arrow", name: "冰霜箭", description: "命中后减速敌人；升级延长控制时间", school: "archer", rarity: "rare", maxLevel: 2,
+    mods: { damage: 4 },
+    special: "frost",
   },
   {
-    id: "laser_sight", name: "激光瞄准", description: "暴击率 +10%，暴击伤害 +50%", school: "tech", rarity: "common", maxLevel: 3,
-    mods: { critChance: 0.1, critMultiplier: 0.5 },
+    id: "magic_arrow", name: "魔法箭", description: "箭矢附魔，伤害和暴击率提升", school: "archer", rarity: "rare", maxLevel: 4,
+    mods: { damage: 8, critChance: 0.05 },
+    special: "magic_arrow",
+  },
+  {
+    id: "eagle_eye", name: "鹰眼", description: "暴击率 +12%，暴击伤害 +40%", school: "archer", rarity: "epic", maxLevel: 3,
+    mods: { critChance: 0.12, critMultiplier: 0.4 },
+  },
+  {
+    id: "drone", name: "猎鹰助攻", description: "召唤猎鹰自动向附近敌人补射", school: "archer", rarity: "epic", maxLevel: 3,
+    mods: { damage: 5 },
+    special: "drone",
   },
 ];
 
-// ==================== 古武系 ====================
-const MARTIAL_SKILLS: Skill[] = [
+// ==================== 飞刃使：后续扩展流派 ====================
+const BLADE_SKILLS: Skill[] = [
   {
-    id: "iron_skin", name: "铁布衫", description: "受伤 -15%", school: "martial", rarity: "common", maxLevel: 3,
-    mods: { maxHp: 15 },
+    id: "blade_count", name: "飞刃增殖", description: "额外发射 1 枚飞刃", school: "blade", rarity: "common", maxLevel: 6,
+    mods: { projectileCount: 1 },
   },
   {
-    id: "one_inch", name: "寸拳", description: "敌人贴近时自动击退 + 伤害", school: "martial", rarity: "rare", maxLevel: 1,
-    mods: {},
-    special: "knockback",
-  },
-  {
-    id: "mind_eye", name: "心眼", description: "暴击率 +15%，暴击伤害翻倍", school: "martial", rarity: "epic", maxLevel: 2,
-    mods: { critChance: 0.15, critMultiplier: 1.0 },
-  },
-  {
-    id: "chain_slash", name: "连斩", description: "击杀后 2 秒内攻速翻倍", school: "martial", rarity: "rare", maxLevel: 2,
-    mods: {},
-    special: "chain_slash",
-  },
-  {
-    id: "berserk", name: "金刚体", description: "血量低于 30% 时无敌 3 秒（每波一次）", school: "martial", rarity: "epic", maxLevel: 1,
-    mods: {},
-    special: "berserk",
-  },
-  {
-    id: "bloodlust", name: "嗜血", description: "击杀回复 8% 最大生命", school: "martial", rarity: "rare", maxLevel: 2,
+    id: "bloodlust", name: "嗜血", description: "击败敌人后回复生命", school: "blade", rarity: "rare", maxLevel: 3,
     mods: {},
     special: "bloodlust",
   },
   {
-    id: "heavy_blow", name: "重击", description: "伤害 +20%", school: "martial", rarity: "common", maxLevel: 3,
-    mods: { damage: 20 },
-  },
-  {
-    id: "adrenaline", name: "肾上腺素", description: "受伤后 3 秒内移速 +30%，伤害 +15%", school: "martial", rarity: "rare", maxLevel: 2,
-    mods: {},
-    special: "adrenaline",
+    id: "blade_mastery", name: "飞刃精通", description: "伤害 +12，攻速提升", school: "blade", rarity: "common", maxLevel: 5,
+    mods: { damage: 12, attackCooldown: -0.03 },
   },
 ];
 
-// ==================== 魔法系 ====================
+// ==================== 魔法师：后续扩展流派 ====================
 const MAGIC_SKILLS: Skill[] = [
   {
-    id: "frost_arrow", name: "冰霜箭", description: "命中减速敌人 40%，持续 1.5 秒", school: "magic", rarity: "rare", maxLevel: 1,
-    mods: {},
-    special: "frost",
-  },
-  {
-    id: "fireball", name: "火球术", description: "命中时造成范围爆炸伤害", school: "magic", rarity: "rare", maxLevel: 2,
-    mods: { damage: 10 },
-    special: "fireball",
-  },
-  {
-    id: "mana_shield", name: "法力盾", description: "消耗 20 经验值抵消一次致命伤害", school: "magic", rarity: "epic", maxLevel: 1,
-    mods: {},
-    special: "mana_shield",
-  },
-  {
-    id: "arc_field", name: "电磁场", description: "每 2 秒释放环绕自身的电弧", school: "magic", rarity: "rare", maxLevel: 2,
-    mods: {},
-    special: "arc_field",
-  },
-  {
-    id: "blink", name: "闪现", description: "受伤时瞬移一小段距离（CD 10 秒）", school: "magic", rarity: "epic", maxLevel: 2,
-    mods: {},
-    special: "blink",
-  },
-  {
-    id: "chain_lightning", name: "连锁闪电", description: "击杀敌人时弹射到附近敌人", school: "magic", rarity: "epic", maxLevel: 2,
+    id: "chain_lightning", name: "连锁闪电", description: "击败敌人时弹射到附近敌人", school: "magic", rarity: "epic", maxLevel: 3,
     mods: { damage: 12 },
     special: "chain_lightning",
   },
   {
-    id: "arcane_power", name: "奥术强化", description: "伤害 +15%", school: "magic", rarity: "common", maxLevel: 3,
+    id: "arcane_power", name: "奥术强化", description: "伤害 +15", school: "magic", rarity: "common", maxLevel: 5,
     mods: { damage: 15 },
   },
   {
-    id: "ice_barrier", name: "冰霜护甲", description: "最大生命 +25", school: "magic", rarity: "common", maxLevel: 3,
+    id: "ice_barrier", name: "冰霜护甲", description: "最大生命 +25", school: "magic", rarity: "common", maxLevel: 4,
     mods: { maxHp: 25 },
   },
 ];
 
-// 按学校分组的技能池
+// 按武器流派分组的技能池
 export const SKILL_POOL: Record<SkillSchool, Skill[]> = {
   neutral: NEUTRAL_SKILLS,
-  tech: TECH_SKILLS,
-  martial: MARTIAL_SKILLS,
+  archer: ARCHER_SKILLS,
+  blade: BLADE_SKILLS,
   magic: MAGIC_SKILLS,
 };
 
