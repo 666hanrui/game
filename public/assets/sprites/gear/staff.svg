@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Staff Route Icon</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="60%"><stop offset="0%" stop-color="#f3e5f5"/><stop offset="54%" stop-color="#ab47bc" stop-opacity="0.72"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <path d="M256 126 V395" stroke="#4a148c" stroke-width="30" stroke-linecap="round"/>
+  <path d="M256 126 V395" stroke="#e1bee7" stroke-width="12" stroke-linecap="round" opacity="0.82"/>
+  <circle cx="256" cy="124" r="58" fill="#ce93d8" stroke="#f3e5f5" stroke-width="9"/>
+  <circle cx="256" cy="124" r="28" fill="#6a1b9a" opacity="0.55"/>
+  <circle cx="256" cy="124" r="92" fill="none" stroke="#e1bee7" stroke-width="8" stroke-dasharray="18 14" opacity="0.55"/>
+  <path d="M150 266 C202 218 310 218 362 266" fill="none" stroke="#f3e5f5" stroke-width="11" stroke-linecap="round" opacity="0.55"/>
+  <path d="M170 326 C218 292 294 292 342 326" fill="none" stroke="#f3e5f5" stroke-width="9" stroke-linecap="round" opacity="0.38"/>
+</svg>
