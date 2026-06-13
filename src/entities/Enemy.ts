@@ -9,13 +9,14 @@ interface EnemyDef {
   radius: number;
   hpBase: number;
   spdBase: number;
+  armorBase: number;
   label: string;
 }
 
 const DEFS: Record<EnemyType, EnemyDef> = {
-  slime:    { color: "#66bb6a", strokeColor: "#388e3c", radius: 15, hpBase: 42, spdBase: 82, label: "●" },
-  spider:   { color: "#8d6e63", strokeColor: "#4e342e", radius: 17, hpBase: 64, spdBase: 104, label: "✶" },
-  skeleton: { color: "#cfd8dc", strokeColor: "#78909c", radius: 16, hpBase: 76, spdBase: 72, label: "✚" },
+  slime:    { color: "#66bb6a", strokeColor: "#388e3c", radius: 15, hpBase: 42, spdBase: 82, armorBase: 1, label: "●" },
+  spider:   { color: "#8d6e63", strokeColor: "#4e342e", radius: 17, hpBase: 64, spdBase: 104, armorBase: 2, label: "✶" },
+  skeleton: { color: "#cfd8dc", strokeColor: "#78909c", radius: 16, hpBase: 76, spdBase: 72, armorBase: 4, label: "✚" },
 };
 
 const TYPES: EnemyType[] = ["slime", "spider", "skeleton"];
@@ -35,12 +36,15 @@ export class Enemy {
   speed: number;
   hp: number;
   maxHp: number;
+  armor = 0;
+  maxArmor = 0;
   damage = 12;
   alive = true;
   role: EnemyRole;
   private type: EnemyType;
   private def: EnemyDef;
   private hitFlash = 0;
+  private armorFlash = 0;
   private anim = 0;
   private slowTimer = 0;
   private slowFactor = 1;
@@ -66,18 +70,21 @@ export class Enemy {
     let hpMod = 1;
     let spdRoleMod = 1;
     let dmgMod = 1;
+    let armorMod = 1;
 
     switch (role) {
-      case "fast": radiusMod = 0.82; hpMod = 0.7; spdRoleMod = 1.95; dmgMod = 0.9; break;
-      case "tank": radiusMod = 1.42; hpMod = 2.65; spdRoleMod = 0.68; dmgMod = 1.38; break;
-      case "ranged": radiusMod = 1.02; hpMod = 1.05; spdRoleMod = 0.9; dmgMod = 1.05; break;
-      case "elite": radiusMod = 1.55; hpMod = 3.8; spdRoleMod = 1.22; dmgMod = 1.9; break;
-      case "boss": radiusMod = 2.55; hpMod = 15; spdRoleMod = 0.78; dmgMod = 2.75; break;
+      case "fast": radiusMod = 0.82; hpMod = 0.7; spdRoleMod = 1.95; dmgMod = 0.9; armorMod = 0.35; break;
+      case "tank": radiusMod = 1.42; hpMod = 2.65; spdRoleMod = 0.68; dmgMod = 1.38; armorMod = 3.6; break;
+      case "ranged": radiusMod = 1.02; hpMod = 1.05; spdRoleMod = 0.9; dmgMod = 1.05; armorMod = 0.8; break;
+      case "elite": radiusMod = 1.55; hpMod = 3.8; spdRoleMod = 1.22; dmgMod = 1.9; armorMod = 2.8; break;
+      case "boss": radiusMod = 2.55; hpMod = 15; spdRoleMod = 0.78; dmgMod = 2.75; armorMod = 5.5; break;
     }
 
     this.radius = Math.floor(this.def.radius * radiusMod);
     this.hp = Math.floor(this.def.hpBase * hpMult * hpMod);
     this.maxHp = this.hp;
+    this.maxArmor = Math.floor((this.def.armorBase + Math.sqrt(Math.max(1, hpMult)) * 2) * armorMod);
+    this.armor = this.maxArmor;
     this.speed = randRange(this.def.spdBase * 0.86, this.def.spdBase * 1.24) * spdMult * spdRoleMod;
     this.damage = Math.floor(this.damage * dmgMod);
     this.shootTimer = randRange(0.35, 1.25);
@@ -114,7 +121,6 @@ export class Enemy {
         this.pos.y += sideY * speed * (this.role === "boss" ? 0.58 : 0.68) * dt;
       }
     } else if (this.role === "fast" || this.role === "elite") {
-      // 快怪/精英不再只会直冲，会绕侧施压，形成简单围杀。
       const approach = dist > 105 ? 0.82 : 0.28;
       const strafe = this.role === "elite" ? 0.72 : 0.95;
       this.pos.x += (d.x * speed * approach + sideX * speed * strafe) * dt;
@@ -130,6 +136,7 @@ export class Enemy {
 
     this.anim += dt * 5;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+    if (this.armorFlash > 0) this.armorFlash -= dt;
     if (this.role === "ranged" || this.role === "boss") this.shootTimer -= dt;
   }
 
@@ -146,8 +153,17 @@ export class Enemy {
     this.slowTimer = Math.max(this.slowTimer, duration);
   }
 
-  takeDamage(dmg: number): boolean {
-    this.hp -= dmg;
+  breakArmor(amount: number): number {
+    const before = this.armor;
+    this.armor = Math.max(0, this.armor - Math.max(0, Math.floor(amount)));
+    if (this.armor < before) this.armorFlash = 0.18;
+    return before - this.armor;
+  }
+
+  takeDamage(dmg: number, armorPierce = 0): boolean {
+    const mitigation = Math.max(0, this.armor - armorPierce);
+    const effective = Math.max(1, Math.floor(dmg - mitigation));
+    this.hp -= effective;
     this.hitFlash = 0.08;
     if (this.hp <= 0) { this.alive = false; return true; }
     return false;
@@ -173,6 +189,14 @@ export class Enemy {
       ctx.lineWidth = this.role === "boss" ? 4 : 3;
       ctx.beginPath();
       ctx.arc(sx, sy, this.radius + 9 + Math.sin(this.anim) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (this.armor > 0) {
+      ctx.strokeStyle = this.armorFlash > 0 ? "rgba(255,255,255,0.95)" : "rgba(144,164,174,0.45)";
+      ctx.lineWidth = this.armorFlash > 0 ? 3 : 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 4, -Math.PI * 0.7, Math.PI * 0.7);
       ctx.stroke();
     }
 
@@ -220,6 +244,14 @@ export class Enemy {
       ctx.fillRect(sx - bw / 2, py, bw, bh);
       ctx.fillStyle = this.role === "boss" ? "#ffd54f" : "#ef5350";
       ctx.fillRect(sx - bw / 2, py, bw * pct, bh);
+
+      if (this.maxArmor > 0 && this.armor > 0) {
+        const armorPct = Math.max(0, this.armor / this.maxArmor);
+        ctx.fillStyle = "rgba(69,90,100,0.95)";
+        ctx.fillRect(sx - bw / 2, py + bh + 2, bw, 2);
+        ctx.fillStyle = "#b0bec5";
+        ctx.fillRect(sx - bw / 2, py + bh + 2, bw * armorPct, 2);
+      }
     }
   }
 
