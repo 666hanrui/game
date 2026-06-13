@@ -14,18 +14,18 @@
   </defs>
   <circle cx="256" cy="256" r="218" fill="url(#glow)"/>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="256" cy="379" rx="96" ry="44" fill="#0b1f33" opacity="0.28"/>
-    <path d="M176 324 C191 270 219 244 256 244 C293 244 321 270 336 324 L344 394 C309 414 203 414 168 394 Z" fill="url(#body)" stroke="#e1f5fe" stroke-width="10"/>
-    <path d="M180 332 L118 370" stroke="#e1f5fe" stroke-width="18"/>
-    <path d="M332 332 L394 370" stroke="#e1f5fe" stroke-width="18"/>
-    <path d="M218 397 L202 448" stroke="#e1f5fe" stroke-width="18"/>
-    <path d="M294 397 L310 448" stroke="#e1f5fe" stroke-width="18"/>
-    <circle cx="256" cy="186" r="64" fill="#f5d7bd" stroke="#e1f5fe" stroke-width="10"/>
-    <path d="M197 178 C210 116 302 111 321 178 C294 157 226 157 197 178 Z" fill="#263238"/>
-    <circle cx="233" cy="194" r="7" fill="#08233f"/>
-    <circle cx="279" cy="194" r="7" fill="#08233f"/>
-    <path d="M235 223 C249 233 263 233 277 223" fill="none" stroke="#08233f" stroke-width="6" opacity="0.6"/>
-    <path d="M186 292 C224 315 288 315 326 292" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.58"/>
-    <circle cx="256" cy="314" r="18" fill="#ffffff" opacity="0.3"/>
+    <ellipse cx="256" cy="389" rx="105" ry="40" fill="#0b1f33" opacity="0.3"/>
+    <path d="M174 321 C190 267 219 242 256 242 C293 242 322 267 338 321 L350 397 C312 421 200 421 162 397 Z" fill="url(#body)" stroke="#e1f5fe" stroke-width="13"/>
+    <path d="M184 331 L111 376" stroke="#e1f5fe" stroke-width="22"/>
+    <path d="M328 331 L401 376" stroke="#e1f5fe" stroke-width="22"/>
+    <path d="M217 399 L199 454" stroke="#e1f5fe" stroke-width="22"/>
+    <path d="M295 399 L313 454" stroke="#e1f5fe" stroke-width="22"/>
+    <circle cx="256" cy="184" r="67" fill="#f5d7bd" stroke="#e1f5fe" stroke-width="13"/>
+    <path d="M195 177 C208 112 304 108 323 177 C292 156 224 156 195 177 Z" fill="#263238"/>
+    <circle cx="232" cy="194" r="8" fill="#08233f"/>
+    <circle cx="280" cy="194" r="8" fill="#08233f"/>
+    <path d="M235 224 C249 235 263 235 277 224" fill="none" stroke="#08233f" stroke-width="7" opacity="0.66"/>
+    <path d="M185 292 C224 319 288 319 327 292" fill="none" stroke="#ffffff" stroke-width="10" opacity="0.62"/>
+    <circle cx="256" cy="315" r="20" fill="#ffffff" opacity="0.32"/>
   </g>
 </svg>
