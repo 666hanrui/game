@@ -717,7 +717,7 @@ export class Game {
     this.xp.addXP(xpValue);
     this.addText(enemy.pos.x, enemy.pos.y - enemy.radius - 16, `+${xpValue} XP`, "#42a5f5");
     this.spawnParticles(enemy.pos.x, enemy.pos.y, enemy.role === "boss" ? "#ffd54f" : enemy.role === "elite" ? "#ef5350" : "#81c784", enemy.role === "boss" ? 45 : enemy.role === "elite" ? 26 : 14, enemy.role === "boss" ? 6 : 4, enemy.role === "boss" ? 320 : 210);
-    this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55)));
+    this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
 
     const healChance = enemy.role === "boss" ? 1 : enemy.role === "elite" ? 0.55 : 0.12;
     if (Math.random() < healChance) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", enemy.role === "boss" ? 55 : 18));
@@ -870,6 +870,7 @@ export class Game {
       this.selectedWeapon?.id,
       this.assets.get("races", this.selectedRace?.id),
       this.assets.get("weapons", this.selectedWeapon?.id),
+      this.selectedRace?.id,
     );
 
     this.input.renderSticks(ctx);
