@@ -1,4 +1,4 @@
-import { vec2, Vec2, normalize } from "../utils/math";
+import { vec2, Vec2 } from "../utils/math";
 
 export interface InputState {
   moveDir: Vec2;
@@ -61,7 +61,14 @@ export class Input {
     this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
-  // ==================== 触控 ====================
+  private cssWidth(): number {
+    return this.canvas.getBoundingClientRect().width || window.innerWidth;
+  }
+
+  private cssHeight(): number {
+    return this.canvas.getBoundingClientRect().height || window.innerHeight;
+  }
+
   private toCanvasPos(t: Touch): Vec2 {
     const r = this.canvas.getBoundingClientRect();
     return vec2(t.clientX - r.left, t.clientY - r.top);
@@ -70,13 +77,14 @@ export class Input {
   private setupTouch(): void {
     this.canvas.addEventListener("touchstart", (e) => {
       e.preventDefault();
+      const halfW = this.cssWidth() / 2;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         const pos = this.toCanvasPos(t);
         if (this.leftStick && this.rightStick) break;
-        if (pos.x < this.canvas.width / 2 && !this.leftStick) {
+        if (pos.x < halfW && !this.leftStick) {
           this.leftStick = { id: t.identifier, baseX: pos.x, baseY: pos.y, knobX: pos.x, knobY: pos.y };
-        } else if (pos.x >= this.canvas.width / 2 && !this.rightStick) {
+        } else if (pos.x >= halfW && !this.rightStick) {
           this.rightStick = { id: t.identifier, baseX: pos.x, baseY: pos.y, knobX: pos.x, knobY: pos.y };
         }
       }
@@ -128,7 +136,6 @@ export class Input {
     this.canvas.addEventListener("touchcancel", onEnd);
   }
 
-  // ==================== 每帧更新 ====================
   update(): void {
     if (this.isMobile) {
       this.updateMobile();
@@ -147,10 +154,8 @@ export class Input {
     const len = Math.sqrt(dx * dx + dy * dy);
     this.state.moveDir = len > 0 ? vec2(dx / len, dy / len) : vec2(0, 0);
 
-    // 🔧 修复：从屏幕中心指向鼠标 = 从玩家指向瞄准方向
-    // 因为 Camera 始终将玩家放在屏幕中心
-    const cx = this.canvas.width / 2;
-    const cy = this.canvas.height / 2;
+    const cx = this.cssWidth() / 2;
+    const cy = this.cssHeight() / 2;
     const aimDx = this.mouseScreenX - cx;
     const aimDy = this.mouseScreenY - cy;
     const aimLen = Math.sqrt(aimDx * aimDx + aimDy * aimDy);
