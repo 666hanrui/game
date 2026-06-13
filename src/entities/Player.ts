@@ -43,6 +43,7 @@ export class Player {
     raceId = "human",
   ): void {
     const angle = Math.atan2(aimDir.y, aimDir.x);
+    const visualRaceId = this.resolveRaceId(raceId, color);
 
     const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, this.radius + 28);
     glow.addColorStop(0, color + "cc");
@@ -59,7 +60,7 @@ export class Player {
     ctx.lineTo(sx + Math.cos(angle) * 54, sy + Math.sin(angle) * 54);
     ctx.stroke();
 
-    this.renderRaceBody(ctx, sx, sy, angle, color, raceId, raceSprite);
+    this.renderRaceBody(ctx, sx, sy, angle, color, visualRaceId, raceSprite);
     this.renderWeapon(ctx, sx, sy, angle, weaponId, weaponSprite);
 
     const tipX = sx + Math.cos(angle) * (this.radius + 18);
@@ -71,6 +72,17 @@ export class Player {
     ctx.lineTo(sx + Math.cos(angle + 2.25) * 9, sy + Math.sin(angle + 2.25) * 9);
     ctx.closePath();
     ctx.fill();
+  }
+
+  private resolveRaceId(raceId: string, color: string): string {
+    if (raceId !== "human") return raceId;
+    switch (color.toLowerCase()) {
+      case "#8bc34a": return "goblin";
+      case "#81c784": return "elf";
+      case "#ff7043": return "orc";
+      case "#ce93d8": return "spirit";
+      default: return "human";
+    }
   }
 
   private renderRaceBody(
@@ -108,7 +120,6 @@ export class Player {
       return;
     }
 
-    // 身体底座：保证无论 SVG 是否加载成功，局内都有清晰人形。
     ctx.fillStyle = dark;
     ctx.strokeStyle = outline;
     ctx.lineWidth = 2.2;
@@ -138,7 +149,6 @@ export class Player {
 
     this.drawEyePair(ctx, body, raceId === "orc" ? "#fff3e0" : "#ffffff");
 
-    // SVG 资源如果加载成功，只作为胸口徽章，不再让小图主导角色辨识。
     if (raceSprite) {
       ctx.save();
       ctx.rotate(-angle);
@@ -166,16 +176,17 @@ export class Player {
     ctx.lineWidth = 1.8;
     for (const side of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(body * 0.12, -body * 0.68);
-      ctx.lineTo(-body * 0.22, -body * 0.98 * side);
-      ctx.lineTo(body * 0.02, -body * 0.48);
+      ctx.moveTo(-body * 0.12, -body * 0.62 + side * body * 0.08);
+      ctx.lineTo(-body * 0.72, -body * 0.88 + side * body * 0.22);
+      ctx.lineTo(-body * 0.24, -body * 0.34 + side * body * 0.04);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
     }
     ctx.strokeStyle = "#dcedc8";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(-body * 0.18, body * 0.08, body * 0.46, -0.8, 0.8);
+    ctx.arc(-body * 0.16, body * 0.08, body * 0.46, -0.8, 0.8);
     ctx.stroke();
   }
 
@@ -185,9 +196,9 @@ export class Player {
     ctx.lineWidth = 1.8;
     for (const side of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(0, -body * 0.62);
-      ctx.lineTo(-body * 0.78, -body * 0.42 * side);
-      ctx.lineTo(-body * 0.14, -body * 0.26);
+      ctx.moveTo(-body * 0.1, -body * 0.6);
+      ctx.lineTo(-body * 0.86, -body * 0.54 + side * body * 0.36);
+      ctx.lineTo(-body * 0.16, -body * 0.2 + side * body * 0.12);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
