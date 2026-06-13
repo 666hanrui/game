@@ -4,6 +4,7 @@ import { Projectile, ProjectileKind } from "../entities/Projectile";
 import { Pickup } from "../entities/Pickup";
 import { Input } from "./Input";
 import { Camera } from "./Camera";
+import { AssetLoader } from "./AssetLoader";
 import { WaveSystem } from "../systems/WaveSystem";
 import { CombatSystem } from "../systems/CombatSystem";
 import { XPLevelSystem } from "../systems/XPLevelSystem";
@@ -25,6 +26,7 @@ export class Game {
   ctx: CanvasRenderingContext2D;
   input: Input;
   camera: Camera;
+  assets: AssetLoader;
 
   w = 0;
   h = 0;
@@ -75,6 +77,7 @@ export class Game {
 
     this.camera = new Camera(WORLD_W, WORLD_H);
     this.camera.follow(cx, cy);
+    this.assets = new AssetLoader();
 
     this.player = new Player(cx, cy);
     this.wave = new WaveSystem();
@@ -565,13 +568,31 @@ export class Game {
     const br = toScreen(WORLD_W, WORLD_H);
     ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
 
-    for (const pk of this.pickups) { const sp = toScreen(pk.pos.x, pk.pos.y); pk.renderAt(ctx, sp.x, sp.y); }
-    for (const p of this.projectiles) { const sp = toScreen(p.pos.x, p.pos.y); p.renderAt(ctx, sp.x, sp.y); }
-    for (const e of this.enemies) { const sp = toScreen(e.pos.x, e.pos.y); e.renderAt(ctx, sp.x, sp.y); }
+    for (const pk of this.pickups) {
+      const sp = toScreen(pk.pos.x, pk.pos.y);
+      pk.renderAt(ctx, sp.x, sp.y, this.assets.get("pickups", pk.type));
+    }
+    for (const p of this.projectiles) {
+      const sp = toScreen(p.pos.x, p.pos.y);
+      p.renderAt(ctx, sp.x, sp.y, this.assets.get("projectiles", p.kind));
+    }
+    for (const e of this.enemies) {
+      const sp = toScreen(e.pos.x, e.pos.y);
+      e.renderAt(ctx, sp.x, sp.y, this.assets.get("enemies", e.assetId));
+    }
 
     const psp = toScreen(this.player.pos.x, this.player.pos.y);
     const color = this.selectedRace?.color ?? "#4fc3f7";
-    this.player.renderAt(ctx, psp.x, psp.y, this.input.state.aimDir, color, this.selectedWeapon?.id);
+    this.player.renderAt(
+      ctx,
+      psp.x,
+      psp.y,
+      this.input.state.aimDir,
+      color,
+      this.selectedWeapon?.id,
+      this.assets.get("races", this.selectedRace?.id),
+      this.assets.get("weapons", this.selectedWeapon?.id),
+    );
 
     this.input.renderSticks(ctx);
 
