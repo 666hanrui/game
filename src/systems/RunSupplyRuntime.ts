@@ -31,7 +31,6 @@ interface FloatingSupplyText {
 
 const WORLD_W = 2400;
 const WORLD_H = 2400;
-const SUPPLY_IDS: RuntimeSupplyId[] = ["magnet", "shield", "haste_potion", "power_potion"];
 
 export class RunSupplyRuntime {
   private drops: RuntimeSupplyDrop[] = [];
@@ -54,7 +53,7 @@ export class RunSupplyRuntime {
 
   afterGameUpdate(dt: number): void {
     if (this.game.phase !== "playing") {
-      this.clearRuntimeOnlyEffects();
+      if (this.shouldClearOnPhase()) this.clearRuntimeOnlyEffects();
       return;
     }
 
@@ -72,6 +71,10 @@ export class RunSupplyRuntime {
     this.renderPlayerAuras(ctx);
     this.renderEffectBar(ctx);
     this.renderFloatingTexts(ctx);
+  }
+
+  private shouldClearOnPhase(): boolean {
+    return this.game.phase === "menu" || this.game.phase === "meta_upgrade" || this.game.phase === "result";
   }
 
   private updateTimers(dt: number): void {
