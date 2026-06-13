@@ -1,6 +1,6 @@
 // 技能定义
 
-export type SkillRarity = "common" | "rare" | "epic";
+export type SkillRarity = "common" | "rare" | "epic" | "legendary" | "diamond";
 export type SkillSchool = "martial" | "magic" | "tech" | "neutral";
 
 export interface Skill {
