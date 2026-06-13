@@ -32,6 +32,8 @@ const RARITY_MULT: Record<SkillRarity, number> = {
   diamond: 5.5,
 };
 
+const DIAMOND_PITY_THRESHOLD = 8;
+
 export class LuckyUpgradePanel {
   cards: Skill[] = [];
   selected: Skill | null = null;
@@ -45,6 +47,7 @@ export class LuckyUpgradePanel {
   private playerSchool: SkillSchool | null = null;
   private weaponId: string | null = null;
   private refreshesLeft = 1;
+  private upgradesSinceDiamond = 0;
 
   generateChoices(playerSchool: SkillSchool | null, ownedIds: string[], weaponId: string | null = null): Skill[] {
     this.playerSchool = playerSchool;
@@ -53,6 +56,11 @@ export class LuckyUpgradePanel {
     this.refreshesLeft = 1;
     this.rollChoices();
     return this.cards;
+  }
+
+  recordChosen(skill: Skill): void {
+    if (skill.rarity === "diamond") this.upgradesSinceDiamond = 0;
+    else this.upgradesSinceDiamond = Math.min(DIAMOND_PITY_THRESHOLD, this.upgradesSinceDiamond + 1);
   }
 
   handleClick(canvasX: number, canvasY: number): Skill | null {
@@ -83,11 +91,18 @@ export class LuckyUpgradePanel {
     ctx.fillStyle = "#ffeb3b";
     ctx.font = "bold 22px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("⬆ 升级！选择一项强化", w / 2, startY - 42);
+    ctx.fillText("⬆ 升级！选择一项强化", w / 2, startY - 50);
 
     ctx.fillStyle = "rgba(255,255,255,0.38)";
     ctx.font = "11px monospace";
-    ctx.fillText("强化会随机出现不同稀有度：普通 / 稀有 / 史诗 / 传说 / 钻石", w / 2, startY - 20);
+    ctx.fillText("强化会随机出现不同稀有度：普通 / 稀有 / 史诗 / 传说 / 钻石", w / 2, startY - 28);
+
+    const heatText = this.upgradesSinceDiamond >= DIAMOND_PITY_THRESHOLD
+      ? "幸运热度已满：本次必出钻石候选"
+      : `幸运热度 ${this.upgradesSinceDiamond}/${DIAMOND_PITY_THRESHOLD} · 连续未选钻石会提高钻石概率`;
+    ctx.fillStyle = this.upgradesSinceDiamond >= DIAMOND_PITY_THRESHOLD ? "#80deea" : "rgba(128,222,234,0.55)";
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(heatText, w / 2, startY - 10);
 
     for (let i = 0; i < this.cards.length; i++) {
       const skill = this.cards[i];
@@ -201,13 +216,30 @@ export class LuckyUpgradePanel {
       }
     }
 
+    if (result.length > 0 && this.upgradesSinceDiamond >= DIAMOND_PITY_THRESHOLD && !result.some((s) => s.rarity === "diamond")) {
+      const index = this.bestDiamondCandidateIndex(result);
+      result[index] = this.applySpecificRarity(result[index], "diamond");
+    }
+
     this.cards = result;
     this.selected = null;
   }
 
+  private bestDiamondCandidateIndex(result: Skill[]): number {
+    const weaponIndex = result.findIndex((s) => s.weapon === this.weaponId);
+    if (weaponIndex >= 0) return weaponIndex;
+    const schoolIndex = result.findIndex((s) => s.school === this.playerSchool);
+    if (schoolIndex >= 0) return schoolIndex;
+    return 0;
+  }
+
   private applyLuckyRarity(base: Skill): Skill {
-    const rolled = this.rollRarity(base.rarity);
-    const mult = RARITY_MULT[rolled];
+    return this.applySpecificRarity(base, this.rollRarity(base.rarity));
+  }
+
+  private applySpecificRarity(base: Skill, rolled: SkillRarity): Skill {
+    const rarity = RARITY_RANK[rolled] < RARITY_RANK[base.rarity] ? base.rarity : rolled;
+    const mult = RARITY_MULT[rarity];
     const mods: Skill["mods"] = {};
 
     for (const key of Object.keys(base.mods) as ModKey[]) {
@@ -223,23 +255,30 @@ export class LuckyUpgradePanel {
       }
     }
 
-    const label = this.getRarityLabel(rolled);
+    const label = this.getRarityLabel(rarity);
+    const diamondText = rarity === "diamond" ? "｜钻石质变：会启动当前路线的超载效果" : "";
     return {
       ...base,
-      rarity: rolled,
-      name: rolled === base.rarity && rolled !== "diamond" ? base.name : `${label}·${base.name}`,
-      description: `${base.description}｜本次为${label}强化，数值倍率 x${mult.toFixed(rolled === "common" ? 0 : 2)}`,
+      rarity,
+      name: rarity === base.rarity && rarity !== "diamond" ? base.name : `${label}·${base.name}`,
+      description: `${base.description}｜本次为${label}强化，数值倍率 x${mult.toFixed(rarity === "common" ? 0 : 2)}${diamondText}`,
       mods,
     };
   }
 
   private rollRarity(minRarity: SkillRarity): SkillRarity {
+    const heat = Math.min(DIAMOND_PITY_THRESHOLD, this.upgradesSinceDiamond);
+    const diamondChance = Math.min(0.16, 0.01 + heat * 0.015);
+    const legendaryChance = Math.min(0.22, diamondChance + 0.05 + heat * 0.005);
+    const epicChance = Math.min(0.38, legendaryChance + 0.12 + heat * 0.006);
+    const rareChance = Math.min(0.62, epicChance + 0.27);
+
     const r = Math.random();
     let rarity: SkillRarity = "common";
-    if (r < 0.01) rarity = "diamond";
-    else if (r < 0.06) rarity = "legendary";
-    else if (r < 0.18) rarity = "epic";
-    else if (r < 0.45) rarity = "rare";
+    if (r < diamondChance) rarity = "diamond";
+    else if (r < legendaryChance) rarity = "legendary";
+    else if (r < epicChance) rarity = "epic";
+    else if (r < rareChance) rarity = "rare";
 
     return RARITY_RANK[rarity] < RARITY_RANK[minRarity] ? minRarity : rarity;
   }
