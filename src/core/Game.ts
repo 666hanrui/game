@@ -8,13 +8,14 @@ import { WaveSystem } from "../systems/WaveSystem";
 import { CombatSystem } from "../systems/CombatSystem";
 import { XPLevelSystem } from "../systems/XPLevelSystem";
 import { HUD } from "../ui/HUD";
-import { UpgradePanel, RacePanel, SchoolPanel } from "../ui/UpgradePanel";
+import { UpgradePanel, RacePanel, SchoolPanel, WeaponPanel } from "../ui/UpgradePanel";
 import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
+import { Weapon } from "../data/weapons";
 import { distance, randRange, vec2 } from "../utils/math";
 
-export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "result";
+export type GamePhase = "menu" | "playing" | "upgrade" | "school_choice" | "weapon_choice" | "result";
 
 const WORLD_W = 2400;
 const WORLD_H = 2400;
@@ -41,11 +42,13 @@ export class Game {
   upgradePanel: UpgradePanel;
   racePanel: RacePanel;
   schoolPanel: SchoolPanel;
+  weaponPanel: WeaponPanel;
 
   phase: GamePhase = "menu";
 
   selectedRace: Race | null = null;
   selectedSchool: School | null = null;
+  selectedWeapon: Weapon | null = null;
   appliedSkills: Skill[] = [];
   appliedSkillIds: string[] = [];
 
@@ -81,6 +84,7 @@ export class Game {
     this.upgradePanel = new UpgradePanel();
     this.racePanel = new RacePanel();
     this.schoolPanel = new SchoolPanel();
+    this.weaponPanel = new WeaponPanel();
   }
 
   resize(): void {
@@ -109,6 +113,11 @@ export class Game {
       if (school) this.selectSchool(school);
       return;
     }
+    if (this.phase === "weapon_choice") {
+      const weapon = this.weaponPanel.handleClick(cx, cy);
+      if (weapon) this.selectWeapon(weapon);
+      return;
+    }
     if (this.phase === "upgrade") {
       const skill = this.upgradePanel.handleClick(cx, cy);
       if (skill) this.applySkill(skill);
@@ -128,6 +137,7 @@ export class Game {
     this.pickups = [];
     this.selectedRace = null;
     this.selectedSchool = null;
+    this.selectedWeapon = null;
     this.appliedSkills = [];
     this.appliedSkillIds = [];
     this.kills = 0;
@@ -150,8 +160,19 @@ export class Game {
 
   private selectSchool(school: School): void {
     this.selectedSchool = school;
+    this.selectedWeapon = null;
+    this.weaponPanel.setSchool(school.id as SkillSchool);
+    this.phase = "weapon_choice";
+  }
+
+  private selectWeapon(weapon: Weapon): void {
+    this.selectedWeapon = weapon;
+    this.upgradePanel.generateChoices(
+      this.selectedSchool?.id as SkillSchool,
+      this.appliedSkillIds,
+      this.selectedWeapon.id,
+    );
     this.phase = "upgrade";
-    this.upgradePanel.generateChoices(school.id as SkillSchool, this.appliedSkillIds);
   }
 
   private applySkill(skill: Skill): void {
@@ -267,14 +288,7 @@ export class Game {
       const dx = target.pos.x - this.player.pos.x;
       const dy = target.pos.y - this.player.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      this.projectiles.push(new Projectile(
-        this.player.pos.x,
-        this.player.pos.y,
-        (dx / len) * 620,
-        (dy / len) * 620,
-        false,
-        12 + count * 5,
-      ));
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5));
     }
   }
 
@@ -290,6 +304,7 @@ export class Game {
   update(dt: number): void {
     if (this.phase === "menu") return;
     if (this.phase === "school_choice") return;
+    if (this.phase === "weapon_choice") return;
 
     if (this.phase === "upgrade") {
       if (this.input.isKeyDown("1") && this.upgradePanel.cards.length >= 1) this.applySkill(this.upgradePanel.cards[0]);
@@ -345,13 +360,8 @@ export class Game {
           const defeated = this.combat.dealDamage(e, dmg);
           p.alive = false;
 
-          if (this.hasSkill("frost_arrow")) {
-            e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
-          }
-
-          if (this.hasSkill("fireball")) {
-            this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
-          }
+          if (this.hasSkill("frost_arrow")) e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
+          if (this.hasSkill("fireball")) this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
 
           if (defeated) this.onKill(e);
           break;
@@ -362,9 +372,7 @@ export class Game {
     const now = performance.now() / 1000;
     for (const e of this.enemies) {
       if (!e.alive) continue;
-      if (this.combat.enemyTouchesPlayer(e, this.player)) {
-        this.combat.dealDamageToPlayer(this.player, e.damage, now);
-      }
+      if (this.combat.enemyTouchesPlayer(e, this.player)) this.combat.dealDamageToPlayer(this.player, e.damage, now);
     }
 
     for (const pk of this.pickups) {
@@ -379,14 +387,15 @@ export class Game {
     if (this.xp.checkLevelUp()) {
       const oldMaxHp = this.player.maxHp;
       this.applyAllMods();
-      if (this.player.maxHp > oldMaxHp) {
-        this.player.hp = Math.min(this.player.maxHp, this.player.hp + (this.player.maxHp - oldMaxHp));
-      }
+      if (this.player.maxHp > oldMaxHp) this.player.hp = Math.min(this.player.maxHp, this.player.hp + (this.player.maxHp - oldMaxHp));
 
       if (!this.selectedSchool) {
         this.phase = "school_choice";
+      } else if (!this.selectedWeapon) {
+        this.weaponPanel.setSchool(this.selectedSchool.id as SkillSchool);
+        this.phase = "weapon_choice";
       } else {
-        this.upgradePanel.generateChoices(this.selectedSchool.id as SkillSchool, this.appliedSkillIds);
+        this.upgradePanel.generateChoices(this.selectedSchool.id as SkillSchool, this.appliedSkillIds, this.selectedWeapon.id);
         this.phase = "upgrade";
       }
     }
@@ -406,9 +415,7 @@ export class Game {
     this.xp.addXP(xpValue);
     this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
 
-    if (Math.random() < 0.12) {
-      this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", 18));
-    }
+    if (Math.random() < 0.12) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", 18));
 
     if (this.hasSkill("bloodlust")) {
       const heal = Math.max(1, Math.floor(this.player.maxHp * 0.08 * this.skillCount("bloodlust")));
@@ -431,6 +438,7 @@ export class Game {
 
     if (this.phase === "menu") { this.racePanel.render(ctx, this.w, this.h); return; }
     if (this.phase === "school_choice") { this.schoolPanel.render(ctx, this.w, this.h); return; }
+    if (this.phase === "weapon_choice") { this.weaponPanel.render(ctx, this.w, this.h); return; }
     if (this.phase === "upgrade") {
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(0, 0, this.w, this.h);
@@ -501,8 +509,8 @@ export class Game {
       xp: this.xp.xp, xpToNext: this.xp.xpToNext, level: this.xp.level,
       wave: this.waveNum, kills: this.kills,
       raceName: this.selectedRace?.name,
-      schoolName: this.selectedSchool?.name,
-      schoolIcon: this.selectedSchool?.icon,
+      schoolName: this.selectedWeapon ? `${this.selectedSchool?.name} · ${this.selectedWeapon.name}` : this.selectedSchool?.name,
+      schoolIcon: this.selectedWeapon?.icon ?? this.selectedSchool?.icon,
     });
 
     if (this.appliedSkills.length > 0) {
