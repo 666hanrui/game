@@ -20,6 +20,17 @@ export class Projectile {
     this.kind = kind;
   }
 
+  get hitRadius(): number {
+    switch (this.kind) {
+      case "heavy_magic": return 11;
+      case "energy": return 8;
+      case "blade": return 9;
+      case "magic": return 7;
+      case "drone": return 6;
+      default: return 5;
+    }
+  }
+
   update(dt: number): void {
     this.pos.x += this.vel.x * dt;
     this.pos.y += this.vel.y * dt;
