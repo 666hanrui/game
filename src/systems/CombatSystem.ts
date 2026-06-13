@@ -7,7 +7,7 @@ export class CombatSystem {
   // 弹射物命中敌人
   projectileHitsEnemy(p: Projectile, e: Enemy): boolean {
     if (!p.alive || !e.alive) return false;
-    return distance(p.pos, e.pos) < e.radius + 5;
+    return distance(p.pos, e.pos) < e.radius + p.hitRadius;
   }
 
   // 对敌人造成伤害，返回是否击杀
