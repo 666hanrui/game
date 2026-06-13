@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>Bow Route Icon</title>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="#fff8e1"/>
+      <stop offset="55%" stop-color="#ffd54f" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="126" fill="#3e2723" opacity="0.18"/>
+  <path d="M178 112 C106 184 106 328 178 400" fill="none" stroke="#c28b2c" stroke-width="28" stroke-linecap="round"/>
+  <path d="M184 116 C205 190 205 322 184 396" fill="none" stroke="#fffde7" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+  <path d="M172 256 H360" stroke="#fff9c4" stroke-width="14" stroke-linecap="round" opacity="0.95"/>
+  <circle cx="366" cy="256" r="22" fill="#fff9c4" opacity="0.9"/>
+  <circle cx="256" cy="256" r="38" fill="none" stroke="#fff59d" stroke-width="10" opacity="0.72"/>
+  <circle cx="256" cy="256" r="82" fill="none" stroke="#ffd54f" stroke-width="8" opacity="0.42"/>
+</svg>
