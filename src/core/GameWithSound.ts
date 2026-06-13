@@ -44,6 +44,7 @@ export class GameWithSound extends Game {
   private statsPanel = new StatsPanel();
   private buildEffects = new BuildEffectOverlay();
   private buildPowerTimer = 0;
+  private maceImpactTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -64,7 +65,9 @@ export class GameWithSound extends Game {
 
   update(dt: number): void {
     const before = this.snapshot();
+    this.applyMaceRuntimeTuning();
     super.update(dt);
+    this.updateMaceShots(before.playerShots, dt);
     this.updateBossPatterns(dt);
     this.updateBuildPower(dt);
     const after = this.snapshot();
@@ -104,6 +107,38 @@ export class GameWithSound extends Game {
     });
   }
 
+  private applyMaceRuntimeTuning(): void {
+    if (this.selectedWeapon?.id !== "mace") return;
+    const diamond = this.diamondCount();
+    const floor = Math.max(0.5, 0.68 - diamond * 0.045);
+    this.player.attackCooldown = Math.max(this.player.attackCooldown, floor);
+  }
+
+  private updateMaceShots(beforePlayerShots: number, dt: number): void {
+    this.maceImpactTimer = Math.max(0, this.maceImpactTimer - dt);
+    if (this.selectedWeapon?.id !== "mace") return;
+
+    const playerShots = this.projectiles.filter((p) => !p.fromEnemy);
+    const newCount = Math.max(0, playerShots.length - beforePlayerShots);
+    if (newCount <= 0) return;
+
+    const newShots = playerShots.slice(-newCount);
+    const diamond = this.diamondCount();
+    for (const p of newShots) {
+      p.kind = "hammer";
+      p.damage = Math.floor(p.damage * (1.35 + diamond * 0.18));
+      const len = Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y) || 1;
+      const speed = 410 + diamond * 24;
+      p.vel.x = (p.vel.x / len) * speed;
+      p.vel.y = (p.vel.y / len) * speed;
+    }
+
+    if (this.maceImpactTimer <= 0) {
+      this.applyMaceShockwave(false);
+      this.maceImpactTimer = Math.max(0.22, this.player.attackCooldown * 0.68);
+    }
+  }
+
   private updateBuildPower(dt: number): void {
     if (this.phase !== "playing" || !this.selectedWeapon) return;
     const score = this.getBuildPowerScore();
@@ -119,6 +154,9 @@ export class GameWithSound extends Game {
     } else if (weaponId === "bow") {
       this.fireArrowRain(score);
       this.buildPowerTimer = Math.max(0.36, 1.25 - score * 0.045);
+    } else if (weaponId === "mace") {
+      this.releaseMaceQuake(score);
+      this.buildPowerTimer = Math.max(0.5, 1.45 - score * 0.045 - this.diamondCount() * 0.08);
     } else if (this.isMartialWeapon(weaponId)) {
       this.releaseWeaponAura(score);
       this.buildPowerTimer = Math.max(0.36, 1.18 - score * 0.045);
@@ -129,11 +167,11 @@ export class GameWithSound extends Game {
   }
 
   private getBuildPowerScore(): number {
-    return this.appliedSkills.length + this.player.projectileExtra * 1.6 + this.player.critChance * 10 + Math.max(0, this.player.damage - 45) / 18;
+    return this.appliedSkills.length + this.player.projectileExtra * 1.6 + this.player.critChance * 10 + Math.max(0, this.player.damage - 45) / 18 + this.diamondCount() * 3.5;
   }
 
   private castArcaneNova(score: number): void {
-    const count = Math.min(20, 6 + Math.floor(score / 1.6));
+    const count = Math.min(20, 6 + Math.floor(score / 1.6) + this.diamondCount() * 2);
     const kind: ProjectileKind = this.selectedWeapon?.id === "staff" ? "heavy_magic" : "magic";
     const speed = this.selectedWeapon?.id === "orb" ? 380 : 460;
     const damage = Math.max(6, Math.floor(this.player.damage * (0.32 + Math.min(0.28, score * 0.012))));
@@ -148,7 +186,7 @@ export class GameWithSound extends Game {
   private fireArrowRain(score: number): void {
     const target = this.findBuildTarget();
     const base = target ? Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x) : Math.random() * Math.PI * 2;
-    const count = Math.min(12, 3 + this.player.projectileExtra + Math.floor(score / 4));
+    const count = Math.min(14, 3 + this.player.projectileExtra + Math.floor(score / 4) + this.diamondCount() * 2);
     const spread = 0.95;
     const speed = 720;
     const damage = Math.max(5, Math.floor(this.player.damage * 0.42));
@@ -177,18 +215,57 @@ export class GameWithSound extends Game {
     }
   }
 
+  private releaseMaceQuake(score: number): void {
+    this.applyMaceShockwave(true);
+    const count = Math.min(16, 6 + Math.floor(score / 3) + this.diamondCount() * 3);
+    const damage = Math.max(8, Math.floor(this.player.damage * (0.34 + this.diamondCount() * 0.04)));
+    const speed = 360;
+    const offset = performance.now() / 700;
+
+    for (let i = 0; i < count; i++) {
+      const angle = offset + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "hammer"));
+    }
+  }
+
+  private applyMaceShockwave(empowered: boolean): void {
+    const score = this.getBuildPowerScore();
+    const diamond = this.diamondCount();
+    const armorBreakSkill = this.countSpecial("armor_break");
+    const quakeSkill = this.countSpecial("earthquake");
+    const radius = 74 + quakeSkill * 22 + this.player.projectileExtra * 8 + diamond * 26 + (empowered ? 48 : 0);
+    const damage = Math.floor(this.player.damage * (empowered ? 0.34 : 0.18) + score * (empowered ? 1.2 : 0.55));
+    const armorBreak = 3 + armorBreakSkill * 7 + diamond * 9 + (empowered ? 8 : 0);
+    const knock = 28 + quakeSkill * 10 + diamond * 12 + (empowered ? 26 : 0);
+
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const dx = e.pos.x - this.player.pos.x;
+      const dy = e.pos.y - this.player.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      if (dist > radius + e.radius) continue;
+
+      e.breakArmor(armorBreak);
+      const safeDamage = Math.min(Math.max(0, e.hp - 1), damage);
+      if (safeDamage > 0) e.takeDamage(safeDamage, armorBreak);
+      const push = knock * (1 - Math.min(1, dist / Math.max(1, radius)));
+      e.pos.x += (dx / dist) * push;
+      e.pos.y += (dy / dist) * push;
+    }
+  }
+
   private fireTechVolley(score: number): void {
     const targets = this.enemies
       .filter((e) => e.alive)
       .sort((a, b) => this.dist2(a.pos.x, a.pos.y) - this.dist2(b.pos.x, b.pos.y))
-      .slice(0, Math.min(8, 2 + Math.floor(score / 4)));
+      .slice(0, Math.min(8, 2 + Math.floor(score / 4) + this.diamondCount()));
 
     if (targets.length <= 0) return;
 
     const kind: ProjectileKind = this.selectedWeapon?.id === "drone_core" ? "drone" : "energy";
     const speed = kind === "drone" ? 660 : 760;
     const damage = Math.max(5, Math.floor(this.player.damage * (kind === "drone" ? 0.34 : 0.46)));
-    const shots = Math.min(10, targets.length + this.player.projectileExtra);
+    const shots = Math.min(12, targets.length + this.player.projectileExtra + this.diamondCount() * 2);
 
     for (let i = 0; i < shots; i++) {
       const target = targets[i % targets.length];
@@ -218,6 +295,14 @@ export class GameWithSound extends Game {
     const dx = x - this.player.pos.x;
     const dy = y - this.player.pos.y;
     return dx * dx + dy * dy;
+  }
+
+  private countSpecial(special: string): number {
+    return this.appliedSkills.filter((s) => s.special === special).length;
+  }
+
+  private diamondCount(): number {
+    return this.appliedSkills.filter((s) => s.rarity === "diamond").length;
   }
 
   private isMagicWeapon(id: string): boolean {
