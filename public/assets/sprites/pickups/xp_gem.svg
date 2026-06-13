@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
+  <title>XP Gem</title>
+  <defs><radialGradient id="g" cx="50%" cy="50%" r="65%"><stop offset="0%" stop-color="#e3f2fd"/><stop offset="55%" stop-color="#42a5f5" stop-opacity="0.78"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></radialGradient><linearGradient id="b" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#e3f2fd"/><stop offset="50%" stop-color="#42a5f5"/><stop offset="100%" stop-color="#0d47a1"/></linearGradient></defs>
+  <circle cx="256" cy="256" r="220" fill="url(#g)"/>
+  <path d="M256 80 L402 256 L256 432 L110 256 Z" fill="url(#b)" stroke="#90caf9" stroke-width="10"/>
+  <path d="M256 80 L256 432" stroke="#e3f2fd" stroke-width="8" opacity="0.58"/>
+  <path d="M110 256 H402" stroke="#e3f2fd" stroke-width="8" opacity="0.45"/>
+  <path d="M256 80 L204 256 L256 432 L308 256 Z" fill="#ffffff" opacity="0.17"/>
+  <circle cx="221" cy="201" r="24" fill="#ffffff" opacity="0.52"/>
+</svg>
