@@ -7,11 +7,28 @@ export class MetaUpgradePanel {
   private cardRects: { x: number; y: number; w: number; h: number; id: MetaUpgradeId }[] = [];
   private backRect = { x: 0, y: 0, w: 110, h: 36 };
   private resetRect = { x: 0, y: 0, w: 118, h: 34 };
+  private grant100Rect = { x: 0, y: 0, w: 118, h: 34 };
+  private grant1000Rect = { x: 0, y: 0, w: 118, h: 34 };
   private feedbackText = "";
   private feedbackColor = "#ffeb3b";
 
   handleClick(cx: number, cy: number, meta: MetaProgress): "back" | "buy" | null {
     if (this.inRect(cx, cy, this.backRect)) return "back";
+
+    if (this.inRect(cx, cy, this.grant100Rect)) {
+      const total = meta.addSoulCrystals(100);
+      this.feedbackText = `调试：已赠送 100 魂晶，当前 ${total}`;
+      this.feedbackColor = "#81c784";
+      return "buy";
+    }
+
+    if (this.inRect(cx, cy, this.grant1000Rect)) {
+      const total = meta.addSoulCrystals(1000);
+      this.feedbackText = `调试：已赠送 1000 魂晶，当前 ${total}`;
+      this.feedbackColor = "#81c784";
+      return "buy";
+    }
+
     if (this.inRect(cx, cy, this.resetRect)) {
       meta.resetAll();
       this.feedbackText = "已清空本地存档";
@@ -55,8 +72,12 @@ export class MetaUpgradePanel {
     this.backRect = { x: 22, y: 22, w: 110, h: 36 };
     this.drawButton(ctx, this.backRect, "返回", "rgba(255,255,255,0.08)", "rgba(255,255,255,0.2)", "#ddd");
 
-    this.resetRect = { x: w - 142, y: 22, w: 120, h: 34 };
-    this.drawButton(ctx, this.resetRect, "清空存档", "rgba(239,83,80,0.08)", "rgba(239,83,80,0.42)", "#ef9a9a", 12);
+    this.grant100Rect = { x: w - 142, y: 22, w: 120, h: 30 };
+    this.grant1000Rect = { x: w - 142, y: 58, w: 120, h: 30 };
+    this.resetRect = { x: w - 142, y: 94, w: 120, h: 30 };
+    this.drawButton(ctx, this.grant100Rect, "+100 魂晶", "rgba(129,199,132,0.08)", "rgba(129,199,132,0.42)", "#a5d6a7", 11);
+    this.drawButton(ctx, this.grant1000Rect, "+1000 魂晶", "rgba(129,199,132,0.08)", "rgba(129,199,132,0.42)", "#a5d6a7", 11);
+    this.drawButton(ctx, this.resetRect, "清空存档", "rgba(239,83,80,0.08)", "rgba(239,83,80,0.42)", "#ef9a9a", 11);
 
     ctx.fillStyle = "#fff";
     ctx.font = "bold 28px monospace";
@@ -112,7 +133,7 @@ export class MetaUpgradePanel {
     ctx.fillStyle = "rgba(255,255,255,0.28)";
     ctx.font = "11px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("点击强化卡片购买；清空存档仅用于开发测试", w / 2, by + 28);
+    ctx.fillText("右上角为开发调试按钮；点击强化卡片购买", w / 2, by + 28);
   }
 
   private drawUpgradeCard(ctx: CanvasRenderingContext2D, x: number, y: number, def: MetaUpgradeDef, level: number, cost: number, soul: number): void {
