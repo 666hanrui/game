@@ -185,6 +185,39 @@ runSupply.render(ctx)
 
 定位：机械组职业预埋，提供阵地战和自动火力雏形。
 
+## 静态检查记录
+
+本轮基于仓库代码做静态检查，未修改战斗核心文件。
+
+### RuntimeSupplyId 覆盖情况
+
+当前 `RuntimeSupplyId` 覆盖 12 个已接入运行时的补给：
+
+```text
+magnet
+shield
+haste_potion
+power_potion
+health_pack
+regen_dew
+crit_potion
+frost_bomb
+thunder_stone
+quake_stone
+decoy_doll
+turret_pack
+```
+
+`src/data/runItems.ts` 中的聚宝符、净化符、狂暴药剂、佣兵号角、亡骨号角、丰收印记、猎魂灯仍属于预埋内容，不在当前运行时刷新池内。
+
+### 战术补给结算边界
+
+- 雷击符石使用玩家侧 `Projectile` 发射能量弹，不在补给系统里手动结算击杀。
+- 机械炮台使用玩家侧 `Projectile` 发射能量弹，不在补给系统里手动结算击杀。
+- 地裂符石只做破甲、减速、击退，并释放玩家侧 `hammer` 弹体，不直接手动杀怪。
+- 诱饵人偶只在 `RunSupplyRuntime` 外层牵引敌人位置，没有修改 `Enemy.ts` 的目标选择逻辑。
+- 回到主菜单、局外强化或结算界面时，`clearRuntimeOnlyEffects()` 会清空临时装置，避免诱饵和炮台残留到下一局。
+
 ## 补给视觉规则
 
 当前补给掉落物采用“颜色 + 大字 + 简短提示 + 轮廓形状”的方式区分：
