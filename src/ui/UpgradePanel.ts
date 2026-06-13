@@ -21,7 +21,7 @@ export class UpgradePanel {
       return ownedCount < s.maxLevel;
     });
 
-    const weaponPool = available.filter((s: Skill) => s.school === playerSchool);
+    const schoolPool = available.filter((s: Skill) => s.school === playerSchool);
     const neutralPool = available.filter((s: Skill) => s.school === "neutral");
     const otherPool = available.filter((s: Skill) => s.school !== playerSchool && s.school !== "neutral");
 
@@ -38,8 +38,8 @@ export class UpgradePanel {
       const roll = Math.random();
       let pick: Skill | null = null;
 
-      // 选定武器后，升级应围绕同一武器持续成长，而不是乱跳体系
-      if (roll < 0.72) pick = pickFrom(weaponPool);
+      // 选定体系后，升级优先围绕该体系允许的武器路线继续成长
+      if (roll < 0.72) pick = pickFrom(schoolPool);
       if (!pick && roll < 0.92) pick = pickFrom(neutralPool);
       if (!pick) pick = pickFrom(otherPool);
       if (!pick) pick = pickFrom(available);
@@ -82,7 +82,7 @@ export class UpgradePanel {
 
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.font = "11px monospace";
-    ctx.fillText("同一武器可以反复升级，例如多重箭会从单发一路叠到箭雨", w / 2, startY - 14);
+    ctx.fillText("体系决定武器大类，同一武器路线可以持续叠加成长", w / 2, startY - 14);
 
     for (let i = 0; i < this.cards.length; i++) {
       const skill = this.cards[i];
@@ -195,9 +195,9 @@ export class UpgradePanel {
 
 // ============ 种族选择面板 ============
 export class RacePanel {
-  private cardW = 160;
-  private cardH = 200;
-  private gap = 20;
+  private cardW = 150;
+  private cardH = 178;
+  private gap = 18;
   private cardRects: { x: number; y: number; w: number; h: number; race: Race }[] = [];
 
   handleClick(cx: number, cy: number): Race | null {
@@ -209,63 +209,96 @@ export class RacePanel {
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     this.cardRects = [];
-    const totalW = 3 * this.cardW + 2 * this.gap;
-    const sx = (w - totalW) / 2;
-    const sy = h / 2 - this.cardH / 2;
+    const cols = Math.min(3, RACES.length);
+    const rows = Math.ceil(RACES.length / cols);
+    const totalH = rows * this.cardH + (rows - 1) * this.gap;
+    const sy = h / 2 - totalH / 2 + 18;
 
     ctx.fillStyle = "#fff";
     ctx.font = "bold 24px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("选择你的角色体质", w / 2, sy - 40);
+    ctx.fillText("选择你的种族", w / 2, sy - 52);
+
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "11px monospace";
+    ctx.fillText("种族决定身体底子、体型、前后期成长和天赋", w / 2, sy - 30);
 
     for (let i = 0; i < RACES.length; i++) {
       const race = RACES[i];
-      const cx = sx + i * (this.cardW + this.gap);
-      const cy = sy;
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const countInRow = Math.min(cols, RACES.length - row * cols);
+      const rowW = countInRow * this.cardW + (countInRow - 1) * this.gap;
+      const cx = (w - rowW) / 2 + col * (this.cardW + this.gap);
+      const cy = sy + row * (this.cardH + this.gap);
       this.cardRects.push({ x: cx, y: cy, w: this.cardW, h: this.cardH, race });
 
       ctx.fillStyle = "#1a1a2e";
       ctx.strokeStyle = race.color;
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx + 8, cy);
-      ctx.lineTo(cx + this.cardW - 8, cy);
-      ctx.arcTo(cx + this.cardW, cy, cx + this.cardW, cy + 8, 8);
-      ctx.lineTo(cx + this.cardW, cy + this.cardH - 8);
-      ctx.arcTo(cx + this.cardW, cy + this.cardH, cx + this.cardW - 8, cy + this.cardH, 8);
-      ctx.lineTo(cx + 8, cy + this.cardH);
-      ctx.arcTo(cx, cy + this.cardH, cx, cy + this.cardH - 8, 8);
-      ctx.lineTo(cx, cy + 8);
-      ctx.arcTo(cx, cy, cx + 8, cy, 8);
-      ctx.closePath();
+      this.roundRect(ctx, cx, cy, this.cardW, this.cardH, 8);
       ctx.fill();
       ctx.stroke();
 
       ctx.fillStyle = race.color;
-      ctx.font = "bold 18px monospace";
+      ctx.font = "bold 17px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(race.name, cx + this.cardW / 2, cy + 36);
+      ctx.fillText(race.name, cx + this.cardW / 2, cy + 30);
 
       ctx.fillStyle = "#aaa";
-      ctx.font = "11px monospace";
-      ctx.fillText(race.description, cx + this.cardW / 2, cy + 60);
-
-      ctx.fillStyle = "#888";
       ctx.font = "10px monospace";
-      const lines = race.special.split("：");
-      if (lines.length > 1) {
-        ctx.fillText(lines[0], cx + this.cardW / 2, cy + 110);
-        ctx.fillText(lines[1], cx + this.cardW / 2, cy + 128);
-      }
+      ctx.fillText(race.description, cx + this.cardW / 2, cy + 52);
+
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.font = "10px monospace";
+      ctx.fillText(`成长：${this.growthLabel(race.growth)}`, cx + this.cardW / 2, cy + 76);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#888";
+      ctx.font = "9px monospace";
+      ctx.fillText(`生命 x${race.hpMod}`, cx + 12, cy + 102);
+      ctx.fillText(`速度 x${race.spdMod}`, cx + 12, cy + 118);
+      ctx.fillText(`伤害 x${race.dmgMod}`, cx + 12, cy + 134);
+      ctx.fillText(`体型 x${race.radiusMod}`, cx + 12, cy + 150);
+
+      ctx.textAlign = "right";
+      ctx.fillStyle = race.color;
+      ctx.font = "9px monospace";
+      ctx.fillText(race.talentName, cx + this.cardW - 12, cy + 150);
     }
 
+    ctx.textAlign = "center";
     ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.font = "12px monospace";
-    ctx.fillText("点击选择", w / 2, sy + this.cardH + 40);
+    ctx.fillText("点击选择", w / 2, sy + totalH + 34);
+  }
+
+  private growthLabel(growth: Race["growth"]): string {
+    switch (growth) {
+      case "early": return "前期强";
+      case "late": return "后期强";
+      case "agile": return "敏捷";
+      case "brute": return "体魄";
+      default: return "均衡";
+    }
+  }
+
+  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
   }
 }
 
-// ============ 武器流派选择面板 ============
+// ============ 体系选择面板 ============
 export class SchoolPanel {
   private cardW = 210;
   private cardH = 150;
@@ -288,11 +321,11 @@ export class SchoolPanel {
     ctx.fillStyle = "#fff";
     ctx.font = "bold 24px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("选择你的武器流派", w / 2, sy - 44);
+    ctx.fillText("选择你的体系", w / 2, sy - 44);
 
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.font = "11px monospace";
-    ctx.fillText("首次升级锁定流派，后续升级会持续强化同一套武器", w / 2, sy - 22);
+    ctx.fillText("体系决定可用武器类型：古武用冷兵器，魔法用魔法媒介，科技用装置", w / 2, sy - 22);
 
     for (let i = 0; i < SCHOOLS.length; i++) {
       const school = SCHOOLS[i];
@@ -303,17 +336,7 @@ export class SchoolPanel {
       ctx.fillStyle = "#1a1a2e";
       ctx.strokeStyle = school.color;
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx + 8, cy);
-      ctx.lineTo(cx + this.cardW - 8, cy);
-      ctx.arcTo(cx + this.cardW, cy, cx + this.cardW, cy + 8, 8);
-      ctx.lineTo(cx + this.cardW, cy + this.cardH - 8);
-      ctx.arcTo(cx + this.cardW, cy + this.cardH, cx + this.cardW - 8, cy + this.cardH, 8);
-      ctx.lineTo(cx + 8, cy + this.cardH);
-      ctx.arcTo(cx, cy + this.cardH, cx, cy + this.cardH - 8, 8);
-      ctx.lineTo(cx, cy + 8);
-      ctx.arcTo(cx, cy, cx + 8, cy, 8);
-      ctx.closePath();
+      this.roundRect(ctx, cx, cy, this.cardW, this.cardH, 8);
       ctx.fill();
       ctx.stroke();
 
@@ -332,7 +355,21 @@ export class SchoolPanel {
 
     ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.font = "12px monospace";
-    ctx.fillText("点击选择 · 当前优先完善弓箭手流派", w / 2, sy + this.cardH + 40);
+    ctx.fillText("点击选择 · 当前优先完善古武体系下的弓箭路线", w / 2, sy + this.cardH + 40);
+  }
+
+  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
   }
 
   private wrapTextCenter(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number): void {
