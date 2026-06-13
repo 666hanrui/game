@@ -78,6 +78,12 @@ export class MetaProgress {
     }
   }
 
+  addSoulCrystals(amount: number): number {
+    const total = this.getSoulCrystals() + Math.max(0, Math.floor(amount));
+    this.setSoulCrystals(total);
+    return total;
+  }
+
   getUpgradeLevels(): MetaUpgradeLevels {
     try {
       const raw = window.localStorage.getItem(UPGRADE_KEY);
