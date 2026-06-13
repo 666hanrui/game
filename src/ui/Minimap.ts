@@ -21,8 +21,18 @@ export interface MinimapData {
   pickups: MinimapPickup[];
 }
 
+interface OffscreenThreat {
+  enemy: MinimapEnemy;
+  dist: number;
+  angle: number;
+  screenX: number;
+  screenY: number;
+}
+
 export class Minimap {
   render(ctx: CanvasRenderingContext2D, data: MinimapData): void {
+    this.renderOffscreenThreats(ctx, data);
+
     const size = 154;
     const pad = 16;
     const x = ctx.canvas.width - size - pad;
@@ -109,6 +119,120 @@ export class Minimap {
     ctx.strokeRect(ctx.canvas.width / 2 - 150, 138, 300, 30);
     ctx.fillStyle = "#ffb74d";
     ctx.fillText(`接近${parts.join(" / ")}`, ctx.canvas.width / 2, 158);
+    ctx.restore();
+  }
+
+  private renderOffscreenThreats(ctx: CanvasRenderingContext2D, data: MinimapData): void {
+    const margin = 38;
+    const left = data.cameraPos.x - data.screenW / 2;
+    const top = data.cameraPos.y - data.screenH / 2;
+    const right = left + data.screenW;
+    const bottom = top + data.screenH;
+    const threats: OffscreenThreat[] = [];
+
+    for (const enemy of data.enemies) {
+      const ex = enemy.pos.x;
+      const ey = enemy.pos.y;
+      const offscreen = ex < left || ex > right || ey < top || ey > bottom;
+      if (!offscreen) continue;
+
+      const dx = ex - data.playerPos.x;
+      const dy = ey - data.playerPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const isSpecial = enemy.role === "boss" || enemy.role === "elite";
+      if (!isSpecial && dist > 980) continue;
+
+      const screenX = ex - data.cameraPos.x + data.screenW / 2;
+      const screenY = ey - data.cameraPos.y + data.screenH / 2;
+      threats.push({ enemy, dist, angle: Math.atan2(dy, dx), screenX, screenY });
+    }
+
+    threats.sort((a, b) => {
+      const aw = this.threatWeight(a);
+      const bw = this.threatWeight(b);
+      if (aw !== bw) return bw - aw;
+      return a.dist - b.dist;
+    });
+
+    const visible = threats.slice(0, 8);
+    if (visible.length <= 0) return;
+
+    ctx.save();
+
+    const nearCount = threats.filter((t) => t.dist < 520 || t.enemy.role === "boss").length;
+    if (nearCount >= 4) {
+      ctx.strokeStyle = "rgba(239,83,80,0.24)";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(5, 5, ctx.canvas.width - 10, ctx.canvas.height - 10);
+    }
+
+    for (const t of visible) {
+      const pos = this.clampToScreenEdge(t.screenX, t.screenY, ctx.canvas.width, ctx.canvas.height, margin);
+      const color = t.enemy.role === "boss" ? "#ffeb3b" : t.enemy.role === "elite" ? "#ef5350" : "#ff8a65";
+      const size = t.enemy.role === "boss" ? 18 : t.enemy.role === "elite" ? 15 : 12;
+      const alpha = Math.max(0.45, 1 - Math.min(t.dist, 900) / 1200);
+      this.drawThreatArrow(ctx, pos.x, pos.y, t.angle, size, color, alpha, t.enemy.role === "boss");
+    }
+
+    const bossThreat = visible.find((t) => t.enemy.role === "boss");
+    if (bossThreat) {
+      ctx.textAlign = "center";
+      ctx.font = "bold 12px monospace";
+      ctx.fillStyle = "rgba(0,0,0,0.48)";
+      ctx.fillRect(ctx.canvas.width / 2 - 88, 104, 176, 24);
+      ctx.fillStyle = "#ffeb3b";
+      ctx.fillText("Boss 在屏幕外", ctx.canvas.width / 2, 121);
+    }
+
+    ctx.restore();
+  }
+
+  private threatWeight(t: OffscreenThreat): number {
+    if (t.enemy.role === "boss") return 10000;
+    if (t.enemy.role === "elite") return 6000;
+    return 1000 - Math.min(999, t.dist);
+  }
+
+  private clampToScreenEdge(x: number, y: number, w: number, h: number, margin: number): Vec2 {
+    const cx = w / 2;
+    const cy = h / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    const scaleX = dx === 0 ? Infinity : (dx > 0 ? (w - margin - cx) / dx : (margin - cx) / dx);
+    const scaleY = dy === 0 ? Infinity : (dy > 0 ? (h - margin - cy) / dy : (margin - cy) / dy);
+    const scale = Math.max(0, Math.min(scaleX, scaleY));
+    return {
+      x: Math.max(margin, Math.min(w - margin, cx + dx * scale)),
+      y: Math.max(margin, Math.min(h - margin, cy + dy * scale)),
+    };
+  }
+
+  private drawThreatArrow(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, size: number, color: string, alpha: number, pulse: boolean): void {
+    const pulseSize = pulse ? Math.sin(performance.now() / 120) * 2.4 : 0;
+    const s = size + pulseSize;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.globalAlpha = alpha;
+
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.beginPath();
+    ctx.arc(0, 0, s + 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(s, 0);
+    ctx.lineTo(-s * 0.72, -s * 0.58);
+    ctx.lineTo(-s * 0.38, 0);
+    ctx.lineTo(-s * 0.72, s * 0.58);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
     ctx.restore();
   }
 
