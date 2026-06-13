@@ -114,7 +114,7 @@ export class Game {
     const cy = WORLD_H / 2;
 
     this.camera = new Camera(WORLD_W, WORLD_H);
-    this.camera.follow(cx, cy);
+    this.camera.snap(cx, cy);
     this.assets = new AssetLoader();
 
     this.player = new Player(cx, cy);
@@ -137,8 +137,13 @@ export class Game {
   resize(): void {
     this.w = window.innerWidth;
     this.h = window.innerHeight;
-    this.canvas.width = this.w;
-    this.canvas.height = this.h;
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    this.canvas.style.width = `${this.w}px`;
+    this.canvas.style.height = `${this.h}px`;
+    this.canvas.width = Math.floor(this.w * dpr);
+    this.canvas.height = Math.floor(this.h * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.ctx.imageSmoothingEnabled = true;
   }
 
   private onClick(e: MouseEvent): void {
@@ -197,7 +202,7 @@ export class Game {
 
     this.player = new Player(cx, cy);
     this.camera = new Camera(WORLD_W, WORLD_H);
-    this.camera.follow(cx, cy);
+    this.camera.snap(cx, cy);
     this.enemies = [];
     this.projectiles = [];
     this.pickups = [];
@@ -229,6 +234,7 @@ export class Game {
     this.selectedRace = race;
     this.applyAllMods();
     this.player.hp = this.player.maxHp;
+    this.camera.snap(this.player.pos.x, this.player.pos.y);
     this.startNextWave();
     this.phase = "playing";
   }
@@ -510,13 +516,12 @@ export class Game {
 
   private updateDrone(dt: number): void {
     const count = this.skillCount("drone") + (this.selectedWeapon?.id === "drone_core" ? 1 : 0);
-    if (count <= 0) return;
-
     const swarm = this.skillCount("drone_swarm");
-    const rate = 1.4 + count * 0.35 + swarm * 0.28;
-    const gate = Math.floor(this.gameTime * rate);
-    const prevGate = Math.floor((this.gameTime - dt) * rate);
-    if (gate === prevGate) return;
+    if (count <= 0) return;
+    const interval = Math.max(0.18, 1.15 - count * 0.14 - swarm * 0.07);
+    const tick = Math.floor(this.gameTime / interval);
+    const prev = Math.floor((this.gameTime - dt) / interval);
+    if (tick === prev) return;
 
     for (let i = 0; i < count; i++) {
       const target = this.findNearestEnemy(this.player.pos.x, this.player.pos.y, 760);
@@ -712,7 +717,7 @@ export class Game {
     this.xp.addXP(xpValue);
     this.addText(enemy.pos.x, enemy.pos.y - enemy.radius - 16, `+${xpValue} XP`, "#42a5f5");
     this.spawnParticles(enemy.pos.x, enemy.pos.y, enemy.role === "boss" ? "#ffd54f" : enemy.role === "elite" ? "#ef5350" : "#81c784", enemy.role === "boss" ? 45 : enemy.role === "elite" ? 26 : 14, enemy.role === "boss" ? 6 : 4, enemy.role === "boss" ? 320 : 210);
-    this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55))));
+    this.pickups.push(new Pickup(enemy.pos.x, enemy.pos.y, "xp", Math.max(8, Math.floor(xpValue * 0.55)));
 
     const healChance = enemy.role === "boss" ? 1 : enemy.role === "elite" ? 0.55 : 0.12;
     if (Math.random() < healChance) this.pickups.push(new Pickup(enemy.pos.x + randRange(-18, 18), enemy.pos.y + randRange(-18, 18), "health", enemy.role === "boss" ? 55 : 18));
@@ -898,53 +903,46 @@ export class Game {
       ctx.fillStyle = "rgba(255,255,255,0.4)";
       ctx.fillText(this.appliedSkills.map((s) => s.name).join(" · "), 16, this.h - 16);
     }
-
-    if (this.phase === "paused") {
-      this.pausePanel.render(ctx, this.w, this.h, this.pauseStats());
-      return;
-    }
-
-    this.renderScreenFeedback();
   }
 
   private renderMetaButton(): void {
+    const x = this.w - 158;
+    const y = 18;
+    this.menuMetaButton = { x, y, w: 138, h: 38 };
     const ctx = this.ctx;
-    this.menuMetaButton = { x: this.w - 166, y: 22, w: 144, h: 40 };
-    const r = this.menuMetaButton;
-    ctx.fillStyle = "rgba(206,147,216,0.12)";
-    ctx.strokeStyle = "rgba(206,147,216,0.75)";
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = "rgba(206,147,216,0.16)";
+    ctx.strokeStyle = "#ce93d8";
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.roundRect?.(r.x, r.y, r.w, r.h, 8);
-    if (!ctx.roundRect) {
-      ctx.rect(r.x, r.y, r.w, r.h);
-    }
+    ctx.roundRect(x, y, 138, 38, 10);
     ctx.fill();
     ctx.stroke();
-
-    ctx.fillStyle = "#ce93d8";
+    ctx.fillStyle = "#e1bee7";
     ctx.font = "bold 13px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(`局外强化`, r.x + r.w / 2, r.y + 17);
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.font = "10px monospace";
-    ctx.fillText(`魂晶 ${this.totalSoulCrystals}`, r.x + r.w / 2, r.y + 31);
+    ctx.fillText(`局外强化 ${this.totalSoulCrystals}`, x + 69, y + 24);
   }
 
   private renderScreenFeedback(): void {
-    if (this.bannerTimer <= 0 || !this.bannerText) return;
     const ctx = this.ctx;
-    const alpha = Math.min(1, this.bannerTimer / 0.35);
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.textAlign = "center";
-    ctx.font = "bold 26px monospace";
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    ctx.fillRect(this.w / 2 - 210, 82, 420, 48);
-    ctx.strokeStyle = "rgba(255,213,79,0.75)";
-    ctx.strokeRect(this.w / 2 - 210, 82, 420, 48);
-    ctx.fillStyle = "#ffeb3b";
-    ctx.fillText(this.bannerText, this.w / 2, 113);
-    ctx.restore();
+    if (this.bannerTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.bannerTimer);
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.strokeStyle = "rgba(255,235,59,0.65)";
+      ctx.lineWidth = 1;
+      const w = Math.min(520, this.w - 80);
+      const x = (this.w - w) / 2;
+      const y = 24;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, 42, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ffeb3b";
+      ctx.font = "bold 18px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(this.bannerText, this.w / 2, y + 27);
+      ctx.restore();
+    }
   }
 }
