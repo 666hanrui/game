@@ -1,9 +1,4 @@
-import { MetaProgress, META_UPGRADES, MetaUpgradeDef, MetaUpgradeId, PurchaseResult } from "../systems/MetaProgress";
-
-export type MetaPanelAction =
-  | { type: "back" }
-  | { type: "reset" }
-  | { type: "purchase"; result: PurchaseResult };
+import { MetaProgress, META_UPGRADES, MetaUpgradeDef, MetaUpgradeId } from "../systems/MetaProgress";
 
 export class MetaUpgradePanel {
   private cardW = 230;
@@ -12,18 +7,38 @@ export class MetaUpgradePanel {
   private cardRects: { x: number; y: number; w: number; h: number; id: MetaUpgradeId }[] = [];
   private backRect = { x: 0, y: 0, w: 110, h: 36 };
   private resetRect = { x: 0, y: 0, w: 118, h: 34 };
+  private feedbackText = "";
+  private feedbackColor = "#ffeb3b";
 
-  handleClick(cx: number, cy: number, meta: MetaProgress): MetaPanelAction | null {
-    if (this.inRect(cx, cy, this.backRect)) return { type: "back" };
+  handleClick(cx: number, cy: number, meta: MetaProgress): "back" | "buy" | null {
+    if (this.inRect(cx, cy, this.backRect)) return "back";
     if (this.inRect(cx, cy, this.resetRect)) {
       meta.resetAll();
-      return { type: "reset" };
+      this.feedbackText = "已清空本地存档";
+      this.feedbackColor = "#ef9a9a";
+      return "buy";
     }
 
     for (const r of this.cardRects) {
-      if (this.inRect(cx, cy, r)) {
-        return { type: "purchase", result: meta.purchaseUpgrade(r.id) };
+      if (!this.inRect(cx, cy, r)) continue;
+      const result = meta.purchaseUpgrade(r.id);
+      if (result.ok) {
+        this.feedbackText = `${result.name} 升到 Lv.${result.level}，花费 ${result.spent}`;
+        this.feedbackColor = "#81c784";
+        return "buy";
       }
+
+      if (result.reason === "魂晶不足") {
+        this.feedbackText = `${result.name} 魂晶不足，还差 ${result.lack}`;
+        this.feedbackColor = "#ffb74d";
+      } else if (result.reason === "已满级") {
+        this.feedbackText = `${result.name} 已经满级`;
+        this.feedbackColor = "#81c784";
+      } else {
+        this.feedbackText = result.reason ?? "购买失败";
+        this.feedbackColor = "#ef5350";
+      }
+      return null;
     }
     return null;
   }
@@ -56,12 +71,18 @@ export class MetaUpgradePanel {
     ctx.font = "12px monospace";
     ctx.fillText("每次战败结算获得魂晶，用于永久强化下一局开局属性", w / 2, 112);
 
+    if (this.feedbackText) {
+      ctx.fillStyle = this.feedbackColor;
+      ctx.font = "bold 13px monospace";
+      ctx.fillText(this.feedbackText, w / 2, 134);
+    }
+
     const cols = 2;
     const rows = Math.ceil(META_UPGRADES.length / cols);
     const totalW = cols * this.cardW + (cols - 1) * this.gap;
     const totalH = rows * this.cardH + (rows - 1) * this.gap;
     const sx = (w - totalW) / 2;
-    const sy = Math.max(142, h / 2 - totalH / 2 + 24);
+    const sy = Math.max(156, h / 2 - totalH / 2 + 30);
 
     for (let i = 0; i < META_UPGRADES.length; i++) {
       const def = META_UPGRADES[i];
