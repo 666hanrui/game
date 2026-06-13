@@ -8,6 +8,8 @@ import { AssetLoader } from "./AssetLoader";
 import { WaveSystem } from "../systems/WaveSystem";
 import { CombatSystem } from "../systems/CombatSystem";
 import { XPLevelSystem } from "../systems/XPLevelSystem";
+import { GoalSystem, GoalStats } from "../systems/GoalSystem";
+import { MetaProgress } from "../systems/MetaProgress";
 import { HUD } from "../ui/HUD";
 import { UpgradePanel, RacePanel, SchoolPanel, WeaponPanel } from "../ui/UpgradePanel";
 import { Race, RACES } from "../data/races";
@@ -58,6 +60,8 @@ export class Game {
   wave: WaveSystem;
   combat: CombatSystem;
   xp: XPLevelSystem;
+  goals: GoalSystem;
+  meta: MetaProgress;
   hud: HUD;
 
   upgradePanel: UpgradePanel;
@@ -75,13 +79,18 @@ export class Game {
 
   kills = 0;
   waveNum = 0;
+  bossKills = 0;
   shootTimer = 0;
   gameTime = 0;
+  runSoulGained = 0;
+  totalSoulCrystals = 0;
 
   private xpSpawnTimer = 0;
   private xpSpawnInterval = 3.0;
   private bannerText = "";
   private bannerTimer = 0;
+  private resultSettled = false;
+  private goalCompleteBannerShown = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -104,6 +113,9 @@ export class Game {
     this.wave = new WaveSystem();
     this.combat = new CombatSystem();
     this.xp = new XPLevelSystem();
+    this.goals = new GoalSystem();
+    this.meta = new MetaProgress();
+    this.totalSoulCrystals = this.meta.getSoulCrystals();
     this.hud = new HUD();
     this.upgradePanel = new UpgradePanel();
     this.racePanel = new RacePanel();
@@ -149,11 +161,16 @@ export class Game {
     this.appliedSkillIds = [];
     this.kills = 0;
     this.waveNum = 0;
+    this.bossKills = 0;
     this.shootTimer = 0;
     this.gameTime = 0;
+    this.runSoulGained = 0;
+    this.totalSoulCrystals = this.meta.getSoulCrystals();
     this.xpSpawnTimer = 0;
     this.bannerText = "";
     this.bannerTimer = 0;
+    this.resultSettled = false;
+    this.goalCompleteBannerShown = false;
     this.xp.reset();
     this.phase = "menu";
   }
@@ -197,6 +214,25 @@ export class Game {
 
   private skillCount(id: string): number {
     return this.appliedSkillIds.filter((skillId) => skillId === id).length;
+  }
+
+  private goalStats(): GoalStats {
+    return { wave: this.waveNum, kills: this.kills, bossKills: this.bossKills };
+  }
+
+  private settleRun(): void {
+    if (this.resultSettled) return;
+    const goalList = this.goals.getGoals(this.goalStats());
+    const reward = this.meta.settleRun({
+      wave: this.waveNum,
+      kills: this.kills,
+      level: this.xp.level,
+      bossKills: this.bossKills,
+      goalsCompleted: goalList.filter((g) => g.done).length,
+    });
+    this.runSoulGained = reward.gained;
+    this.totalSoulCrystals = reward.total;
+    this.resultSettled = true;
   }
 
   private addText(x: number, y: number, text: string, color: string, life = 0.75): void {
@@ -576,16 +612,27 @@ export class Game {
       else { this.upgradePanel.generateChoices(this.selectedSchool.id as SkillSchool, this.appliedSkillIds, this.selectedWeapon.id); this.phase = "upgrade"; }
     }
 
+    if (this.goals.allDone(this.goalStats()) && !this.goalCompleteBannerShown) {
+      this.bannerText = "本局目标全部完成！";
+      this.bannerTimer = 2.0;
+      this.goalCompleteBannerShown = true;
+    }
+
     this.camera.follow(this.player.pos.x, this.player.pos.y);
     this.camera.update();
 
     this.enemies = this.enemies.filter((e) => e.alive);
     if (this.enemies.length === 0) this.startNextWave();
-    if (this.player.hp <= 0) this.phase = "result";
+    if (this.player.hp <= 0) {
+      this.settleRun();
+      this.phase = "result";
+    }
   }
 
   private onKill(enemy: Enemy): void {
     this.kills++;
+    if (enemy.role === "boss") this.bossKills++;
+
     const reward = enemy.rewardMultiplier;
     const xpValue = Math.floor(this.xp.xpPerKill * reward);
     this.xp.addXP(xpValue);
@@ -640,11 +687,24 @@ export class Game {
       ctx.fillStyle = "#ef5350";
       ctx.font = "bold 32px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("你战败了", this.w / 2, this.h / 2 - 20);
+      ctx.fillText("你战败了", this.w / 2, this.h / 2 - 72);
       ctx.fillStyle = "#ccc";
       ctx.font = "14px monospace";
-      ctx.fillText(`击杀 ${this.kills}  ·  波次 ${this.waveNum}  ·  等级 ${this.xp.level}`, this.w / 2, this.h / 2 + 20);
-      ctx.fillText("点击任意位置重新开始", this.w / 2, this.h / 2 + 44);
+      ctx.fillText(`击杀 ${this.kills}  ·  波次 ${this.waveNum}  ·  等级 ${this.xp.level}  ·  Boss ${this.bossKills}`, this.w / 2, this.h / 2 - 34);
+
+      const goalList = this.goals.getGoals(this.goalStats());
+      const doneCount = goalList.filter((g) => g.done).length;
+      ctx.fillStyle = "#ffeb3b";
+      ctx.font = "bold 18px monospace";
+      ctx.fillText(`本局获得魂晶 +${this.runSoulGained}`, this.w / 2, this.h / 2 + 4);
+      ctx.fillStyle = "#ce93d8";
+      ctx.font = "14px monospace";
+      ctx.fillText(`魂晶总数 ${this.totalSoulCrystals}  ·  目标完成 ${doneCount}/${goalList.length}`, this.w / 2, this.h / 2 + 30);
+
+      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.font = "12px monospace";
+      ctx.fillText("魂晶已保存到本地，后续可用于局外升级", this.w / 2, this.h / 2 + 58);
+      ctx.fillText("点击任意位置重新开始", this.w / 2, this.h / 2 + 84);
       return;
     }
 
@@ -731,6 +791,8 @@ export class Game {
       raceName: this.selectedRace?.name,
       schoolName: this.selectedWeapon ? `${this.selectedSchool?.name} · ${this.selectedWeapon.name}` : this.selectedSchool?.name,
       schoolIcon: this.selectedWeapon?.icon ?? this.selectedSchool?.icon,
+      goals: this.goals.getGoals(this.goalStats()),
+      soulCrystals: this.totalSoulCrystals,
     });
 
     if (this.appliedSkills.length > 0) {
