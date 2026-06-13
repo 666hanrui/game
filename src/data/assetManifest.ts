@@ -14,6 +14,7 @@ export const ASSET_MANIFEST = {
     bow: "/assets/sprites/gear/bow.svg",
     flying_blade: "/assets/sprites/gear/flying_blade.svg",
     spear: "/assets/sprites/gear/martial_line.svg",
+    mace: "/assets/sprites/gear/mace.svg",
     wand: "/assets/sprites/gear/wand.svg",
     staff: "/assets/sprites/gear/staff.svg",
     orb: "/assets/sprites/gear/orb.svg",
@@ -39,6 +40,7 @@ export const ASSET_MANIFEST = {
     energy: "/assets/sprites/gear/tech_reactor.svg",
     blade: "/assets/sprites/gear/flying_blade.svg",
     drone: "/assets/sprites/gear/drone_core.svg",
+    hammer: "/assets/sprites/gear/mace.svg",
   },
 } as const;
 
