@@ -13,9 +13,9 @@ interface EnemyDef {
 }
 
 const DEFS: Record<EnemyType, EnemyDef> = {
-  slime:    { color: "#66bb6a", strokeColor: "#388e3c", radius: 13, hpBase: 35, spdBase: 70, label: "●" },
-  spider:   { color: "#8d6e63", strokeColor: "#4e342e", radius: 15, hpBase: 55, spdBase: 90, label: "✶" },
-  skeleton: { color: "#cfd8dc", strokeColor: "#78909c", radius: 14, hpBase: 65, spdBase: 60, label: "✚" },
+  slime:    { color: "#66bb6a", strokeColor: "#388e3c", radius: 15, hpBase: 42, spdBase: 82, label: "●" },
+  spider:   { color: "#8d6e63", strokeColor: "#4e342e", radius: 17, hpBase: 64, spdBase: 104, label: "✶" },
+  skeleton: { color: "#cfd8dc", strokeColor: "#78909c", radius: 16, hpBase: 76, spdBase: 72, label: "✚" },
 };
 
 const TYPES: EnemyType[] = ["slime", "spider", "skeleton"];
@@ -35,7 +35,7 @@ export class Enemy {
   speed: number;
   hp: number;
   maxHp: number;
-  damage = 10;
+  damage = 12;
   alive = true;
   role: EnemyRole;
   private type: EnemyType;
@@ -45,6 +45,8 @@ export class Enemy {
   private slowTimer = 0;
   private slowFactor = 1;
   private shootTimer = 0;
+  private strafeSign = Math.random() < 0.5 ? -1 : 1;
+  private aggression = randRange(0.85, 1.18);
 
   constructor(worldW: number, worldH: number, hpMult: number, spdMult: number, role: EnemyRole = "basic") {
     const margin = 80;
@@ -66,19 +68,19 @@ export class Enemy {
     let dmgMod = 1;
 
     switch (role) {
-      case "fast": radiusMod = 0.78; hpMod = 0.62; spdRoleMod = 1.75; dmgMod = 0.75; break;
-      case "tank": radiusMod = 1.35; hpMod = 2.25; spdRoleMod = 0.62; dmgMod = 1.25; break;
-      case "ranged": radiusMod = 0.98; hpMod = 0.85; spdRoleMod = 0.82; dmgMod = 0.9; break;
-      case "elite": radiusMod = 1.45; hpMod = 3.1; spdRoleMod = 1.08; dmgMod = 1.65; break;
-      case "boss": radiusMod = 2.35; hpMod = 12; spdRoleMod = 0.72; dmgMod = 2.3; break;
+      case "fast": radiusMod = 0.82; hpMod = 0.7; spdRoleMod = 1.95; dmgMod = 0.9; break;
+      case "tank": radiusMod = 1.42; hpMod = 2.65; spdRoleMod = 0.68; dmgMod = 1.38; break;
+      case "ranged": radiusMod = 1.02; hpMod = 1.05; spdRoleMod = 0.9; dmgMod = 1.05; break;
+      case "elite": radiusMod = 1.55; hpMod = 3.8; spdRoleMod = 1.22; dmgMod = 1.9; break;
+      case "boss": radiusMod = 2.55; hpMod = 15; spdRoleMod = 0.78; dmgMod = 2.75; break;
     }
 
     this.radius = Math.floor(this.def.radius * radiusMod);
     this.hp = Math.floor(this.def.hpBase * hpMult * hpMod);
     this.maxHp = this.hp;
-    this.speed = randRange(this.def.spdBase * 0.8, this.def.spdBase * 1.2) * spdMult * spdRoleMod;
+    this.speed = randRange(this.def.spdBase * 0.86, this.def.spdBase * 1.24) * spdMult * spdRoleMod;
     this.damage = Math.floor(this.damage * dmgMod);
-    this.shootTimer = randRange(0.5, 1.8);
+    this.shootTimer = randRange(0.35, 1.25);
   }
 
   get assetId(): string {
@@ -95,22 +97,35 @@ export class Enemy {
 
     const d = direction(this.pos, playerPos);
     const dist = distance(this.pos, playerPos);
+    const sideX = -d.y * this.strafeSign;
+    const sideY = d.x * this.strafeSign;
+    const speed = this.speed * this.slowFactor * this.aggression;
 
     if (this.role === "ranged" || this.role === "boss") {
-      const desired = this.role === "boss" ? 260 : 230;
-      if (dist < desired * 0.72) {
-        this.pos.x -= d.x * this.speed * 0.82 * this.slowFactor * dt;
-        this.pos.y -= d.y * this.speed * 0.82 * this.slowFactor * dt;
-      } else if (dist > desired * 1.15) {
-        this.pos.x += d.x * this.speed * this.slowFactor * dt;
-        this.pos.y += d.y * this.speed * this.slowFactor * dt;
+      const desired = this.role === "boss" ? 300 : 255;
+      if (dist < desired * 0.65) {
+        this.pos.x -= d.x * speed * 0.92 * dt;
+        this.pos.y -= d.y * speed * 0.92 * dt;
+      } else if (dist > desired * 1.22) {
+        this.pos.x += d.x * speed * dt;
+        this.pos.y += d.y * speed * dt;
       } else {
-        this.pos.x += -d.y * this.speed * 0.45 * this.slowFactor * dt;
-        this.pos.y += d.x * this.speed * 0.45 * this.slowFactor * dt;
+        this.pos.x += sideX * speed * (this.role === "boss" ? 0.58 : 0.68) * dt;
+        this.pos.y += sideY * speed * (this.role === "boss" ? 0.58 : 0.68) * dt;
       }
+    } else if (this.role === "fast" || this.role === "elite") {
+      // 快怪/精英不再只会直冲，会绕侧施压，形成简单围杀。
+      const approach = dist > 105 ? 0.82 : 0.28;
+      const strafe = this.role === "elite" ? 0.72 : 0.95;
+      this.pos.x += (d.x * speed * approach + sideX * speed * strafe) * dt;
+      this.pos.y += (d.y * speed * approach + sideY * speed * strafe) * dt;
+    } else if (this.role === "tank") {
+      this.pos.x += d.x * speed * 0.86 * dt;
+      this.pos.y += d.y * speed * 0.86 * dt;
     } else {
-      this.pos.x += d.x * this.speed * this.slowFactor * dt;
-      this.pos.y += d.y * this.speed * this.slowFactor * dt;
+      const strafe = dist < 160 ? 0.22 : 0.06;
+      this.pos.x += (d.x * speed + sideX * speed * strafe) * dt;
+      this.pos.y += (d.y * speed + sideY * speed * strafe) * dt;
     }
 
     this.anim += dt * 5;
@@ -122,7 +137,7 @@ export class Enemy {
     if (!this.alive) return false;
     if (this.role !== "ranged" && this.role !== "boss") return false;
     if (this.shootTimer > 0) return false;
-    this.shootTimer = this.role === "boss" ? 1.0 : 1.8;
+    this.shootTimer = this.role === "boss" ? 0.58 : 1.12;
     return true;
   }
 
@@ -140,11 +155,11 @@ export class Enemy {
 
   get rewardMultiplier(): number {
     switch (this.role) {
-      case "fast": return 1.1;
-      case "tank": return 1.5;
-      case "ranged": return 1.35;
-      case "elite": return 3.2;
-      case "boss": return 10;
+      case "fast": return 1.15;
+      case "tank": return 1.65;
+      case "ranged": return 1.5;
+      case "elite": return 3.6;
+      case "boss": return 12;
       default: return 1;
     }
   }
