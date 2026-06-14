@@ -16,6 +16,7 @@ src/data/chestLoot.ts
 src/systems/MaterialInventory.ts
 src/systems/ChestDropSystem.ts
 src/systems/MetaProgress.ts
+src/ui/CraftingPanel.ts
 ```
 
 ## 材料分类
@@ -133,6 +134,27 @@ Boss：必掉大宝箱。
 净土装置
 ```
 
+## 合成台 UI
+
+已新增：
+
+```text
+src/ui/CraftingPanel.ts
+```
+
+当前能力：
+
+```text
+按分类查看配方：全部、天赋、武器、药剂、建筑、道具。
+查看配方详情。
+查看材料需求和当前拥有数量。
+判断是否可合成。
+调用 meta.spendRecipeMaterials(recipe) 消耗材料。
+显示合成成功或材料不足反馈。
+```
+
+注意：当前 `CraftingPanel` 只是 UI 骨架，尚未接入营地建筑交互，也尚未把“合成结果”写入 unlockedRecipes / craftedItems / talentSlots。后续接入时，不要把这些结果硬写在 UI 里，应该放入局外成长系统。
+
 ## 后续接入点
 
 ### 1. 宝箱系统
@@ -158,33 +180,19 @@ src/ui/MaterialStoragePanel.ts
 
 ### 3. 合成台 UI
 
-建议新增：
+状态：已完成基础骨架。
+
+接入营地时需要：
 
 ```text
-src/ui/CraftingPanel.ts
-```
-
-读取：
-
-```text
-RECIPES
-MaterialInventory
-MetaProgress.getMaterials()
-```
-
-展示：
-
-```text
-配方名称
-分类
-材料需求
-是否可合成
-合成结果
+给 HubCampPanel 增加 crafting 交互类型。
+靠近合成台建筑按 E 后打开 CraftingPanel。
+点击返回回到营地。
 ```
 
 ### 4. MetaProgress 持久化
 
-状态：已完成基础接入。
+状态：已完成基础材料库存接入。
 
 当前已经能保存：
 
