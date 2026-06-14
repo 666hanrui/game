@@ -1,19 +1,13 @@
 import { Game } from "./Game";
-import { Enemy, EnemyRole } from "../entities/Enemy";
+import { Enemy } from "../entities/Enemy";
+import type { EnemyRole } from "../entities/Enemy";
 import type { Race } from "../data/races";
 import type { Weapon } from "../data/weapons";
 
 const WORLD_W = 2400;
 const WORLD_H = 2400;
 
-interface MutableGame extends Game {
-  selectRace: (race: Race) => void;
-  selectWeapon: (weapon: Weapon) => void;
-  applyAllMods: () => void;
-  addText: (x: number, y: number, text: string, color: string, life?: number) => void;
-  bannerText: string;
-  bannerTimer: number;
-}
+type RuntimeGame = Game & Record<string, any>;
 
 function clearRunState(game: Game): void {
   game.enemies = [];
@@ -37,9 +31,9 @@ function placeEnemyNearPlayer(game: Game, enemy: Enemy, index: number, total: nu
 }
 
 export function installGameOpeningFlowFix(): void {
-  const proto = Game.prototype as unknown as MutableGame;
+  const proto = Game.prototype as RuntimeGame;
 
-  proto.selectRace = function selectRace(race: Race): void {
+  proto.selectRace = function selectRace(this: RuntimeGame, race: Race): void {
     this.selectedRace = race;
     this.selectedSchool = null;
     this.selectedWeapon = null;
@@ -53,7 +47,7 @@ export function installGameOpeningFlowFix(): void {
     this.phase = "school_choice";
   };
 
-  proto.selectWeapon = function selectWeapon(weapon: Weapon): void {
+  proto.selectWeapon = function selectWeapon(this: RuntimeGame, weapon: Weapon): void {
     this.selectedWeapon = weapon;
     this.applyAllMods();
     this.player.hp = Math.min(this.player.hp, this.player.maxHp);
@@ -63,7 +57,7 @@ export function installGameOpeningFlowFix(): void {
     this.phase = "playing";
   };
 
-  Game.prototype.startNextWave = function startNextWave(this: Game): void {
+  proto.startNextWave = function startNextWave(this: RuntimeGame): void {
     this.waveNum++;
     const hpMult = this.wave.getHPMultiplier(this.waveNum);
     const spdMult = this.wave.getSpeedMultiplier(this.waveNum);
@@ -76,12 +70,11 @@ export function installGameOpeningFlowFix(): void {
       this.enemies.push(enemy);
     });
 
-    const mutable = this as unknown as MutableGame;
     if (this.wave.isBossWave(this.waveNum)) {
-      mutable.bannerText = `Boss 来袭 · 第 ${this.waveNum} 波`;
-      mutable.bannerTimer = 2.2;
+      this.bannerText = `Boss 来袭 · 第 ${this.waveNum} 波`;
+      this.bannerTimer = 2.2;
     } else {
-      mutable.addText(this.player.pos.x, this.player.pos.y - 52, `第 ${this.waveNum} 波`, "#90caf9", 1.1);
+      this.addText(this.player.pos.x, this.player.pos.y - 52, `第 ${this.waveNum} 波`, "#90caf9", 1.1);
     }
   };
 }
