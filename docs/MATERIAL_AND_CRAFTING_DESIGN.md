@@ -12,7 +12,10 @@
 ```text
 src/data/materials.ts
 src/data/recipes.ts
+src/data/chestLoot.ts
 src/systems/MaterialInventory.ts
+src/systems/ChestDropSystem.ts
+src/systems/MetaProgress.ts
 ```
 
 ## 材料分类
@@ -55,6 +58,29 @@ src/systems/MaterialInventory.ts
 营地建筑升级
 区域收复装置
 ```
+
+## 持久化入口
+
+`MetaProgress` 已经接入材料库存持久化。
+
+可用方法：
+
+```ts
+meta.getMaterials();
+meta.setMaterials(inventory);
+meta.getMaterialAmount("alien_core");
+meta.addMaterial("alien_core", 1);
+meta.addMaterials({ alien_core: 2, soul_crystal: 8 });
+meta.spendRecipeMaterials(recipe);
+```
+
+当前存储键：
+
+```text
+game.materials
+```
+
+注意：`soul_crystal` 同时存在于材料定义中，但当前旧系统仍有独立的 `game.soulCrystals`。短期内为了兼容旧 UI，魂晶仍保留旧存储；后续可以再做一次统一迁移。
 
 ## 宝箱规则
 
@@ -111,10 +137,10 @@ Boss：必掉大宝箱。
 
 ### 1. 宝箱系统
 
-建议新增：
+已新增：
 
 ```text
-src/entities/Chest.ts
+src/data/chestLoot.ts
 src/systems/ChestDropSystem.ts
 ```
 
@@ -143,6 +169,7 @@ src/ui/CraftingPanel.ts
 ```text
 RECIPES
 MaterialInventory
+MetaProgress.getMaterials()
 ```
 
 展示：
@@ -157,21 +184,20 @@ MaterialInventory
 
 ### 4. MetaProgress 持久化
 
-后续需要把 `MaterialInventory` 接入：
+状态：已完成基础接入。
 
-```text
-src/systems/MetaProgress.ts
-```
-
-建议存储结构：
+当前已经能保存：
 
 ```ts
-{
-  soulCrystals: number,
-  materials: Record<string, number>,
-  unlockedRecipes: string[],
-  craftedItems: string[]
-}
+Record<string, number>
+```
+
+后续还需要补：
+
+```text
+unlockedRecipes
+craftedItems
+talentSlots
 ```
 
 ## 协作注意
