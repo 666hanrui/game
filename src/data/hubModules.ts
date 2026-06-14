@@ -6,6 +6,7 @@ export type HubModuleId =
   | "quests"
   | "crafting"
   | "storage"
+  | "loot"
   | "map"
   | "archive";
 
@@ -36,36 +37,43 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "workshop",
     name: "铁匠工坊",
     icon: "⚒",
-    description: "强化局内补给池和战术装置，例如磁铁范围、护盾强度、诱饵人偶、机械炮台和工坊扩建。",
+    description: "强化局内补给池和战术装置，也预留神话武器与装备合成入口，例如工坊扩建、裂骨狼牙、蜂巢中枢。",
     unlockHint: "带回第一批工坊材料后开放。",
   },
   {
     id: "apothecary",
     name: "药剂屋",
     icon: "✚",
-    description: "研究药剂类局内补给，例如血包、回春露、急速药剂、攻击药剂、暴击药剂；永久药剂走合成线。",
+    description: "出售局外药和永久药剂，研究血包、回春露等药剂线；不把宝箱里的材料奖励混成局内垃圾补给。",
     unlockHint: "完成基础远征任务后开放。",
   },
   {
     id: "quests",
     name: "任务告示牌",
     icon: "☰",
-    description: "领取清剿、精英、Boss、材料、体系试炼和区域收复任务，是营地目标导向的入口。",
+    description: "领取区域收复、Boss 讨伐、材料收集、体系试炼任务，是营地目标导向的入口。",
     unlockHint: "默认开放。",
   },
   {
     id: "crafting",
     name: "符文合成台",
     icon: "◇",
-    description: "使用异种残核、神话生物骨骼、古代符文、机械遗芯、星陨金属等材料合成高阶物品。",
+    description: "未来读取 RECIPES，使用异种残核、神话生物骨骼、古代符文、机械遗芯、星陨金属等材料合成高阶物品。",
     unlockHint: "获得第一份合成配方后开放。",
   },
   {
     id: "storage",
     name: "材料仓库",
     icon: "▣",
-    description: "查看所有可以带出局的材料、来源、用途、数量和可合成目标，通用物品与特殊材料分区存放。",
+    description: "未来读取 MaterialInventory，查看所有可带出局材料、来源、用途、数量和可合成目标。",
     unlockHint: "默认开放。",
+  },
+  {
+    id: "loot",
+    name: "宝箱陈列台",
+    icon: "▤",
+    description: "未来展示 ChestDropSystem 产出：小宝箱、大宝箱、神话宝箱，以及本局带出的金叶、魂晶和特殊材料。",
+    unlockHint: "首次开启精英或 Boss 宝箱后开放。",
   },
   {
     id: "map",
