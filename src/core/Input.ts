@@ -32,7 +32,7 @@ export class Input {
   public state: InputState = {
     moveDir: vec2(0, 0),
     aimDir: vec2(1, 0),
-    shooting: true,
+    shooting: false,
   };
 
   constructor(canvas: HTMLCanvasElement) {
@@ -75,7 +75,7 @@ export class Input {
       this.leftStick = null;
       this.rightStick = null;
       this.state.moveDir = vec2(0, 0);
-      this.state.shooting = true;
+      this.state.shooting = false;
     });
   }
 
@@ -177,15 +177,9 @@ export class Input {
   }
 
   update(): void {
-    const keyboardMove = this.getKeyboardMoveDir();
-    let moveDir = keyboardMove;
-
-    // 先保证战斗一定能出手：进入 playing 后 Game 会持续读取 shooting。
-    // 鼠标左键 / J / 空格仍然保留为显式射击输入，但不再要求玩家必须按住。
-    let shooting = true || this.mouseDown || this.hasAny(["j", "keyj", " ", "space"]);
-
-    const mouseAim = this.getMouseAimDir();
-    let aimDir = mouseAim ?? this.state.aimDir;
+    let moveDir = this.getKeyboardMoveDir();
+    let shooting = this.mouseDown || this.hasAny(["j", "keyj", " ", "space"]);
+    let aimDir = this.getMouseAimDir() ?? this.state.aimDir;
 
     if (this.leftStick) {
       const dx = (this.leftStick.knobX - this.leftStick.baseX) / this.stickRadius;
@@ -224,7 +218,7 @@ export class Input {
   }
 
   private getMouseAimDir(): Vec2 | null {
-    if (!this.hasMouseAim) return this.state.aimDir;
+    if (!this.hasMouseAim) return null;
     const cx = this.cssWidth() / 2;
     const cy = this.cssHeight() / 2;
     const aimDx = this.mouseScreenX - cx;
