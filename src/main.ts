@@ -3,10 +3,32 @@ import { GameWithSound } from "./core/GameWithSound";
 import { HubCampPanel } from "./ui/HubCampPanel";
 import { RunSupplyRuntime } from "./systems/RunSupplyRuntime";
 
+declare global {
+  interface Window {
+    __roguelikeGameCleanup?: () => void;
+  }
+}
+
 installGameOpeningFlowFix();
 
+function resetCanvasElement(): HTMLCanvasElement | null {
+  const oldCanvas = document.getElementById("game") as HTMLCanvasElement | null;
+  if (!oldCanvas) return null;
+
+  const newCanvas = oldCanvas.cloneNode(false) as HTMLCanvasElement;
+  newCanvas.id = "game";
+  newCanvas.className = oldCanvas.className;
+  oldCanvas.replaceWith(newCanvas);
+  return newCanvas;
+}
+
 function main(): void {
-  const canvas = document.getElementById("game") as HTMLCanvasElement;
+  window.__roguelikeGameCleanup?.();
+
+  const oldDebug = document.getElementById("runtime-debug-panel");
+  if (oldDebug) oldDebug.remove();
+
+  const canvas = resetCanvasElement();
   if (!canvas) {
     console.error("找不到 #game canvas");
     return;
@@ -19,6 +41,8 @@ function main(): void {
   const runSupply = new RunSupplyRuntime(game);
   let showHubCamp = true;
   let lastPhase = game.phase;
+  let alive = true;
+  let rafId = 0;
 
   const debugEl = document.createElement("pre");
   debugEl.id = "runtime-debug-panel";
@@ -38,6 +62,12 @@ function main(): void {
   debugEl.style.whiteSpace = "pre-wrap";
   debugEl.textContent = "debug booting...";
   document.body.appendChild(debugEl);
+
+  window.__roguelikeGameCleanup = () => {
+    alive = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    debugEl.remove();
+  };
 
   canvas.addEventListener("pointerdown", () => canvas.focus());
 
@@ -81,6 +111,8 @@ function main(): void {
   let lastTime = performance.now();
 
   function loop(now: number): void {
+    if (!alive) return;
+
     let dt = (now - lastTime) / 1000;
     if (dt > 0.1) dt = 0.1;
     lastTime = now;
@@ -107,10 +139,10 @@ function main(): void {
     }
 
     updateRuntimeDebug();
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
   }
 
-  requestAnimationFrame(loop);
+  rafId = requestAnimationFrame(loop);
 }
 
 main();
