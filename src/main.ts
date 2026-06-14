@@ -1,6 +1,9 @@
+import { installGameOpeningFlowFix } from "./core/GameOpeningFlowFix";
 import { GameWithSound } from "./core/GameWithSound";
 import { HubCampPanel } from "./ui/HubCampPanel";
 import { RunSupplyRuntime } from "./systems/RunSupplyRuntime";
+
+installGameOpeningFlowFix();
 
 function main(): void {
   const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -40,31 +43,6 @@ function main(): void {
     }
   }, true);
 
-  function clearBadOpeningWave(): void {
-    game.enemies = [];
-    game.projectiles = [];
-    game.pickups = [];
-    game.particles = [];
-    game.floatingTexts = [];
-    game.waveNum = 0;
-    game.kills = 0;
-    game.bossKills = 0;
-    game.shootTimer = 0;
-  }
-
-  function enforceOpeningFlow(): void {
-    if (game.phase === "playing" && game.selectedRace && !game.selectedSchool) {
-      clearBadOpeningWave();
-      game.phase = "school_choice";
-      return;
-    }
-
-    if (game.phase === "upgrade" && game.selectedRace && game.selectedSchool && game.selectedWeapon && game.waveNum === 0) {
-      game.startNextWave();
-      game.phase = "playing";
-    }
-  }
-
   let lastTime = performance.now();
 
   function loop(now: number): void {
@@ -77,10 +55,8 @@ function main(): void {
       if (action === "start") showHubCamp = false;
     }
 
-    enforceOpeningFlow();
     runSupply.beforeGameUpdate();
     game.update(dt);
-    enforceOpeningFlow();
     runSupply.afterGameUpdate(dt);
 
     if (lastPhase === "result" && game.phase === "menu") showHubCamp = true;
