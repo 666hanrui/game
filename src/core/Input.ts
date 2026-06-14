@@ -22,6 +22,8 @@ export class Input {
   private mouseScreenY = 0;
   private mouseDown = false;
   private hasMouseAim = false;
+  private autoFire = false;
+  private autoFireToggleDown = false;
 
   private leftStick: Stick | null = null;
   private rightStick: Stick | null = null;
@@ -44,6 +46,10 @@ export class Input {
     this.setupTouch();
   }
 
+  isAutoFireEnabled(): boolean {
+    return this.autoFire;
+  }
+
   private rememberKey(e: KeyboardEvent): void {
     const key = e.key.toLowerCase();
     const code = e.code.toLowerCase();
@@ -63,8 +69,8 @@ export class Input {
       this.rememberKey(e);
       const key = e.key.toLowerCase();
       const code = e.code.toLowerCase();
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "j"].includes(key) ||
-          ["keyw", "keya", "keys", "keyd", "space", "keyj"].includes(code)) {
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "j", "f"].includes(key) ||
+          ["keyw", "keya", "keys", "keyd", "space", "keyj", "keyf"].includes(code)) {
         e.preventDefault();
       }
     });
@@ -74,6 +80,7 @@ export class Input {
       this.mouseDown = false;
       this.leftStick = null;
       this.rightStick = null;
+      this.autoFireToggleDown = false;
       this.state.moveDir = vec2(0, 0);
       this.state.shooting = false;
     });
@@ -178,7 +185,8 @@ export class Input {
 
   update(): void {
     let moveDir = this.getKeyboardMoveDir();
-    let shooting = this.mouseDown || this.hasAny(["j", "keyj", " ", "space"]);
+    this.updateAutoFireToggle();
+    let shooting = this.autoFire || this.mouseDown || this.hasAny(["j", "keyj", " ", "space"]);
     let aimDir = this.getMouseAimDir() ?? this.state.aimDir;
 
     if (this.leftStick) {
@@ -201,6 +209,12 @@ export class Input {
     this.state.moveDir = moveDir;
     this.state.aimDir = aimDir;
     this.state.shooting = shooting;
+  }
+
+  private updateAutoFireToggle(): void {
+    const down = this.hasAny(["f", "keyf"]);
+    if (down && !this.autoFireToggleDown) this.autoFire = !this.autoFire;
+    this.autoFireToggleDown = down;
   }
 
   private hasAny(keys: string[]): boolean {
