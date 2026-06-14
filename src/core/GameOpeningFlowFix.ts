@@ -7,8 +7,6 @@ import type { Weapon } from "../data/weapons";
 const WORLD_W = 2400;
 const WORLD_H = 2400;
 
-type RuntimeGame = Game & Record<string, any>;
-
 function clearRunState(game: Game): void {
   game.enemies = [];
   game.projectiles = [];
@@ -31,9 +29,9 @@ function placeEnemyNearPlayer(game: Game, enemy: Enemy, index: number, total: nu
 }
 
 export function installGameOpeningFlowFix(): void {
-  const proto = Game.prototype as RuntimeGame;
+  const proto = Game.prototype as any;
 
-  proto.selectRace = function selectRace(this: RuntimeGame, race: Race): void {
+  proto["selectRace"] = function selectRace(this: any, race: Race): void {
     this.selectedRace = race;
     this.selectedSchool = null;
     this.selectedWeapon = null;
@@ -47,7 +45,7 @@ export function installGameOpeningFlowFix(): void {
     this.phase = "school_choice";
   };
 
-  proto.selectWeapon = function selectWeapon(this: RuntimeGame, weapon: Weapon): void {
+  proto["selectWeapon"] = function selectWeapon(this: any, weapon: Weapon): void {
     this.selectedWeapon = weapon;
     this.applyAllMods();
     this.player.hp = Math.min(this.player.hp, this.player.maxHp);
@@ -57,7 +55,7 @@ export function installGameOpeningFlowFix(): void {
     this.phase = "playing";
   };
 
-  proto.startNextWave = function startNextWave(this: RuntimeGame): void {
+  proto.startNextWave = function startNextWave(this: any): void {
     this.waveNum++;
     const hpMult = this.wave.getHPMultiplier(this.waveNum);
     const spdMult = this.wave.getSpeedMultiplier(this.waveNum);
