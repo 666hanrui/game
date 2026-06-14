@@ -1,4 +1,5 @@
 import { getMetaTalent, META_TALENTS, type MetaTalentDef } from "../data/metaTalents";
+import { EconomyInventory, type EconomySpendResult } from "./EconomyInventory";
 
 export interface MetaTalentState {
   unlockedTalentIds: string[];
@@ -11,6 +12,10 @@ export interface TalentEquipResult {
   state: MetaTalentState;
   reason?: string;
   talent?: MetaTalentDef;
+}
+
+export interface TalentPurchaseResult extends TalentEquipResult {
+  spend?: EconomySpendResult;
 }
 
 const TALENT_STATE_KEY = "game.metaTalentState";
@@ -88,6 +93,19 @@ export class MetaTalentProgress {
       this.setState(state);
     }
     return { ok: true, state: this.getState(), talent };
+  }
+
+  purchaseUnlockTalent(id: string, inventory = EconomyInventory.load()): TalentPurchaseResult {
+    const talent = getMetaTalent(id);
+    const state = this.getState();
+    if (!talent) return { ok: false, state, reason: "未知天赋" };
+    if (state.unlockedTalentIds.includes(id)) return { ok: true, state, talent };
+
+    const spend = inventory.spend(talent.unlockCosts);
+    if (!spend.ok) return { ok: false, state, reason: "资源不足", talent, spend };
+
+    inventory.save();
+    return this.unlockTalent(id);
   }
 
   equipTalent(id: string): TalentEquipResult {
