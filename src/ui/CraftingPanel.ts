@@ -58,16 +58,17 @@ export class CraftingPanel {
 
     const recipe = this.selectedRecipe();
     if (recipe && this.inRect(cx, cy, this.craftRect)) {
-      const result = meta.spendRecipeMaterials(recipe);
+      const result = meta.craftRecipe(recipe);
       if (result.ok) {
         this.feedbackText = `已合成：${recipe.result.label}`;
         this.feedbackColor = "#81c784";
         return "crafted";
       }
-      const missing = Object.entries(result.missing)
+
+      const missing = Object.entries(result.spend?.missing ?? {})
         .map(([id, amount]) => `${getMaterial(id)?.name ?? id}x${amount}`)
         .join("，");
-      this.feedbackText = missing ? `材料不足：${missing}` : "材料不足";
+      this.feedbackText = missing ? `材料不足：${missing}` : (result.reason ?? "合成失败");
       this.feedbackColor = "#ffb74d";
       return null;
     }
@@ -94,7 +95,12 @@ export class CraftingPanel {
     ctx.font = "12px monospace";
     ctx.fillText("使用带出局的材料制作天赋槽、神话武器、永久药剂和营地设施", w / 2, 86);
 
-    const tabY = 112;
+    const unlocks = meta.getUnlockState();
+    ctx.fillStyle = "rgba(255,255,255,0.34)";
+    ctx.font = "11px monospace";
+    ctx.fillText(`当前：天赋槽 ${unlocks.talentSlots} · 已合成 ${unlocks.craftedItems.length} · 已解锁配方 ${unlocks.unlockedRecipes.length}`, w / 2, 106);
+
+    const tabY = 126;
     const tabW = 78;
     const tabGap = 10;
     const categories: (RecipeCategory | "all")[] = ["all", "talent", "weapon", "potion", "building", "utility"];
@@ -120,29 +126,30 @@ export class CraftingPanel {
       ctx.fillStyle = this.feedbackColor;
       ctx.font = "bold 13px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(this.feedbackText, w / 2, 164);
+      ctx.fillText(this.feedbackText, w / 2, 178);
     }
 
     const leftX = Math.max(28, w / 2 - 470);
-    const topY = 186;
+    const topY = 198;
     const listW = 330;
     const detailX = leftX + listW + 22;
     const detailW = Math.min(560, w - detailX - 28);
-    const panelH = Math.min(520, h - topY - 34);
+    const panelH = Math.min(500, h - topY - 34);
 
     this.drawPanelBg(ctx, leftX, topY, listW, panelH, "配方列表");
     this.drawPanelBg(ctx, detailX, topY, detailW, panelH, "配方详情");
 
-    this.renderRecipeList(ctx, leftX, topY + 42, listW, panelH - 52);
+    this.renderRecipeList(ctx, leftX, topY + 42, listW, panelH - 52, meta);
     this.renderRecipeDetail(ctx, detailX, topY + 42, detailW, panelH - 52, meta);
   }
 
-  private renderRecipeList(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  private renderRecipeList(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, meta: MetaProgress): void {
     const recipes = this.visibleRecipes();
     if (!recipes.some((recipe) => recipe.id === this.selectedRecipeId)) {
       this.selectedRecipeId = recipes[0]?.id ?? "";
     }
 
+    const unlocks = meta.getUnlockState();
     const cardH = 62;
     const gap = 10;
     const maxCards = Math.floor((h + gap) / (cardH + gap));
@@ -153,12 +160,15 @@ export class CraftingPanel {
       const recipe = visible[i];
       const cy = y + i * (cardH + gap);
       const selected = recipe.id === this.selectedRecipeId;
+      const crafted = recipe.result.type === "talent_slot"
+        ? unlocks.unlockedRecipes.includes(recipe.id)
+        : unlocks.craftedItems.includes(recipe.result.id);
       const rect = { x: x + 14, y: cy, w: w - 28, h: cardH, id: recipe.id };
       this.recipeRects.push(rect);
 
       ctx.fillStyle = selected ? "rgba(66,165,245,0.18)" : "rgba(255,255,255,0.055)";
-      ctx.strokeStyle = selected ? "rgba(66,165,245,0.7)" : "rgba(255,255,255,0.12)";
-      ctx.lineWidth = selected ? 2 : 1;
+      ctx.strokeStyle = crafted ? "rgba(129,199,132,0.75)" : selected ? "rgba(66,165,245,0.7)" : "rgba(255,255,255,0.12)";
+      ctx.lineWidth = selected || crafted ? 2 : 1;
       this.roundRect(ctx, rect.x, rect.y, rect.w, rect.h, 10);
       ctx.fill();
       ctx.stroke();
@@ -169,7 +179,7 @@ export class CraftingPanel {
 
       ctx.fillStyle = recipe.tier === "legendary" ? "#ce93d8" : recipe.tier === "advanced" ? "#ffcc80" : "#90caf9";
       ctx.font = "11px monospace";
-      ctx.fillText(`${CATEGORY_LABELS[recipe.category]} · ${recipe.tier}`, rect.x + 14, rect.y + 44);
+      ctx.fillText(`${CATEGORY_LABELS[recipe.category]} · ${recipe.tier}${crafted ? " · 已拥有" : ""}`, rect.x + 14, rect.y + 44);
     }
 
     if (recipes.length > visible.length) {
@@ -192,6 +202,10 @@ export class CraftingPanel {
 
     const inventory = meta.getMaterials();
     const afford = inventory.canAfford(recipe.costs);
+    const unlocks = meta.getUnlockState();
+    const alreadyOwned = recipe.result.type === "talent_slot"
+      ? unlocks.unlockedRecipes.includes(recipe.id)
+      : unlocks.craftedItems.includes(recipe.result.id);
 
     ctx.textAlign = "left";
     ctx.fillStyle = "#fff";
@@ -201,6 +215,14 @@ export class CraftingPanel {
     ctx.fillStyle = recipe.tier === "legendary" ? "#ce93d8" : recipe.tier === "advanced" ? "#ffcc80" : "#90caf9";
     ctx.font = "bold 12px monospace";
     ctx.fillText(`${CATEGORY_LABELS[recipe.category]} · ${recipe.tier}`, x + 18, y + 52);
+
+    if (alreadyOwned) {
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#81c784";
+      ctx.font = "bold 13px monospace";
+      ctx.fillText("已拥有", x + w - 24, y + 30);
+      ctx.textAlign = "left";
+    }
 
     ctx.fillStyle = "rgba(255,255,255,0.68)";
     ctx.font = "12px monospace";
@@ -244,7 +266,7 @@ export class CraftingPanel {
     this.drawButton(
       ctx,
       this.craftRect,
-      afford.ok ? "合成" : "材料不足",
+      afford.ok ? (alreadyOwned ? "再次合成" : "合成") : "材料不足",
       afford.ok ? "rgba(129,199,132,0.16)" : "rgba(255,255,255,0.06)",
       afford.ok ? "rgba(129,199,132,0.72)" : "rgba(255,255,255,0.16)",
       afford.ok ? "#a5d6a7" : "#777",
