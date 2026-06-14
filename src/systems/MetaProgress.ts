@@ -1,4 +1,7 @@
 import { getCurrentDifficulty } from "./DifficultySystem";
+import { MaterialInventory, type MaterialAmounts, type SpendResult } from "./MaterialInventory";
+import type { MaterialId } from "../data/materials";
+import type { RecipeDefinition } from "../data/recipes";
 
 export interface RunRewardInput {
   wave: number;
@@ -47,6 +50,7 @@ export interface PurchaseResult {
 
 const SOUL_KEY = "game.soulCrystals";
 const UPGRADE_KEY = "game.metaUpgrades";
+const MATERIAL_KEY = "game.materials";
 
 export const META_UPGRADES: MetaUpgradeDef[] = [
   { id: "max_hp", name: "生命根基", description: "每级初始生命 +10", maxLevel: 10, baseCost: 8, costStep: 5 },
@@ -84,6 +88,48 @@ export class MetaProgress {
     const total = this.getSoulCrystals() + Math.max(0, Math.floor(amount));
     this.setSoulCrystals(total);
     return total;
+  }
+
+  getMaterials(): MaterialInventory {
+    try {
+      const raw = window.localStorage.getItem(MATERIAL_KEY);
+      return MaterialInventory.fromJSON(raw ? JSON.parse(raw) : undefined);
+    } catch {
+      return new MaterialInventory();
+    }
+  }
+
+  setMaterials(inventory: MaterialInventory): void {
+    try {
+      window.localStorage.setItem(MATERIAL_KEY, JSON.stringify(inventory.toJSON()));
+    } catch {
+      // localStorage 不可用时忽略。
+    }
+  }
+
+  getMaterialAmount(id: MaterialId): number {
+    return this.getMaterials().get(id);
+  }
+
+  addMaterial(id: MaterialId, amount: number): MaterialInventory {
+    const inventory = this.getMaterials();
+    inventory.add(id, amount);
+    this.setMaterials(inventory);
+    return inventory;
+  }
+
+  addMaterials(items: MaterialAmounts): MaterialInventory {
+    const inventory = this.getMaterials();
+    inventory.addMany(items);
+    this.setMaterials(inventory);
+    return inventory;
+  }
+
+  spendRecipeMaterials(recipe: RecipeDefinition): SpendResult {
+    const inventory = this.getMaterials();
+    const result = inventory.spend(recipe.costs);
+    if (result.ok) this.setMaterials(inventory);
+    return result;
   }
 
   getUpgradeLevels(): MetaUpgradeLevels {
@@ -136,6 +182,7 @@ export class MetaProgress {
     try {
       window.localStorage.removeItem(SOUL_KEY);
       window.localStorage.removeItem(UPGRADE_KEY);
+      window.localStorage.removeItem(MATERIAL_KEY);
     } catch {
       // localStorage 不可用时忽略。
     }
