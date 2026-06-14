@@ -7,6 +7,7 @@ src/data/metaTalents.ts
 src/data/economy.ts
 src/systems/EconomyInventory.ts
 src/systems/MetaTalentProgress.ts
+src/systems/MetaTalentRuntime.ts
 src/ui/MetaTalentPanel.ts
 ```
 
@@ -170,6 +171,67 @@ src/ui/MetaTalentPanel.ts
 
 注意：当前 `MetaTalentPanel` 是 UI 骨架。它为了方便测试支持“临时解锁”。正式购买按钮后续应调用 `purchaseUnlockTalent(id)`。
 
+## 天赋运行时修正
+
+已新增：
+
+```text
+src/systems/MetaTalentRuntime.ts
+```
+
+它负责把“已装备天赋”转成统一战斗修正对象，不直接改玩家、不直接生成炮塔、不直接生成亡灵。
+
+用法：
+
+```ts
+const snapshot = new MetaTalentRuntime().buildSnapshot();
+
+snapshot.equippedTalents;
+snapshot.bonuses;
+snapshot.notes;
+```
+
+当前 `bonuses` 包含：
+
+```text
+伤害倍率
+攻速倍率
+移速倍率
+生命倍率 / 固定生命 / 一击失败
+治疗倍率
+击杀回血
+护盾倍率
+护盾破裂伤害倍率
+宝箱奖励倍率
+精英出现倍率
+对精英/Boss伤害倍率
+亡灵召唤概率
+炮塔数量和部署频率
+魔法触发概率
+魔法伤害倍率
+古武强化倾向
+破甲倍率
+低血攻速 / 低血移速
+```
+
+已为当前天赋写入基础转译：
+
+```text
+连斩追击
+血影回流
+孤注一击
+亡骸归阵
+炮台矩阵
+贪宝成瘾
+逆命狂热
+晶盾回响
+元素涌动
+古武传承
+猎王誓印
+```
+
+尚未接入 `Game.ts`。后续接入时，`Game.ts` 只应该读取 `snapshot.bonuses`，不要重新写一套天赋 if/else。
+
 ## 后续接入点
 
 ### 1. 营地接入
@@ -200,32 +262,18 @@ MetaTalentProgress.purchaseUnlockTalent(id)
 
 ### 3. 战斗属性接入
 
-后续需要把已装备天赋转成战斗修正：
-
-```text
-伤害倍率
-攻速倍率
-生命修正
-护盾修正
-宝箱收益倍率
-召唤物规则
-职业路线倾向
-风险负面效果
-```
-
-建议新增：
+当前基础已完成：
 
 ```text
 src/systems/MetaTalentRuntime.ts
 ```
 
-由它读取：
+后续需要：
 
-```ts
-new MetaTalentProgress().getEquippedTalents()
+```text
+把 MetaTalentRuntime.bonuses 接到玩家基础属性、掉落、宝箱、召唤物和特殊机制。
+保持 Game.ts 只做薄调用，不在里面堆天赋细节。
 ```
-
-然后输出战斗修正，避免在 `Game.ts` 里堆天赋逻辑。
 
 ## 协作注意
 
@@ -234,7 +282,7 @@ src/data/metaTalents.ts 属于天赋数据层。
 src/data/economy.ts 属于经济物品数据层。
 src/systems/EconomyInventory.ts 属于经济库存层。
 src/systems/MetaTalentProgress.ts 属于天赋状态层。
+src/systems/MetaTalentRuntime.ts 属于战斗运行时转译层。
 src/ui/MetaTalentPanel.ts 属于 UI 层。
-未来的 MetaTalentRuntime 属于战斗运行时转译层。
 不要把天赋购买、装备和战斗效果全部塞进 Game.ts。
 ```
