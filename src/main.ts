@@ -51,32 +51,33 @@ function main(): void {
     const autoFire = typeof input.isAutoFireEnabled === "function" ? input.isAutoFireEnabled() : false;
     const focus = document.activeElement === canvas ? "canvas" : (document.activeElement?.tagName ?? "none");
     const lines = [
-      `DEBUG  phase=${game.phase}  hub=${showHubCamp ? "on" : "off"}  focus=${focus}`,
-      `race=${game.selectedRace?.id ?? "-"}  school=${game.selectedSchool?.id ?? "-"}  weapon=${game.selectedWeapon?.id ?? "-"}`,
-      `move=(${move.x.toFixed(2)}, ${move.y.toFixed(2)})  aim=(${aim.x.toFixed(2)}, ${aim.y.toFixed(2)})  active=${input.state.shooting ? "yes" : "no"}  auto=${autoFire ? "on" : "off"}`,
-      `player=(${Math.round(game.player.pos.x)}, ${Math.round(game.player.pos.y)})  hp=${Math.round(game.player.hp)}/${game.player.maxHp}  speed=${game.player.speed}`,
-      `camera=(${Math.round(game.camera.pos.x)}, ${Math.round(game.camera.pos.y)})  wave=${game.waveNum}  enemies=${game.enemies.length}  projectiles=${game.projectiles.length}  pickups=${game.pickups.length}`,
-      `timer=${game.shootTimer.toFixed(2)}  time=${game.gameTime.toFixed(1)}  keys: WASD / J / space / F`,
+      `DEBUG phase=${game.phase} hub=${showHubCamp ? "on" : "off"} focus=${focus}`,
+      `race=${game.selectedRace?.id ?? "-"} school=${game.selectedSchool?.id ?? "-"} weapon=${game.selectedWeapon?.id ?? "-"}`,
+      `move=(${move.x.toFixed(2)},${move.y.toFixed(2)}) aim=(${aim.x.toFixed(2)},${aim.y.toFixed(2)}) fire=${input.state.shooting ? "yes" : "no"} auto=${autoFire ? "on" : "off"}`,
+      `player=(${Math.round(game.player.pos.x)},${Math.round(game.player.pos.y)}) speed=${game.player.speed} hp=${Math.round(game.player.hp)}/${game.player.maxHp}`,
+      `camera=(${Math.round(game.camera.pos.x)},${Math.round(game.camera.pos.y)}) wave=${game.waveNum} enemies=${game.enemies.length} shots=${game.projectiles.length}`,
+      `timer=${game.shootTimer.toFixed(2)} time=${game.gameTime.toFixed(1)} keys: WASD J Space F`,
     ];
 
-    const x = 14;
-    const y = Math.max(92, game.h - 154);
-    const w = Math.min(760, game.w - 28);
-    const h = 138;
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const x = 12;
+    const y = 122;
+    const w = Math.min(760, game.w - 24);
+    const h = 136;
 
     ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-    ctx.strokeStyle = "rgba(128, 222, 234, 0.72)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 10);
-    ctx.fill();
-    ctx.stroke();
-
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,0,0,0.82)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#80deea";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
     ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
     ctx.font = "12px monospace";
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillStyle = i === 0 ? "#80deea" : "rgba(255,255,255,0.82)";
+      ctx.fillStyle = i === 0 ? "#80deea" : "#ffffff";
       ctx.fillText(lines[i], x + 12, y + 22 + i * 20);
     }
     ctx.restore();
@@ -110,7 +111,12 @@ function main(): void {
       runSupply.render(game.ctx);
     }
 
-    renderRuntimeDebug();
+    try {
+      renderRuntimeDebug();
+    } catch (err) {
+      console.error("debug panel failed", err);
+    }
+
     requestAnimationFrame(loop);
   }
 
