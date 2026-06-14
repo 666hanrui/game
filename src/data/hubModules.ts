@@ -1,6 +1,7 @@
 export type HubModuleId =
   | "expedition"
   | "talents"
+  | "economyStorage"
   | "workshop"
   | "apothecary"
   | "quests"
@@ -32,6 +33,13 @@ export const HUB_MODULES: HubModuleDef[] = [
     icon: "✦",
     description: "未来打开 src/ui/MetaTalentPanel.ts 管理 game.metaTalentState；进入战斗前由 new MetaTalentRuntime().buildSnapshot() 汇总已装备天赋为统一战斗修正。",
     unlockHint: "默认 1 个天赋槽，后续槽位和天赋解锁走局外经济。",
+  },
+  {
+    id: "economyStorage",
+    name: "资源仓库",
+    icon: "¤",
+    description: "未来打开 src/ui/EconomyStoragePanel.ts，并由 EconomyStoragePanel 读取 EconomyInventory.load() 展示 game.economyItems 中的远征币、魂晶和局外经济物品。",
+    unlockHint: "默认开放，用于查看天赋、工坊、药房、职业和区域消耗。",
   },
   {
     id: "workshop",
@@ -66,7 +74,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     name: "材料仓库",
     icon: "▣",
     description: "未来打开 src/ui/MaterialStoragePanel.ts，并由 MaterialStoragePanel 读取 meta.getMaterials() 展示可带出局材料、来源、用途和数量。",
-    unlockHint: "默认开放。",
+    unlockHint: "默认开放，专门查看神话骨骼、古代符文、星陨金属等合成材料。",
   },
   {
     id: "loot",
