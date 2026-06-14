@@ -5,6 +5,7 @@
 ```text
 src/data/metaTalents.ts
 src/systems/MetaTalentProgress.ts
+src/ui/MetaTalentPanel.ts
 src/data/economy.ts
 ```
 
@@ -104,26 +105,29 @@ talentProgress.addTalentSlot(1);
 talentProgress.setTalentSlots(3);
 ```
 
-## 后续接入点
+## 天赋选择 UI
 
-### 1. 天赋选择 UI
-
-建议新增：
+已新增：
 
 ```text
 src/ui/MetaTalentPanel.ts
 ```
 
-功能：
+当前能力：
 
 ```text
-显示已解锁天赋。
-显示未解锁天赋和所需资源。
-显示已装备天赋槽位。
-支持装备、卸下、购买。
+显示当前天赋槽位。
+显示已装备天赋。
+按全部、进攻、生存、成长、召唤、机械、魔法、古武、风险筛选天赋。
+显示天赋详情、四字名称、稀有度、负面代价、标签、解锁消耗。
+支持临时解锁、装备、卸下。
 ```
 
-### 2. 营地接入
+注意：当前 `MetaTalentPanel` 是 UI 骨架。它为了方便测试支持“临时解锁”，但尚未接入经济库存扣费。正式购买逻辑需要等 `economy.ts` 的库存系统统一后接入。
+
+## 后续接入点
+
+### 1. 营地接入
 
 建议由营地建筑打开：
 
@@ -132,6 +136,23 @@ src/ui/MetaTalentPanel.ts
 ```
 
 不要在 `main.ts` 里硬塞天赋 UI。
+
+### 2. 天赋购买消耗
+
+当前 `metaTalents.ts` 已经定义：
+
+```text
+unlockCosts
+upgradeCosts
+```
+
+但还缺少统一的 EconomyInventory。后续建议新增：
+
+```text
+src/systems/EconomyInventory.ts
+```
+
+负责远征币、魂晶、异种残核、职业材料等通用/特殊物品的支付。
 
 ### 3. 战斗属性接入
 
@@ -167,7 +188,7 @@ new MetaTalentProgress().getEquippedTalents()
 ```text
 src/data/metaTalents.ts 属于天赋数据层。
 src/systems/MetaTalentProgress.ts 属于天赋状态层。
-未来的 MetaTalentPanel 属于 UI 层。
+src/ui/MetaTalentPanel.ts 属于 UI 层。
 未来的 MetaTalentRuntime 属于战斗运行时转译层。
 不要把天赋购买、装备和战斗效果全部塞进 Game.ts。
 ```
