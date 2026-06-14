@@ -17,6 +17,7 @@ src/systems/MaterialInventory.ts
 src/systems/ChestDropSystem.ts
 src/systems/MetaProgress.ts
 src/ui/CraftingPanel.ts
+src/ui/MaterialStoragePanel.ts
 ```
 
 ## 材料分类
@@ -134,6 +135,26 @@ Boss：必掉大宝箱。
 净土装置
 ```
 
+## 材料仓库 UI
+
+已新增：
+
+```text
+src/ui/MaterialStoragePanel.ts
+```
+
+当前能力：
+
+```text
+查看所有材料定义。
+按全部、货币、通用、特殊、稀有、史诗、神话筛选。
+显示当前拥有数量。
+显示材料稀有度、来源、用途、描述。
+读取 meta.getMaterials()。
+```
+
+注意：当前 `MaterialStoragePanel` 只是 UI 骨架，尚未接入营地建筑交互，也暂时没有滚动列表和排序。后续接入时，由材料仓库建筑打开该面板。
+
 ## 合成台 UI
 
 已新增：
@@ -170,13 +191,15 @@ src/systems/ChestDropSystem.ts
 
 ### 2. 材料仓库 UI
 
-建议新增或扩展：
+状态：已完成基础骨架。
+
+接入营地时需要：
 
 ```text
-src/ui/MaterialStoragePanel.ts
+给 HubCampPanel 增加 material_storage 交互类型。
+靠近材料仓库建筑按 E 后打开 MaterialStoragePanel。
+点击返回回到营地。
 ```
-
-营地里“材料仓库”建筑靠近后按 E 打开。
 
 ### 3. 合成台 UI
 
