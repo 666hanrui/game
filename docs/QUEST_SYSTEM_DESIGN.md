@@ -5,6 +5,7 @@
 ```text
 src/data/quests.ts
 src/systems/QuestProgress.ts
+src/ui/QuestBoardPanel.ts
 src/systems/EconomyInventory.ts
 src/systems/MaterialInventory.ts
 src/systems/MetaProgress.ts
@@ -129,27 +130,30 @@ MetaProgress：材料库存、合成配方解锁等。
 
 注意：任务系统不应该自己直接操作 `localStorage` 以外的战斗对象，也不应该直接改 `Game.ts` 状态。
 
-## 后续接入点
+## 任务板 UI
 
-### 1. 任务板 UI
-
-建议新增：
+已新增：
 
 ```text
 src/ui/QuestBoardPanel.ts
 ```
 
-功能：
+当前能力：
 
 ```text
 按任务类型筛选。
 显示任务目标进度。
 显示奖励预览。
 支持领取奖励。
-显示已完成 / 已领取 / 可重复。
+显示已完成 / 进行中 / 已领取。
+支持一次性、每日、每周、可重复任务的基础展示。
 ```
 
-### 2. 营地接入
+注意：当前 `QuestBoardPanel` 是 UI 骨架，尚未接入营地建筑交互。它已经调用 `QuestProgress.claimReward()`，奖励发放由系统层处理，不在 UI 内直接改库存。
+
+## 后续接入点
+
+### 1. 营地接入
 
 由营地中的任务板建筑打开：
 
@@ -159,7 +163,7 @@ src/ui/QuestBoardPanel.ts
 
 不要在 `main.ts` 里硬塞任务 UI。
 
-### 3. 战斗结算接入
+### 2. 战斗结算接入
 
 后续远征结算时，薄调用：
 
@@ -171,7 +175,7 @@ questProgress.addProgress("kill_elite", eliteKills);
 questProgress.addProgress("kill_boss", bossKills, bossId);
 ```
 
-### 4. 宝箱 / 合成 / 营地接入
+### 3. 宝箱 / 合成 / 营地接入
 
 后续系统触发时补：
 
@@ -187,6 +191,6 @@ questProgress.addProgress("kill_boss", bossKills, bossId);
 ```text
 src/data/quests.ts 属于任务数据层。
 src/systems/QuestProgress.ts 属于任务进度层。
-未来 QuestBoardPanel 属于 UI 层。
+src/ui/QuestBoardPanel.ts 属于 UI 层。
 Game.ts 后续只做薄调用，不要把任务规则塞进 Game.ts。
 ```
