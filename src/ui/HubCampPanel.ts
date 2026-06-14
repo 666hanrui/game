@@ -14,8 +14,6 @@ interface CampView {
   scale: number;
   ox: number;
   oy: number;
-  camX: number;
-  camY: number;
   toScreen: (x: number, y: number) => { x: number; y: number };
 }
 
@@ -36,6 +34,12 @@ interface CampBuilding {
   radius: number;
 }
 
+interface MaterialMarker {
+  label: string;
+  color: string;
+  name: string;
+}
+
 const CAMP_W = 1320;
 const CAMP_H = 860;
 
@@ -51,14 +55,25 @@ const MODULE_ACCENT: Record<HubModuleId, string> = {
   archive: "#b0bec5",
 };
 
+const MATERIAL_MARKERS: MaterialMarker[] = [
+  { label: "金", color: "#f6c65b", name: "金叶" },
+  { label: "魂", color: "#80deea", name: "魂晶" },
+  { label: "核", color: "#b0bec5", name: "异种残核" },
+  { label: "骨", color: "#f5f5dc", name: "神话生物骨骼" },
+  { label: "符", color: "#ce93d8", name: "古代符文" },
+  { label: "机", color: "#90caf9", name: "机械遗芯" },
+  { label: "土", color: "#bc8f5a", name: "裂土印记" },
+  { label: "星", color: "#ffcc80", name: "星陨金属" },
+];
+
 const CAMP_BUILDINGS: CampBuilding[] = [
   { id: "expedition", name: "远征城门", icon: "▲", kind: "gate", x: 585, y: 78, w: 188, h: 138, color: MODULE_ACCENT.expedition, bossName: "前线队长", line: "穿过城门，下一站就是战场。", radius: 126 },
   { id: "talents", name: "天赋殿堂", icon: "✦", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "第一个槽位会由新手引导赠送。", radius: 116 },
   { id: "workshop", name: "铁匠工坊", icon: "⚒", kind: "forge", x: 872, y: 195, w: 206, h: 138, color: MODULE_ACCENT.workshop, bossName: "工坊老板", line: "我强化补给池，不碰宝箱奖励池。", radius: 120 },
   { id: "apothecary", name: "药剂屋", icon: "✚", kind: "apothecary", x: 252, y: 560, w: 180, h: 126, color: MODULE_ACCENT.apothecary, bossName: "药房老板", line: "局内药剂走补给，永久药剂走合成。", radius: 112 },
   { id: "quests", name: "任务告示牌", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "清剿、Boss、材料、收复，都得记账。", radius: 108 },
-  { id: "crafting", name: "符文合成台", icon: "◇", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "神话骨骼这种珍贵材料，别拿来换小药。", radius: 116 },
-  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "通用物品和特殊物品分开放。", radius: 110 },
+  { id: "crafting", name: "符文合成台", icon: "◇", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "骨骼、符文、遗芯和星陨金属才配上台。", radius: 116 },
+  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "金叶魂晶放前厅，特殊材料进秘库。", radius: 110 },
   { id: "map", name: "收复沙盘", icon: "◎", kind: "map", x: 1092, y: 360, w: 176, h: 120, color: MODULE_ACCENT.map, bossName: "测绘员", line: "最终目标不是刷怪，是收复土地。", radius: 112 },
   { id: "archive", name: "异种档案馆", icon: "?", kind: "archive", x: 590, y: 340, w: 160, h: 112, color: MODULE_ACCENT.archive, bossName: "档案员", line: "见过的怪物、材料和路线都会记录。", radius: 100 },
 ];
@@ -160,7 +175,7 @@ export class HubCampPanel {
     const camY = Math.max(h / (2 * scale), Math.min(CAMP_H - h / (2 * scale), this.camera.y));
     const ox = w / 2 - camX * scale;
     const oy = h / 2 - camY * scale;
-    return { scale, ox, oy, camX, camY, toScreen: (x: number, y: number) => ({ x: x * scale + ox, y: y * scale + oy }) };
+    return { scale, ox, oy, toScreen: (x: number, y: number) => ({ x: x * scale + ox, y: y * scale + oy }) };
   }
 
   private drawWorldBackground(ctx: CanvasRenderingContext2D, view: CampView, w: number, h: number): void {
@@ -253,8 +268,8 @@ export class HubCampPanel {
     const labels = [
       { text: "前线区", x: 646, y: 62, color: MODULE_ACCENT.expedition },
       { text: "工坊区", x: 985, y: 176, color: MODULE_ACCENT.workshop },
-      { text: "后勤区", x: 162, y: 348, color: MODULE_ACCENT.storage },
-      { text: "研究区", x: 666, y: 328, color: MODULE_ACCENT.archive },
+      { text: "材料区", x: 156, y: 348, color: MODULE_ACCENT.storage },
+      { text: "符文研究区", x: 666, y: 328, color: MODULE_ACCENT.archive },
     ];
 
     ctx.save();
@@ -328,6 +343,7 @@ export class HubCampPanel {
     ctx.stroke();
     ctx.fillStyle = "rgba(10,10,18,0.92)";
     this.roundRect(ctx, x + w * 0.12, y + h * 0.18, w * 0.16, h * 0.72, 8);
+    ctx.fill();
     this.roundRect(ctx, x + w * 0.72, y + h * 0.18, w * 0.16, h * 0.72, 8);
     ctx.fill();
     ctx.fillStyle = b.color;
@@ -346,8 +362,10 @@ export class HubCampPanel {
     ctx.strokeStyle = b.color;
     ctx.stroke();
     ctx.fillStyle = this.alpha("#ffffff", 0.18);
-    for (let i = 0; i < 4; i++) this.roundRect(ctx, x + w * (0.18 + i * 0.18), y + h * 0.42, w * 0.08, h * 0.36, 5);
-    ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      this.roundRect(ctx, x + w * (0.18 + i * 0.18), y + h * 0.42, w * 0.08, h * 0.36, 5);
+      ctx.fill();
+    }
     ctx.fillStyle = b.color;
     ctx.font = `bold ${Math.max(14, w * 0.18)}px monospace`;
     ctx.textAlign = "center";
@@ -396,8 +414,12 @@ export class HubCampPanel {
     ctx.stroke();
     ctx.fillStyle = this.alpha("#ffffff", 0.12);
     this.roundRect(ctx, x + w * 0.24, y + h * 0.48, w * 0.18, h * 0.22, 6);
+    ctx.fill();
     this.roundRect(ctx, x + w * 0.58, y + h * 0.48, w * 0.18, h * 0.22, 6);
     ctx.fill();
+    ctx.fillStyle = this.alpha(b.color, 0.42);
+    ctx.fillRect(x + w * 0.25, y + h * 0.62, w * 0.16, h * 0.06);
+    ctx.fillRect(x + w * 0.59, y + h * 0.58, w * 0.16, h * 0.08);
     ctx.strokeStyle = b.color;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -442,6 +464,7 @@ export class HubCampPanel {
     ctx.beginPath();
     ctx.ellipse(x + w / 2, y + h * 0.55, w * 0.24, h * 0.18, 0, 0, Math.PI * 2);
     ctx.stroke();
+    this.drawMaterialRing(ctx, x + w / 2, y + h * 0.55, Math.min(w, h) * 0.28, MATERIAL_MARKERS.slice(2, 8));
     ctx.fillStyle = b.color;
     ctx.font = `bold ${Math.max(14, w * 0.16)}px monospace`;
     ctx.textAlign = "center";
@@ -459,14 +482,11 @@ export class HubCampPanel {
     ctx.fill();
     ctx.strokeStyle = b.color;
     ctx.stroke();
-    ctx.strokeStyle = this.alpha("#ffffff", 0.26);
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) this.roundRect(ctx, x + w * (0.18 + i * 0.2), y + h * 0.55, w * 0.15, h * 0.22, 4);
-    ctx.stroke();
+    this.drawStorageCrates(ctx, x, y, w, h);
     ctx.fillStyle = b.color;
     ctx.font = `bold ${Math.max(12, w * 0.12)}px monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("▣", x + w * 0.5, y + h * 0.83);
+    ctx.fillText("▣", x + w * 0.5, y + h * 0.86);
   }
 
   private drawMapTable(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, b: CampBuilding, active: boolean, selected: boolean): void {
@@ -506,6 +526,51 @@ export class HubCampPanel {
     ctx.font = `bold ${Math.max(12, w * 0.12)}px monospace`;
     ctx.textAlign = "center";
     ctx.fillText("?", x + w * 0.5, y + h * 0.34);
+  }
+
+  private drawStorageCrates(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+    const markers = MATERIAL_MARKERS.slice(0, 6);
+    ctx.textAlign = "center";
+    for (let i = 0; i < markers.length; i++) {
+      const marker = markers[i];
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const bx = x + w * (0.19 + col * 0.23);
+      const by = y + h * (0.5 + row * 0.18);
+      const bw = w * 0.16;
+      const bh = h * 0.14;
+      ctx.fillStyle = this.alpha(marker.color, 0.16);
+      ctx.strokeStyle = this.alpha(marker.color, 0.52);
+      ctx.lineWidth = 1.5;
+      this.roundRect(ctx, bx, by, bw, bh, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = marker.color;
+      ctx.font = `bold ${Math.max(9, w * 0.045)}px monospace`;
+      ctx.fillText(marker.label, bx + bw / 2, by + bh * 0.72);
+    }
+  }
+
+  private drawMaterialRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, markers: MaterialMarker[]): void {
+    ctx.save();
+    ctx.textAlign = "center";
+    for (let i = 0; i < markers.length; i++) {
+      const marker = markers[i];
+      const a = -Math.PI / 2 + (i / markers.length) * Math.PI * 2;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      ctx.fillStyle = this.alpha(marker.color, 0.18);
+      ctx.strokeStyle = this.alpha(marker.color, 0.6);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(7, r * 0.13), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = marker.color;
+      ctx.font = `bold ${Math.max(8, r * 0.16)}px monospace`;
+      ctx.fillText(marker.label, x, y + Math.max(3, r * 0.05));
+    }
+    ctx.restore();
   }
 
   private drawBuildingName(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, b: CampBuilding, active: boolean, selected: boolean, scale: number): void {
