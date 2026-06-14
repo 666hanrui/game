@@ -3,35 +3,10 @@ import { GameWithSound } from "./core/GameWithSound";
 import { HubCampPanel } from "./ui/HubCampPanel";
 import { RunSupplyRuntime } from "./systems/RunSupplyRuntime";
 
-declare global {
-  interface Window {
-    __roguelikeGameCleanup?: () => void;
-    __roguelikeRunId?: number;
-  }
-}
-
 installGameOpeningFlowFix();
 
-function resetCanvasElement(): HTMLCanvasElement | null {
-  const oldCanvas = document.getElementById("game") as HTMLCanvasElement | null;
-  if (!oldCanvas) return null;
-
-  const newCanvas = oldCanvas.cloneNode(false) as HTMLCanvasElement;
-  newCanvas.id = "game";
-  newCanvas.className = oldCanvas.className;
-  oldCanvas.replaceWith(newCanvas);
-  return newCanvas;
-}
-
 function main(): void {
-  window.__roguelikeGameCleanup?.();
-  window.__roguelikeRunId = (window.__roguelikeRunId ?? 0) + 1;
-  const runId = window.__roguelikeRunId;
-
-  const oldDebug = document.getElementById("runtime-debug-panel");
-  if (oldDebug) oldDebug.remove();
-
-  const canvas = resetCanvasElement();
+  const canvas = document.getElementById("game") as HTMLCanvasElement;
   if (!canvas) {
     console.error("找不到 #game canvas");
     return;
@@ -44,33 +19,6 @@ function main(): void {
   const runSupply = new RunSupplyRuntime(game);
   let showHubCamp = true;
   let lastPhase = game.phase;
-  let alive = true;
-  let rafId = 0;
-
-  const debugEl = document.createElement("pre");
-  debugEl.id = "runtime-debug-panel";
-  debugEl.style.position = "fixed";
-  debugEl.style.left = "12px";
-  debugEl.style.top = "118px";
-  debugEl.style.zIndex = "999999";
-  debugEl.style.width = "760px";
-  debugEl.style.maxWidth = "calc(100vw - 24px)";
-  debugEl.style.padding = "10px 12px";
-  debugEl.style.margin = "0";
-  debugEl.style.background = "rgba(0,0,0,0.84)";
-  debugEl.style.border = "2px solid #80deea";
-  debugEl.style.color = "#ffffff";
-  debugEl.style.font = "12px/1.45 monospace";
-  debugEl.style.pointerEvents = "none";
-  debugEl.style.whiteSpace = "pre-wrap";
-  debugEl.textContent = "debug booting...";
-  document.body.appendChild(debugEl);
-
-  window.__roguelikeGameCleanup = () => {
-    alive = false;
-    if (rafId) cancelAnimationFrame(rafId);
-    debugEl.remove();
-  };
 
   canvas.addEventListener("pointerdown", () => canvas.focus());
 
@@ -95,32 +43,12 @@ function main(): void {
     }
   }, true);
 
-  function updateRuntimeDebug(): void {
-    const input = game.input;
-    const move = input.state.moveDir;
-    const aim = input.state.aimDir;
-    const autoFire = typeof input.isAutoFireEnabled === "function" ? input.isAutoFireEnabled() : false;
-    const focus = document.activeElement === canvas ? "canvas" : (document.activeElement?.tagName ?? "none");
-    debugEl.textContent = [
-      `DEBUG run=${runId}/${window.__roguelikeRunId} phase=${game.phase} hub=${showHubCamp ? "on" : "off"} focus=${focus}`,
-      `race=${game.selectedRace?.id ?? "-"} school=${game.selectedSchool?.id ?? "-"} weapon=${game.selectedWeapon?.id ?? "-"}`,
-      `move=(${move.x.toFixed(2)},${move.y.toFixed(2)}) aim=(${aim.x.toFixed(2)},${aim.y.toFixed(2)}) fire=${input.state.shooting ? "yes" : "no"} auto=${autoFire ? "on" : "off"}`,
-      `player=(${Math.round(game.player.pos.x)},${Math.round(game.player.pos.y)}) speed=${game.player.speed} hp=${Math.round(game.player.hp)}/${game.player.maxHp}`,
-      `camera=(${Math.round(game.camera.pos.x)},${Math.round(game.camera.pos.y)}) wave=${game.waveNum} enemies=${game.enemies.length} shots=${game.projectiles.length}`,
-      `timer=${game.shootTimer.toFixed(2)} time=${game.gameTime.toFixed(1)} keys: WASD J Space F`,
-    ].join("\n");
-  }
-
   let lastTime = performance.now();
 
   function loop(now: number): void {
-    if (!alive || window.__roguelikeRunId !== runId) return;
-
     let dt = (now - lastTime) / 1000;
     if (dt > 0.1) dt = 0.1;
     lastTime = now;
-
-    game.input.update();
 
     if (showHubCamp && game.phase === "menu") {
       const action = hubCamp.update(game.input, dt, game.w, game.h);
@@ -141,11 +69,10 @@ function main(): void {
       runSupply.render(game.ctx);
     }
 
-    updateRuntimeDebug();
-    rafId = requestAnimationFrame(loop);
+    requestAnimationFrame(loop);
   }
 
-  rafId = requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 
 main();
