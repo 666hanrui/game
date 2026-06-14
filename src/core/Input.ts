@@ -39,6 +39,7 @@ export class Input {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    this.canvas.tabIndex = 0;
     this.isMobile = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
     this.setupKeyboard();
@@ -50,40 +51,82 @@ export class Input {
     return this.autoFire;
   }
 
+  private normalizeKey(e: KeyboardEvent): string[] {
+    const result = new Set<string>();
+    const key = e.key?.toLowerCase?.() ?? "";
+    const code = e.code?.toLowerCase?.() ?? "";
+    if (key) result.add(key);
+    if (code) result.add(code);
+
+    // 兼容部分中文输入法 / 浏览器扩展环境里 key 变成 Process、Unidentified 的情况。
+    // code 通常仍然可靠；这里把常见 code 映射回语义键，后续查询更稳。
+    const codeMap: Record<string, string> = {
+      keyw: "w",
+      keya: "a",
+      keys: "s",
+      keyd: "d",
+      keyj: "j",
+      keyf: "f",
+      space: " ",
+      arrowup: "arrowup",
+      arrowdown: "arrowdown",
+      arrowleft: "arrowleft",
+      arrowright: "arrowright",
+    };
+    if (codeMap[code]) result.add(codeMap[code]);
+
+    return [...result];
+  }
+
   private rememberKey(e: KeyboardEvent): void {
-    const key = e.key.toLowerCase();
-    const code = e.code.toLowerCase();
-    this.keys.add(key);
-    this.keys.add(code);
+    for (const key of this.normalizeKey(e)) this.keys.add(key);
   }
 
   private forgetKey(e: KeyboardEvent): void {
-    const key = e.key.toLowerCase();
-    const code = e.code.toLowerCase();
-    this.keys.delete(key);
-    this.keys.delete(code);
+    for (const key of this.normalizeKey(e)) this.keys.delete(key);
+  }
+
+  private isGameKey(e: KeyboardEvent): boolean {
+    const keys = this.normalizeKey(e);
+    return keys.some((key) => [
+      "w", "a", "s", "d",
+      "keyw", "keya", "keys", "keyd",
+      "arrowup", "arrowdown", "arrowleft", "arrowright",
+      " ", "space", "j", "keyj", "f", "keyf",
+      "escape", "1", "2", "3",
+    ].includes(key));
   }
 
   private setupKeyboard(): void {
-    window.addEventListener("keydown", (e) => {
+    const keyDown = (e: KeyboardEvent) => {
       this.rememberKey(e);
-      const key = e.key.toLowerCase();
-      const code = e.code.toLowerCase();
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "j", "f"].includes(key) ||
-          ["keyw", "keya", "keys", "keyd", "space", "keyj", "keyf"].includes(code)) {
-        e.preventDefault();
-      }
+      if (this.isGameKey(e)) e.preventDefault();
+    };
+    const keyUp = (e: KeyboardEvent) => this.forgetKey(e);
+
+    // 三层 capture：window / document / canvas。
+    // 目标是避免焦点、浏览器触屏判断、其它监听器冒泡顺序导致游戏拿不到键盘。
+    window.addEventListener("keydown", keyDown, { capture: true });
+    window.addEventListener("keyup", keyUp, { capture: true });
+    document.addEventListener("keydown", keyDown, { capture: true });
+    document.addEventListener("keyup", keyUp, { capture: true });
+    this.canvas.addEventListener("keydown", keyDown, { capture: true });
+    this.canvas.addEventListener("keyup", keyUp, { capture: true });
+
+    window.addEventListener("blur", () => this.clearTransientInput());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) this.clearTransientInput();
     });
-    window.addEventListener("keyup", (e) => this.forgetKey(e));
-    window.addEventListener("blur", () => {
-      this.keys.clear();
-      this.mouseDown = false;
-      this.leftStick = null;
-      this.rightStick = null;
-      this.autoFireToggleDown = false;
-      this.state.moveDir = vec2(0, 0);
-      this.state.shooting = false;
-    });
+  }
+
+  private clearTransientInput(): void {
+    this.keys.clear();
+    this.mouseDown = false;
+    this.leftStick = null;
+    this.rightStick = null;
+    this.autoFireToggleDown = false;
+    this.state.moveDir = vec2(0, 0);
+    this.state.shooting = false;
   }
 
   private setupMouse(): void {
@@ -94,10 +137,12 @@ export class Input {
       this.hasMouseAim = true;
     };
 
+    this.canvas.addEventListener("pointerdown", () => this.canvas.focus());
     this.canvas.addEventListener("mousemove", syncMouse);
     this.canvas.addEventListener("mouseenter", syncMouse);
     this.canvas.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
+      this.canvas.focus();
       syncMouse(e);
       this.mouseDown = true;
       e.preventDefault();
@@ -123,6 +168,7 @@ export class Input {
 
   private setupTouch(): void {
     this.canvas.addEventListener("touchstart", (e) => {
+      this.canvas.focus();
       e.preventDefault();
       const halfW = this.cssWidth() / 2;
       for (let i = 0; i < e.changedTouches.length; i++) {
