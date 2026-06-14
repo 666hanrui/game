@@ -896,7 +896,6 @@ export class Game {
       enemies: this.enemies,
       pickups: this.pickups,
     });
-    this.minimap.renderBoundaryWarning(ctx, this.player.pos, WORLD_W, WORLD_H);
 
     if (this.appliedSkills.length > 0) {
       ctx.textAlign = "left";
