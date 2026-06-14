@@ -69,7 +69,7 @@ const MATERIAL_MARKERS: MaterialMarker[] = [
 
 const CAMP_BUILDINGS: CampBuilding[] = [
   { id: "expedition", name: "远征城门", icon: "▲", kind: "gate", x: 585, y: 78, w: 188, h: 138, color: MODULE_ACCENT.expedition, bossName: "前线队长", line: "开始局内战斗，不碰材料系统。", radius: 126 },
-  { id: "talents", name: "天赋祭坛", icon: "✦", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "未来打开 src/ui/MetaTalentPanel.ts。", radius: 116 },
+  { id: "talents", name: "天赋祭坛", icon: "✦", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "未来打开 MetaTalentPanel；出征前由 MetaTalentRuntime.buildSnapshot() 生效。", radius: 116 },
   { id: "workshop", name: "铁匠工坊", icon: "⚒", kind: "forge", x: 872, y: 195, w: 206, h: 138, color: MODULE_ACCENT.workshop, bossName: "工坊老板", line: "预留神话武器和装备合成。", radius: 120 },
   { id: "apothecary", name: "药剂屋", icon: "✚", kind: "apothecary", x: 252, y: 560, w: 180, h: 126, color: MODULE_ACCENT.apothecary, bossName: "药房老板", line: "预留永久药剂和局外药剂。", radius: 112 },
   { id: "quests", name: "任务告示牌", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "区域收复、Boss 讨伐、材料任务。", radius: 108 },
