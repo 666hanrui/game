@@ -3,6 +3,8 @@
 相关代码：
 
 ```text
+src/data/hubModules.ts
+src/data/hubActions.ts
 src/ui/HubSubPanelManager.ts
 src/ui/CraftingPanel.ts
 src/ui/MaterialStoragePanel.ts
@@ -50,6 +52,39 @@ talents -> MetaTalentPanel
 quests -> QuestBoardPanel
 ```
 
+## 营地建筑动作
+
+已新增统一动作映射：
+
+```text
+src/data/hubActions.ts
+```
+
+当前动作：
+
+```ts
+export type HubCampAction =
+  | "start"
+  | "open_crafting"
+  | "open_material_storage"
+  | "open_economy_storage"
+  | "open_talents"
+  | "open_quests"
+  | "open_workshop"
+  | "open_apothecary"
+  | "open_loot"
+  | "open_map"
+  | "open_archive";
+```
+
+建筑模块到动作的映射由 `HUB_ACTIONS` 管理。后续 `HubCampPanel` 不要手写零散字符串，优先使用：
+
+```ts
+getHubActionByModule(moduleId);
+getHubAction(action);
+getHubSubPanelId(action);
+```
+
 ## 基础用法
 
 ```ts
@@ -68,27 +103,24 @@ subPanels.close();
 
 ## 接入营地的推荐方式
 
-后续 `HubCampPanel` 做成可移动营地地图后，建筑交互可以返回：
+后续 `HubCampPanel` 做成可移动营地地图后，建筑交互可以返回 `HubCampAction`。
+
+例如：
 
 ```ts
-type HubCampAction =
-  | "start"
-  | "open_crafting"
-  | "open_material_storage"
-  | "open_economy_storage"
-  | "open_talents"
-  | "open_quests";
+const actionDef = getHubActionByModule(nearestBuilding.moduleId);
+return actionDef?.action ?? null;
 ```
 
-然后在上层统一映射：
+上层接入时：
 
 ```ts
-if (action === "open_crafting") subPanels.open("crafting");
-if (action === "open_material_storage") subPanels.open("material_storage");
-if (action === "open_economy_storage") subPanels.open("economy_storage");
-if (action === "open_talents") subPanels.open("talents");
-if (action === "open_quests") subPanels.open("quests");
+const subPanelId = getHubSubPanelId(action);
+if (subPanelId) subPanels.open(subPanelId);
+else if (action === "start") startExpedition();
 ```
+
+这样新增建筑时只需要维护 `hubActions.ts`，不用到处改判断。
 
 当子面板打开时：
 
@@ -104,6 +136,7 @@ if (action === "open_quests") subPanels.open("quests");
 
 ```text
 HubSubPanelManager 文件已新增。
+hubActions.ts 动作映射已新增。
 子面板 open/close/render/handleClick 已统一。
 各子面板仍保持独立，不直接依赖 Game.ts。
 ```
@@ -113,18 +146,19 @@ HubSubPanelManager 文件已新增。
 ```text
 还没有接入 HubCampPanel。
 还没有接入 main.ts。
-还没有给建筑动作做正式枚举。
 还没有处理键盘 Esc 返回。
+workshop / apothecary / loot / map / archive 还只是预留动作，没有对应子面板。
 ```
 
 ## 协作注意
 
 ```text
 HubSubPanelManager 属于 UI 路由层。
-它不应该直接修改 Game.ts。
-它不应该移动玩家。
-它不应该决定战斗开始。
-它只负责局外 UI 子面板的打开、关闭、点击和渲染。
+hubActions.ts 属于营地建筑动作映射层。
+它们不应该直接修改 Game.ts。
+它们不应该移动玩家。
+它们不应该决定战斗开始。
+它们只负责局外 UI 子面板的打开、关闭、点击和渲染。
 ```
 
 后续同事做营地建筑化时，可以只让建筑返回打开动作，不需要知道每个面板内部怎么扣材料、怎么领任务奖励。
