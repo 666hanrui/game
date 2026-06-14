@@ -63,9 +63,9 @@ src/ui/MaterialStoragePanel.ts
 
 ## 持久化入口
 
-`MetaProgress` 已经接入材料库存持久化。
+`MetaProgress` 已经接入材料库存和合成结果持久化。
 
-可用方法：
+材料方法：
 
 ```ts
 meta.getMaterials();
@@ -76,10 +76,33 @@ meta.addMaterials({ alien_core: 2, soul_crystal: 8 });
 meta.spendRecipeMaterials(recipe);
 ```
 
+合成结果方法：
+
+```ts
+meta.craftRecipe(recipe);
+meta.getUnlockState();
+meta.applyRecipeResult(recipe);
+meta.hasCraftedItem("rune_staff");
+meta.hasUnlockedRecipe("myth_weapon_rune_staff");
+meta.getTalentSlots();
+meta.addTalentSlot(1);
+```
+
 当前存储键：
 
 ```text
 game.materials
+game.metaUnlocks
+```
+
+`game.metaUnlocks` 当前结构：
+
+```ts
+{
+  unlockedRecipes: string[],
+  craftedItems: string[],
+  talentSlots: number
+}
 ```
 
 注意：`soul_crystal` 同时存在于材料定义中，但当前旧系统仍有独立的 `game.soulCrystals`。短期内为了兼容旧 UI，魂晶仍保留旧存储；后续可以再做一次统一迁移。
@@ -170,11 +193,12 @@ src/ui/CraftingPanel.ts
 查看配方详情。
 查看材料需求和当前拥有数量。
 判断是否可合成。
-调用 meta.spendRecipeMaterials(recipe) 消耗材料。
+调用 meta.craftRecipe(recipe) 消耗材料并写入合成结果。
 显示合成成功或材料不足反馈。
+显示当前天赋槽、已合成物、已解锁配方数量。
 ```
 
-注意：当前 `CraftingPanel` 只是 UI 骨架，尚未接入营地建筑交互，也尚未把“合成结果”写入 unlockedRecipes / craftedItems / talentSlots。后续接入时，不要把这些结果硬写在 UI 里，应该放入局外成长系统。
+注意：当前 `CraftingPanel` 只是 UI 骨架，尚未接入营地建筑交互。合成结果已经不再由 UI 自己硬写，而是交给 `MetaProgress.craftRecipe()`。
 
 ## 后续接入点
 
@@ -203,7 +227,7 @@ src/systems/ChestDropSystem.ts
 
 ### 3. 合成台 UI
 
-状态：已完成基础骨架。
+状态：已完成基础骨架，并已接入 MetaProgress 合成结果记录。
 
 接入营地时需要：
 
@@ -215,20 +239,27 @@ src/systems/ChestDropSystem.ts
 
 ### 4. MetaProgress 持久化
 
-状态：已完成基础材料库存接入。
+状态：已完成基础材料库存和合成结果接入。
 
 当前已经能保存：
 
 ```ts
-Record<string, number>
+materials: Record<string, number>
+metaUnlocks: {
+  unlockedRecipes: string[],
+  craftedItems: string[],
+  talentSlots: number
+}
 ```
 
 后续还需要补：
 
 ```text
-unlockedRecipes
-craftedItems
-talentSlots
+天赋装备栏
+已装备天赋列表
+神话武器实际解锁入口
+永久药剂实际属性加成入口
+营地建筑等级入口
 ```
 
 ## 协作注意
