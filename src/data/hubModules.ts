@@ -30,7 +30,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "talents",
     name: "天赋祭坛",
     icon: "✦",
-    description: "预留未来打开 MetaTalentPanel 的入口，读取 game.metaTalentState 管理已解锁、已装备天赋和天赋槽；默认 talentSlots = 1。",
+    description: "未来打开 src/ui/MetaTalentPanel.ts，并由 MetaTalentPanel 读取 game.metaTalentState 管理已解锁、已装备天赋和天赋槽；默认 talentSlots = 1。",
     unlockHint: "完成新手引导后开放。",
   },
   {
