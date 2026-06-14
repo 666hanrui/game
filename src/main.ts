@@ -6,6 +6,7 @@ import { RunSupplyRuntime } from "./systems/RunSupplyRuntime";
 declare global {
   interface Window {
     __roguelikeGameCleanup?: () => void;
+    __roguelikeRunId?: number;
   }
 }
 
@@ -24,6 +25,8 @@ function resetCanvasElement(): HTMLCanvasElement | null {
 
 function main(): void {
   window.__roguelikeGameCleanup?.();
+  window.__roguelikeRunId = (window.__roguelikeRunId ?? 0) + 1;
+  const runId = window.__roguelikeRunId;
 
   const oldDebug = document.getElementById("runtime-debug-panel");
   if (oldDebug) oldDebug.remove();
@@ -99,7 +102,7 @@ function main(): void {
     const autoFire = typeof input.isAutoFireEnabled === "function" ? input.isAutoFireEnabled() : false;
     const focus = document.activeElement === canvas ? "canvas" : (document.activeElement?.tagName ?? "none");
     debugEl.textContent = [
-      `DEBUG phase=${game.phase} hub=${showHubCamp ? "on" : "off"} focus=${focus}`,
+      `DEBUG run=${runId}/${window.__roguelikeRunId} phase=${game.phase} hub=${showHubCamp ? "on" : "off"} focus=${focus}`,
       `race=${game.selectedRace?.id ?? "-"} school=${game.selectedSchool?.id ?? "-"} weapon=${game.selectedWeapon?.id ?? "-"}`,
       `move=(${move.x.toFixed(2)},${move.y.toFixed(2)}) aim=(${aim.x.toFixed(2)},${aim.y.toFixed(2)}) fire=${input.state.shooting ? "yes" : "no"} auto=${autoFire ? "on" : "off"}`,
       `player=(${Math.round(game.player.pos.x)},${Math.round(game.player.pos.y)}) speed=${game.player.speed} hp=${Math.round(game.player.hp)}/${game.player.maxHp}`,
@@ -111,7 +114,7 @@ function main(): void {
   let lastTime = performance.now();
 
   function loop(now: number): void {
-    if (!alive) return;
+    if (!alive || window.__roguelikeRunId !== runId) return;
 
     let dt = (now - lastTime) / 1000;
     if (dt > 0.1) dt = 0.1;
