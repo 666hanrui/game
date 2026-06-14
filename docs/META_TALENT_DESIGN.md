@@ -4,9 +4,10 @@
 
 ```text
 src/data/metaTalents.ts
+src/data/economy.ts
+src/systems/EconomyInventory.ts
 src/systems/MetaTalentProgress.ts
 src/ui/MetaTalentPanel.ts
-src/data/economy.ts
 ```
 
 ## 基础规则
@@ -50,6 +51,42 @@ src/data/metaTalents.ts
 ```
 
 这类天赋应该被归入 `risk` 类。
+
+## 经济库存
+
+经济物品定义在：
+
+```text
+src/data/economy.ts
+```
+
+经济库存由以下文件管理：
+
+```text
+src/systems/EconomyInventory.ts
+```
+
+存储键：
+
+```text
+game.economyItems
+```
+
+可用方法：
+
+```ts
+const inventory = EconomyInventory.load();
+
+inventory.get("expedition_coin");
+inventory.add("expedition_coin", 100);
+inventory.addMany({ expedition_coin: 100, soul_crystal: 20 });
+inventory.canAfford(talent.unlockCosts);
+inventory.spend(talent.unlockCosts);
+inventory.entries();
+inventory.save();
+```
+
+注意：`economy.ts` 和 `materials.ts` 目前是两套数据。短期不强行合并，避免破坏已有系统。天赋消耗先走 `EconomyInventory`，合成材料先走 `MaterialInventory`。
 
 ## 天赋状态
 
@@ -98,11 +135,19 @@ talentProgress.getAvailableTalents();
 talentProgress.isUnlocked("combo_chase");
 talentProgress.isEquipped("combo_chase");
 talentProgress.unlockTalent("combo_chase");
+talentProgress.purchaseUnlockTalent("combo_chase");
 talentProgress.equipTalent("combo_chase");
 talentProgress.unequipTalent("combo_chase");
 talentProgress.getState().talentSlots;
 talentProgress.addTalentSlot(1);
 talentProgress.setTalentSlots(3);
+```
+
+其中：
+
+```text
+unlockTalent(id)：临时/直接解锁，不扣资源，适合调试或任务奖励。
+purchaseUnlockTalent(id)：真实购买解锁，会调用 EconomyInventory.spend(talent.unlockCosts)。
 ```
 
 ## 天赋选择 UI
@@ -123,7 +168,7 @@ src/ui/MetaTalentPanel.ts
 支持临时解锁、装备、卸下。
 ```
 
-注意：当前 `MetaTalentPanel` 是 UI 骨架。它为了方便测试支持“临时解锁”，但尚未接入经济库存扣费。正式购买逻辑需要等 `economy.ts` 的库存系统统一后接入。
+注意：当前 `MetaTalentPanel` 是 UI 骨架。它为了方便测试支持“临时解锁”。正式购买按钮后续应调用 `purchaseUnlockTalent(id)`。
 
 ## 后续接入点
 
@@ -139,20 +184,19 @@ src/ui/MetaTalentPanel.ts
 
 ### 2. 天赋购买消耗
 
-当前 `metaTalents.ts` 已经定义：
-
-```text
-unlockCosts
-upgradeCosts
-```
-
-但还缺少统一的 EconomyInventory。后续建议新增：
+当前基础已完成：
 
 ```text
 src/systems/EconomyInventory.ts
+MetaTalentProgress.purchaseUnlockTalent(id)
 ```
 
-负责远征币、魂晶、异种残核、职业材料等通用/特殊物品的支付。
+后续需要：
+
+```text
+让 MetaTalentPanel 区分“临时解锁”和“购买解锁”。
+给经济库存接入远征结算、任务奖励、宝箱奖励。
+```
 
 ### 3. 战斗属性接入
 
@@ -187,6 +231,8 @@ new MetaTalentProgress().getEquippedTalents()
 
 ```text
 src/data/metaTalents.ts 属于天赋数据层。
+src/data/economy.ts 属于经济物品数据层。
+src/systems/EconomyInventory.ts 属于经济库存层。
 src/systems/MetaTalentProgress.ts 属于天赋状态层。
 src/ui/MetaTalentPanel.ts 属于 UI 层。
 未来的 MetaTalentRuntime 属于战斗运行时转译层。
