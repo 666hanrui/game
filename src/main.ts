@@ -53,10 +53,10 @@ function main(): void {
     const lines = [
       `DEBUG  phase=${game.phase}  hub=${showHubCamp ? "on" : "off"}  focus=${focus}`,
       `race=${game.selectedRace?.id ?? "-"}  school=${game.selectedSchool?.id ?? "-"}  weapon=${game.selectedWeapon?.id ?? "-"}`,
-      `move=(${move.x.toFixed(2)}, ${move.y.toFixed(2)})  aim=(${aim.x.toFixed(2)}, ${aim.y.toFixed(2)})  shooting=${input.state.shooting ? "yes" : "no"}  auto=${autoFire ? "on" : "off"}`,
+      `move=(${move.x.toFixed(2)}, ${move.y.toFixed(2)})  aim=(${aim.x.toFixed(2)}, ${aim.y.toFixed(2)})  active=${input.state.shooting ? "yes" : "no"}  auto=${autoFire ? "on" : "off"}`,
       `player=(${Math.round(game.player.pos.x)}, ${Math.round(game.player.pos.y)})  hp=${Math.round(game.player.hp)}/${game.player.maxHp}  speed=${game.player.speed}`,
       `camera=(${Math.round(game.camera.pos.x)}, ${Math.round(game.camera.pos.y)})  wave=${game.waveNum}  enemies=${game.enemies.length}  projectiles=${game.projectiles.length}  pickups=${game.pickups.length}`,
-      `shootTimer=${game.shootTimer.toFixed(2)}  time=${game.gameTime.toFixed(1)}  hint: WASD move · mouse/J/space fire · F auto-fire`,
+      `timer=${game.shootTimer.toFixed(2)}  time=${game.gameTime.toFixed(1)}  keys: WASD / J / space / F`,
     ];
 
     const x = 14;
@@ -88,6 +88,8 @@ function main(): void {
     let dt = (now - lastTime) / 1000;
     if (dt > 0.1) dt = 0.1;
     lastTime = now;
+
+    game.input.update();
 
     if (showHubCamp && game.phase === "menu") {
       const action = hubCamp.update(game.input, dt, game.w, game.h);
