@@ -46,6 +46,7 @@ const CAMP_H = 860;
 const MODULE_ACCENT: Record<HubModuleId, string> = {
   expedition: "#ffca28",
   talents: "#ce93d8",
+  economyStorage: "#ffd54f",
   workshop: "#ffcc80",
   apothecary: "#81c784",
   quests: "#e1f5fe",
@@ -70,11 +71,12 @@ const MATERIAL_MARKERS: MaterialMarker[] = [
 const CAMP_BUILDINGS: CampBuilding[] = [
   { id: "expedition", name: "远征城门", icon: "▲", kind: "gate", x: 585, y: 78, w: 188, h: 138, color: MODULE_ACCENT.expedition, bossName: "前线队长", line: "开始局内战斗，不碰材料系统。", radius: 126 },
   { id: "talents", name: "天赋祭坛", icon: "✦", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "未来打开 MetaTalentPanel；出征前由 MetaTalentRuntime.buildSnapshot() 生效。", radius: 116 },
+  { id: "economyStorage", name: "资源仓库", icon: "¤", kind: "warehouse", x: 72, y: 230, w: 170, h: 112, color: MODULE_ACCENT.economyStorage, bossName: "资源管理员", line: "未来打开 EconomyStoragePanel，读取 game.economyItems。", radius: 108 },
   { id: "workshop", name: "铁匠工坊", icon: "⚒", kind: "forge", x: 872, y: 195, w: 206, h: 138, color: MODULE_ACCENT.workshop, bossName: "工坊老板", line: "预留神话武器和装备合成。", radius: 120 },
   { id: "apothecary", name: "药剂屋", icon: "✚", kind: "apothecary", x: 252, y: 560, w: 180, h: 126, color: MODULE_ACCENT.apothecary, bossName: "药房老板", line: "预留永久药剂和局外药剂。", radius: 112 },
-  { id: "quests", name: "任务告示牌", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "区域收复、Boss 讨伐、材料任务。", radius: 108 },
+  { id: "quests", name: "指挥公告栏", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "未来打开 QuestBoardPanel，读取 game.questState。", radius: 108 },
   { id: "crafting", name: "符文合成台", icon: "◇", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "未来打开 CraftingPanel，并调用 meta.craftRecipe(recipe)。", radius: 116 },
-  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "未来读取 meta.getMaterials()。", radius: 110 },
+  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "未来打开 MaterialStoragePanel，读取 meta.getMaterials()。", radius: 110 },
   { id: "loot", name: "宝箱陈列台", icon: "▤", kind: "loot", x: 1088, y: 610, w: 178, h: 116, color: MODULE_ACCENT.loot, bossName: "战利品记录员", line: "未来展示 ChestDropSystem 产物。", radius: 112 },
   { id: "map", name: "收复沙盘", icon: "◎", kind: "map", x: 1092, y: 360, w: 176, h: 120, color: MODULE_ACCENT.map, bossName: "测绘员", line: "最终目标不是刷怪，是收复土地。", radius: 112 },
   { id: "archive", name: "异种档案馆", icon: "?", kind: "archive", x: 590, y: 340, w: 160, h: 112, color: MODULE_ACCENT.archive, bossName: "档案员", line: "见过的怪物、材料和路线都会记录。", radius: 100 },
@@ -269,9 +271,11 @@ export class HubCampPanel {
   private drawDistrictLabels(ctx: CanvasRenderingContext2D, view: CampView): void {
     const labels = [
       { text: "前线区", x: 646, y: 62, color: MODULE_ACCENT.expedition },
-      { text: "工坊区", x: 985, y: 176, color: MODULE_ACCENT.workshop },
+      { text: "资源区", x: 150, y: 214, color: MODULE_ACCENT.economyStorage },
       { text: "材料区", x: 156, y: 348, color: MODULE_ACCENT.storage },
+      { text: "工坊区", x: 985, y: 176, color: MODULE_ACCENT.workshop },
       { text: "符文研究区", x: 666, y: 328, color: MODULE_ACCENT.archive },
+      { text: "任务区", x: 656, y: 598, color: MODULE_ACCENT.quests },
       { text: "战利品区", x: 1180, y: 594, color: MODULE_ACCENT.loot },
     ];
 
@@ -490,7 +494,7 @@ export class HubCampPanel {
     ctx.fillStyle = b.color;
     ctx.font = `bold ${Math.max(12, w * 0.12)}px monospace`;
     ctx.textAlign = "center";
-    ctx.fillText("▣", x + w * 0.5, y + h * 0.86);
+    ctx.fillText(b.icon, x + w * 0.5, y + h * 0.86);
   }
 
   private drawLootStand(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, b: CampBuilding, active: boolean, selected: boolean): void {
