@@ -48,9 +48,24 @@ export interface PurchaseResult {
   total?: number;
 }
 
+export interface MetaUnlockState {
+  unlockedRecipes: string[];
+  craftedItems: string[];
+  talentSlots: number;
+}
+
+export interface CraftResult {
+  ok: boolean;
+  recipe?: RecipeDefinition;
+  unlocks?: MetaUnlockState;
+  spend?: SpendResult;
+  reason?: string;
+}
+
 const SOUL_KEY = "game.soulCrystals";
 const UPGRADE_KEY = "game.metaUpgrades";
 const MATERIAL_KEY = "game.materials";
+const UNLOCK_KEY = "game.metaUnlocks";
 
 export const META_UPGRADES: MetaUpgradeDef[] = [
   { id: "max_hp", name: "生命根基", description: "每级初始生命 +10", maxLevel: 10, baseCost: 8, costStep: 5 },
@@ -64,6 +79,12 @@ const DEFAULT_LEVELS: MetaUpgradeLevels = {
   damage: 0,
   speed: 0,
   xp_gain: 0,
+};
+
+const DEFAULT_UNLOCKS: MetaUnlockState = {
+  unlockedRecipes: [],
+  craftedItems: [],
+  talentSlots: 1,
 };
 
 export class MetaProgress {
@@ -132,6 +153,87 @@ export class MetaProgress {
     return result;
   }
 
+  craftRecipe(recipe: RecipeDefinition): CraftResult {
+    const spend = this.spendRecipeMaterials(recipe);
+    if (!spend.ok) return { ok: false, recipe, spend, reason: "材料不足" };
+    const unlocks = this.applyRecipeResult(recipe);
+    return { ok: true, recipe, spend, unlocks };
+  }
+
+  getUnlockState(): MetaUnlockState {
+    try {
+      const raw = window.localStorage.getItem(UNLOCK_KEY);
+      if (!raw) return { ...DEFAULT_UNLOCKS };
+      const parsed = JSON.parse(raw) as Partial<MetaUnlockState>;
+      return {
+        unlockedRecipes: this.cleanStringList(parsed.unlockedRecipes),
+        craftedItems: this.cleanStringList(parsed.craftedItems),
+        talentSlots: Math.max(1, Math.floor(Number(parsed.talentSlots) || DEFAULT_UNLOCKS.talentSlots)),
+      };
+    } catch {
+      return { ...DEFAULT_UNLOCKS };
+    }
+  }
+
+  setUnlockState(state: MetaUnlockState): void {
+    try {
+      window.localStorage.setItem(UNLOCK_KEY, JSON.stringify({
+        unlockedRecipes: this.uniqueStrings(state.unlockedRecipes),
+        craftedItems: this.uniqueStrings(state.craftedItems),
+        talentSlots: Math.max(1, Math.floor(state.talentSlots)),
+      }));
+    } catch {
+      // localStorage 不可用时忽略。
+    }
+  }
+
+  hasCraftedItem(id: string): boolean {
+    return this.getUnlockState().craftedItems.includes(id);
+  }
+
+  hasUnlockedRecipe(id: string): boolean {
+    return this.getUnlockState().unlockedRecipes.includes(id);
+  }
+
+  getTalentSlots(): number {
+    return this.getUnlockState().talentSlots;
+  }
+
+  unlockRecipe(id: string): MetaUnlockState {
+    const state = this.getUnlockState();
+    state.unlockedRecipes = this.uniqueStrings([...state.unlockedRecipes, id]);
+    this.setUnlockState(state);
+    return state;
+  }
+
+  addCraftedItem(id: string): MetaUnlockState {
+    const state = this.getUnlockState();
+    state.craftedItems = this.uniqueStrings([...state.craftedItems, id]);
+    this.setUnlockState(state);
+    return state;
+  }
+
+  addTalentSlot(amount = 1): MetaUnlockState {
+    const state = this.getUnlockState();
+    state.talentSlots = Math.max(1, state.talentSlots + Math.max(0, Math.floor(amount)));
+    this.setUnlockState(state);
+    return state;
+  }
+
+  applyRecipeResult(recipe: RecipeDefinition): MetaUnlockState {
+    const state = this.getUnlockState();
+    state.unlockedRecipes = this.uniqueStrings([...state.unlockedRecipes, recipe.id]);
+
+    if (recipe.result.type === "talent_slot") {
+      state.talentSlots = Math.max(state.talentSlots, 1) + 1;
+    } else {
+      state.craftedItems = this.uniqueStrings([...state.craftedItems, recipe.result.id]);
+    }
+
+    this.setUnlockState(state);
+    return state;
+  }
+
   getUpgradeLevels(): MetaUpgradeLevels {
     try {
       const raw = window.localStorage.getItem(UPGRADE_KEY);
@@ -183,6 +285,7 @@ export class MetaProgress {
       window.localStorage.removeItem(SOUL_KEY);
       window.localStorage.removeItem(UPGRADE_KEY);
       window.localStorage.removeItem(MATERIAL_KEY);
+      window.localStorage.removeItem(UNLOCK_KEY);
     } catch {
       // localStorage 不可用时忽略。
     }
@@ -226,5 +329,13 @@ export class MetaProgress {
   private clampLevel(id: MetaUpgradeId, level: number): number {
     const def = META_UPGRADES.find((u) => u.id === id)!;
     return Math.max(0, Math.min(def.maxLevel, Math.floor(Number(level) || 0)));
+  }
+
+  private cleanStringList(value: unknown): string[] {
+    return Array.isArray(value) ? this.uniqueStrings(value.filter((item): item is string => typeof item === "string" && item.length > 0)) : [];
+  }
+
+  private uniqueStrings(value: string[]): string[] {
+    return [...new Set(value)];
   }
 }
