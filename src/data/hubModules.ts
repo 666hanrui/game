@@ -65,7 +65,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "storage",
     name: "材料仓库",
     icon: "▣",
-    description: "未来读取 meta.getMaterials()，展示所有可带出局材料、来源、用途、数量和可合成目标。",
+    description: "未来打开 src/ui/MaterialStoragePanel.ts，并由 MaterialStoragePanel 读取 meta.getMaterials() 展示可带出局材料、来源、用途和数量。",
     unlockHint: "默认开放。",
   },
   {
