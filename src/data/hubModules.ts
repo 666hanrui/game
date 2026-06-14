@@ -58,7 +58,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "crafting",
     name: "符文合成台",
     icon: "◇",
-    description: "未来读取 RECIPES，并通过 meta.spendRecipeMaterials(recipe) 消耗材料来合成高阶物品。",
+    description: "未来打开 src/ui/CraftingPanel.ts，并由 CraftingPanel 读取 RECIPES、通过 meta.spendRecipeMaterials(recipe) 消耗材料来合成高阶物品。",
     unlockHint: "获得第一份合成配方后开放。",
   },
   {
