@@ -11,12 +11,21 @@ export type HubModuleId =
   | "map"
   | "archive";
 
+export type HubModuleAction =
+  | "start"
+  | "open_crafting"
+  | "open_material_storage"
+  | "open_economy_storage"
+  | "open_talents"
+  | "open_quests";
+
 export interface HubModuleDef {
   id: HubModuleId;
   name: string;
   icon: string;
   description: string;
   unlockHint: string;
+  action?: HubModuleAction;
 }
 
 export const HUB_MODULES: HubModuleDef[] = [
@@ -24,6 +33,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "expedition",
     name: "远征城门",
     icon: "▲",
+    action: "start",
     description: "营地北侧的前线城门。靠近后按 E 开始局内战斗，再进入种族、体系和武器选择。",
     unlockHint: "默认开放。",
   },
@@ -31,6 +41,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "talents",
     name: "天赋祭坛",
     icon: "✦",
+    action: "open_talents",
     description: "未来打开 src/ui/MetaTalentPanel.ts 管理 game.metaTalentState；进入战斗前由 new MetaTalentRuntime().buildSnapshot() 汇总已装备天赋为统一战斗修正。",
     unlockHint: "默认 1 个天赋槽，后续槽位和天赋解锁走局外经济。",
   },
@@ -38,6 +49,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "economyStorage",
     name: "资源仓库",
     icon: "¤",
+    action: "open_economy_storage",
     description: "未来打开 src/ui/EconomyStoragePanel.ts，并由 EconomyStoragePanel 读取 EconomyInventory.load() 展示 game.economyItems 中的远征币、魂晶和局外经济物品。",
     unlockHint: "默认开放，用于查看天赋、工坊、药房、职业和区域消耗。",
   },
@@ -59,6 +71,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "quests",
     name: "指挥公告栏",
     icon: "☰",
+    action: "open_quests",
     description: "未来打开 src/ui/QuestBoardPanel.ts，并由 QuestBoardPanel 读取 QuestProgress / game.questState，展示新手引导、区域收复、Boss 讨伐、材料收集和营地建设任务。",
     unlockHint: "默认开放，任务奖励流向 EconomyInventory、MaterialInventory、MetaTalentProgress 或 MetaProgress。",
   },
@@ -66,6 +79,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "crafting",
     name: "符文合成台",
     icon: "◇",
+    action: "open_crafting",
     description: "未来打开 src/ui/CraftingPanel.ts，由 CraftingPanel 调用 meta.craftRecipe(recipe)，完成材料扣除、合成结果应用和 game.metaUnlocks 持久化。",
     unlockHint: "获得第一份合成配方后开放。",
   },
@@ -73,6 +87,7 @@ export const HUB_MODULES: HubModuleDef[] = [
     id: "storage",
     name: "材料仓库",
     icon: "▣",
+    action: "open_material_storage",
     description: "未来打开 src/ui/MaterialStoragePanel.ts，并由 MaterialStoragePanel 读取 meta.getMaterials() 展示可带出局材料、来源、用途和数量。",
     unlockHint: "默认开放，专门查看神话骨骼、古代符文、星陨金属等合成材料。",
   },
