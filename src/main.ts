@@ -20,6 +20,25 @@ function main(): void {
   let showHubCamp = true;
   let lastPhase = game.phase;
 
+  const debugEl = document.createElement("pre");
+  debugEl.id = "runtime-debug-panel";
+  debugEl.style.position = "fixed";
+  debugEl.style.left = "12px";
+  debugEl.style.top = "118px";
+  debugEl.style.zIndex = "999999";
+  debugEl.style.width = "760px";
+  debugEl.style.maxWidth = "calc(100vw - 24px)";
+  debugEl.style.padding = "10px 12px";
+  debugEl.style.margin = "0";
+  debugEl.style.background = "rgba(0,0,0,0.84)";
+  debugEl.style.border = "2px solid #80deea";
+  debugEl.style.color = "#ffffff";
+  debugEl.style.font = "12px/1.45 monospace";
+  debugEl.style.pointerEvents = "none";
+  debugEl.style.whiteSpace = "pre-wrap";
+  debugEl.textContent = "debug booting...";
+  document.body.appendChild(debugEl);
+
   canvas.addEventListener("pointerdown", () => canvas.focus());
 
   canvas.addEventListener("click", (e) => {
@@ -43,44 +62,20 @@ function main(): void {
     }
   }, true);
 
-  function renderRuntimeDebug(): void {
-    const ctx = game.ctx;
+  function updateRuntimeDebug(): void {
     const input = game.input;
     const move = input.state.moveDir;
     const aim = input.state.aimDir;
     const autoFire = typeof input.isAutoFireEnabled === "function" ? input.isAutoFireEnabled() : false;
     const focus = document.activeElement === canvas ? "canvas" : (document.activeElement?.tagName ?? "none");
-    const lines = [
+    debugEl.textContent = [
       `DEBUG phase=${game.phase} hub=${showHubCamp ? "on" : "off"} focus=${focus}`,
       `race=${game.selectedRace?.id ?? "-"} school=${game.selectedSchool?.id ?? "-"} weapon=${game.selectedWeapon?.id ?? "-"}`,
       `move=(${move.x.toFixed(2)},${move.y.toFixed(2)}) aim=(${aim.x.toFixed(2)},${aim.y.toFixed(2)}) fire=${input.state.shooting ? "yes" : "no"} auto=${autoFire ? "on" : "off"}`,
       `player=(${Math.round(game.player.pos.x)},${Math.round(game.player.pos.y)}) speed=${game.player.speed} hp=${Math.round(game.player.hp)}/${game.player.maxHp}`,
       `camera=(${Math.round(game.camera.pos.x)},${Math.round(game.camera.pos.y)}) wave=${game.waveNum} enemies=${game.enemies.length} shots=${game.projectiles.length}`,
       `timer=${game.shootTimer.toFixed(2)} time=${game.gameTime.toFixed(1)} keys: WASD J Space F`,
-    ];
-
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    const x = 12;
-    const y = 122;
-    const w = Math.min(760, game.w - 24);
-    const h = 136;
-
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "rgba(0,0,0,0.82)";
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = "#80deea";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-    ctx.font = "12px monospace";
-    for (let i = 0; i < lines.length; i++) {
-      ctx.fillStyle = i === 0 ? "#80deea" : "#ffffff";
-      ctx.fillText(lines[i], x + 12, y + 22 + i * 20);
-    }
-    ctx.restore();
+    ].join("\n");
   }
 
   let lastTime = performance.now();
@@ -111,12 +106,7 @@ function main(): void {
       runSupply.render(game.ctx);
     }
 
-    try {
-      renderRuntimeDebug();
-    } catch (err) {
-      console.error("debug panel failed", err);
-    }
-
+    updateRuntimeDebug();
     requestAnimationFrame(loop);
   }
 
