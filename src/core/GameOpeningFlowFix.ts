@@ -28,8 +28,37 @@ function placeEnemyNearPlayer(game: Game, enemy: Enemy, index: number, total: nu
   enemy.pos.y = Math.max(80, Math.min(WORLD_H - 80, game.player.pos.y + Math.sin(angle) * dist));
 }
 
+function resetChoiceScreen(game: any): void {
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const ctx = game.ctx as CanvasRenderingContext2D;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#111118";
+  ctx.fillRect(0, 0, game.w, game.h);
+}
+
 export function installGameOpeningFlowFix(): void {
   const proto = Game.prototype as any;
+
+  if (!proto.__baseRenderForOpeningFlow) proto.__baseRenderForOpeningFlow = proto.render;
+  const baseRender = proto.__baseRenderForOpeningFlow;
+
+  proto.render = function render(this: any): void {
+    if (this.phase === "school_choice") {
+      resetChoiceScreen(this);
+      this.schoolPanel.render(this.ctx, this.w, this.h);
+      return;
+    }
+
+    if (this.phase === "weapon_choice") {
+      resetChoiceScreen(this);
+      if (this.selectedSchool?.id) this.weaponPanel.setSchool(this.selectedSchool.id);
+      this.weaponPanel.render(this.ctx, this.w, this.h, this.assets);
+      return;
+    }
+
+    baseRender.call(this);
+  };
 
   proto["selectRace"] = function selectRace(this: any, race: Race): void {
     this.selectedRace = race;
