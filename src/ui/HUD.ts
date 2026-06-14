@@ -103,6 +103,6 @@ export class HUD {
     ctx.textAlign = "center";
     ctx.font = "11px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.25)";
-    ctx.fillText("WASD 移动 · 鼠标瞄准 · 按住左键射击", ctx.canvas.width / 2, ctx.canvas.height - 16);
+    ctx.fillText("WASD 移动 · 鼠标瞄准 · 左键/J/空格射击 · F 切换自动开火", ctx.canvas.width / 2, ctx.canvas.height - 16);
   }
 }
