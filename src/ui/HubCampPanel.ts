@@ -17,7 +17,7 @@ interface CampView {
   toScreen: (x: number, y: number) => { x: number; y: number };
 }
 
-type BuildingKind = "gate" | "temple" | "forge" | "apothecary" | "board" | "rune" | "warehouse" | "map" | "archive";
+type BuildingKind = "gate" | "temple" | "forge" | "apothecary" | "board" | "rune" | "warehouse" | "loot" | "map" | "archive";
 
 interface CampBuilding {
   id: HubModuleId;
@@ -51,6 +51,7 @@ const MODULE_ACCENT: Record<HubModuleId, string> = {
   quests: "#e1f5fe",
   crafting: "#b3e5fc",
   storage: "#90caf9",
+  loot: "#ffd54f",
   map: "#ff8a65",
   archive: "#b0bec5",
 };
@@ -69,11 +70,12 @@ const MATERIAL_MARKERS: MaterialMarker[] = [
 const CAMP_BUILDINGS: CampBuilding[] = [
   { id: "expedition", name: "远征城门", icon: "▲", kind: "gate", x: 585, y: 78, w: 188, h: 138, color: MODULE_ACCENT.expedition, bossName: "前线队长", line: "穿过城门，下一站就是战场。", radius: 126 },
   { id: "talents", name: "天赋殿堂", icon: "✦", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "第一个槽位会由新手引导赠送。", radius: 116 },
-  { id: "workshop", name: "铁匠工坊", icon: "⚒", kind: "forge", x: 872, y: 195, w: 206, h: 138, color: MODULE_ACCENT.workshop, bossName: "工坊老板", line: "我强化补给池，不碰宝箱奖励池。", radius: 120 },
-  { id: "apothecary", name: "药剂屋", icon: "✚", kind: "apothecary", x: 252, y: 560, w: 180, h: 126, color: MODULE_ACCENT.apothecary, bossName: "药房老板", line: "局内药剂走补给，永久药剂走合成。", radius: 112 },
-  { id: "quests", name: "任务告示牌", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "清剿、Boss、材料、收复，都得记账。", radius: 108 },
-  { id: "crafting", name: "符文合成台", icon: "◇", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "骨骼、符文、遗芯和星陨金属才配上台。", radius: 116 },
-  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "金叶魂晶放前厅，特殊材料进秘库。", radius: 110 },
+  { id: "workshop", name: "铁匠工坊", icon: "⚒", kind: "forge", x: 872, y: 195, w: 206, h: 138, color: MODULE_ACCENT.workshop, bossName: "工坊老板", line: "神话武器、装备合成和工坊扩建都从这里起步。", radius: 120 },
+  { id: "apothecary", name: "药剂屋", icon: "✚", kind: "apothecary", x: 252, y: 560, w: 180, h: 126, color: MODULE_ACCENT.apothecary, bossName: "药房老板", line: "卖局外药和永久药剂，不卖宝箱垃圾补给。", radius: 112 },
+  { id: "quests", name: "任务告示牌", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "区域收复、Boss 讨伐、材料任务都得记账。", radius: 108 },
+  { id: "crafting", name: "符文合成台", icon: "◇", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "未来读取 RECIPES，先把材料槽给你摆好。", radius: 116 },
+  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "未来读取 MaterialInventory，材料不和补给混放。", radius: 110 },
+  { id: "loot", name: "宝箱陈列台", icon: "▤", kind: "loot", x: 1088, y: 610, w: 178, h: 116, color: MODULE_ACCENT.loot, bossName: "战利品记录员", line: "这里以后展示 ChestDropSystem 的宝箱产出。", radius: 112 },
   { id: "map", name: "收复沙盘", icon: "◎", kind: "map", x: 1092, y: 360, w: 176, h: 120, color: MODULE_ACCENT.map, bossName: "测绘员", line: "最终目标不是刷怪，是收复土地。", radius: 112 },
   { id: "archive", name: "异种档案馆", icon: "?", kind: "archive", x: 590, y: 340, w: 160, h: 112, color: MODULE_ACCENT.archive, bossName: "档案员", line: "见过的怪物、材料和路线都会记录。", radius: 100 },
 ];
@@ -270,6 +272,7 @@ export class HubCampPanel {
       { text: "工坊区", x: 985, y: 176, color: MODULE_ACCENT.workshop },
       { text: "材料区", x: 156, y: 348, color: MODULE_ACCENT.storage },
       { text: "符文研究区", x: 666, y: 328, color: MODULE_ACCENT.archive },
+      { text: "战利品区", x: 1180, y: 594, color: MODULE_ACCENT.loot },
     ];
 
     ctx.save();
@@ -300,6 +303,7 @@ export class HubCampPanel {
     else if (b.kind === "board") this.drawQuestBoard(ctx, p.x, p.y, w, h, b, active, selected);
     else if (b.kind === "rune") this.drawRuneTable(ctx, p.x, p.y, w, h, b, active, selected);
     else if (b.kind === "warehouse") this.drawWarehouse(ctx, p.x, p.y, w, h, b, active, selected);
+    else if (b.kind === "loot") this.drawLootStand(ctx, p.x, p.y, w, h, b, active, selected);
     else if (b.kind === "map") this.drawMapTable(ctx, p.x, p.y, w, h, b, active, selected);
     else this.drawArchive(ctx, p.x, p.y, w, h, b, active, selected);
 
@@ -487,6 +491,51 @@ export class HubCampPanel {
     ctx.font = `bold ${Math.max(12, w * 0.12)}px monospace`;
     ctx.textAlign = "center";
     ctx.fillText("▣", x + w * 0.5, y + h * 0.86);
+  }
+
+  private drawLootStand(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, b: CampBuilding, active: boolean, selected: boolean): void {
+    ctx.fillStyle = active ? this.alpha(b.color, 0.22) : selected ? this.alpha(b.color, 0.14) : "rgba(29,22,10,0.9)";
+    ctx.strokeStyle = active ? b.color : this.alpha(b.color, 0.5);
+    ctx.lineWidth = active ? 3 : 1.6;
+    this.roundRect(ctx, x + w * 0.08, y + h * 0.42, w * 0.84, h * 0.42, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    const chests = [
+      { label: "小", color: "#80deea", scale: 0.82 },
+      { label: "大", color: "#ffcc80", scale: 1 },
+      { label: "神", color: "#ce93d8", scale: 1.1 },
+    ];
+    for (let i = 0; i < chests.length; i++) {
+      const chest = chests[i];
+      const cw = w * 0.18 * chest.scale;
+      const ch = h * 0.28 * chest.scale;
+      const cx = x + w * (0.25 + i * 0.25) - cw / 2;
+      const cy = y + h * (0.42 - i * 0.03);
+      ctx.fillStyle = this.alpha(chest.color, 0.2);
+      ctx.strokeStyle = chest.color;
+      ctx.lineWidth = 2;
+      this.roundRect(ctx, cx, cy, cw, ch, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = this.alpha("#000000", 0.35);
+      ctx.fillRect(cx, cy + ch * 0.42, cw, ch * 0.14);
+      ctx.fillStyle = chest.color;
+      ctx.font = `bold ${Math.max(10, w * 0.07)}px monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(chest.label, cx + cw / 2, cy + ch * 0.78);
+    }
+
+    ctx.strokeStyle = this.alpha(b.color, 0.5);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.14, y + h * 0.84);
+    ctx.lineTo(x + w * 0.86, y + h * 0.84);
+    ctx.stroke();
+    ctx.fillStyle = b.color;
+    ctx.font = `bold ${Math.max(11, w * 0.09)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("▤", x + w * 0.5, y + h * 0.7);
   }
 
   private drawMapTable(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, b: CampBuilding, active: boolean, selected: boolean): void {
