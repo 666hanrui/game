@@ -1,11 +1,14 @@
 import { Input } from "../core/Input";
 import { HUB_MODULES } from "../data/hubModules";
-import type { HubModuleAction, HubModuleId } from "../data/hubModules";
+import type { HubModuleId } from "../data/hubModules";
+import { getHubActionByModule, getHubSubPanelId } from "../data/hubActions";
+import type { HubCampAction } from "../data/hubActions";
 import { ECONOMY_ITEMS } from "../data/economy";
 import type { EconomyItemDef } from "../data/economy";
 
-export type HubCampAction = HubModuleAction;
-type HubCampInteraction = HubCampAction | HubModuleId;
+export type { HubCampAction } from "../data/hubActions";
+
+type HubCampInteraction = HubCampAction;
 
 interface Rect {
   x: number;
@@ -36,7 +39,6 @@ interface CampBuilding {
   bossName: string;
   line: string;
   radius: number;
-  action?: HubCampAction;
 }
 
 interface MaterialMarker {
@@ -74,14 +76,14 @@ const MATERIAL_MARKERS: MaterialMarker[] = [
 ];
 
 const CAMP_BUILDINGS: CampBuilding[] = [
-  { id: "expedition", name: "远征城门", icon: "▲", action: "start", kind: "gate", x: 585, y: 78, w: 188, h: 138, color: MODULE_ACCENT.expedition, bossName: "前线队长", line: "返回 start，开始局内战斗。", radius: 126 },
-  { id: "talents", name: "天赋祭坛", icon: "✦", action: "open_talents", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "返回 open_talents，交给 HubSubPanelManager。", radius: 116 },
-  { id: "economyStorage", name: "资源仓库", icon: "¤", action: "open_economy_storage", kind: "warehouse", x: 72, y: 230, w: 170, h: 112, color: MODULE_ACCENT.economyStorage, bossName: "资源管理员", line: "返回 open_economy_storage，读取 game.economyItems。", radius: 108 },
+  { id: "expedition", name: "远征城门", icon: "▲", kind: "gate", x: 585, y: 78, w: 188, h: 138, color: MODULE_ACCENT.expedition, bossName: "前线队长", line: "开始局内战斗。", radius: 126 },
+  { id: "talents", name: "天赋祭坛", icon: "✦", kind: "temple", x: 218, y: 170, w: 188, h: 132, color: MODULE_ACCENT.talents, bossName: "天赋导师", line: "交给天赋子面板处理。", radius: 116 },
+  { id: "economyStorage", name: "资源仓库", icon: "¤", kind: "warehouse", x: 72, y: 230, w: 170, h: 112, color: MODULE_ACCENT.economyStorage, bossName: "资源管理员", line: "查看远征币、魂晶和局外经济物品。", radius: 108 },
   { id: "workshop", name: "铁匠工坊", icon: "⚒", kind: "forge", x: 872, y: 195, w: 206, h: 138, color: MODULE_ACCENT.workshop, bossName: "工坊老板", line: "预留神话武器和装备合成。", radius: 120 },
   { id: "apothecary", name: "药剂屋", icon: "✚", kind: "apothecary", x: 252, y: 560, w: 180, h: 126, color: MODULE_ACCENT.apothecary, bossName: "药房老板", line: "预留永久药剂和局外药剂。", radius: 112 },
-  { id: "quests", name: "指挥公告栏", icon: "☰", action: "open_quests", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "返回 open_quests，交给 QuestBoardPanel。", radius: 108 },
-  { id: "crafting", name: "符文合成台", icon: "◇", action: "open_crafting", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "返回 open_crafting，交给 CraftingPanel。", radius: 116 },
-  { id: "storage", name: "材料仓库", icon: "▣", action: "open_material_storage", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "返回 open_material_storage，读取 meta.getMaterials()。", radius: 110 },
+  { id: "quests", name: "指挥公告栏", icon: "☰", kind: "board", x: 568, y: 615, w: 176, h: 112, color: MODULE_ACCENT.quests, bossName: "任务书记", line: "交给任务子面板处理。", radius: 108 },
+  { id: "crafting", name: "符文合成台", icon: "◇", kind: "rune", x: 900, y: 545, w: 180, h: 124, color: MODULE_ACCENT.crafting, bossName: "合成匠", line: "交给合成子面板处理。", radius: 116 },
+  { id: "storage", name: "材料仓库", icon: "▣", kind: "warehouse", x: 82, y: 365, w: 182, h: 124, color: MODULE_ACCENT.storage, bossName: "仓库管理员", line: "查看可带出局材料。", radius: 110 },
   { id: "loot", name: "宝箱陈列台", icon: "▤", kind: "loot", x: 1088, y: 610, w: 178, h: 116, color: MODULE_ACCENT.loot, bossName: "战利品记录员", line: "未来展示 ChestDropSystem 产物。", radius: 112 },
   { id: "map", name: "收复沙盘", icon: "◎", kind: "map", x: 1092, y: 360, w: 176, h: 120, color: MODULE_ACCENT.map, bossName: "测绘员", line: "最终目标不是刷怪，是收复土地。", radius: 112 },
   { id: "archive", name: "异种档案馆", icon: "?", kind: "archive", x: 590, y: 340, w: 160, h: 112, color: MODULE_ACCENT.archive, bossName: "档案员", line: "见过的怪物、材料和路线都会记录。", radius: 100 },
@@ -143,7 +145,7 @@ export class HubCampPanel {
   }
 
   handleClick(x: number, y: number): HubCampInteraction | null {
-    if (this.inRect(x, y, this.startButtonRect)) return "start";
+    if (this.inRect(x, y, this.startButtonRect)) return this.getModuleInteraction("expedition");
 
     const clicked = this.findBuildingAtScreen(x, y);
     if (clicked) {
@@ -741,11 +743,16 @@ export class HubCampPanel {
     this.wrapText(ctx, module.description, x + 20, y + 60, panelW - 40, 18, 3);
 
     if (building) {
-      const action = this.getBuildingAction(building);
-      const actionText = action ? `动作：${action}` : "动作：暂未接子面板";
+      const actionDef = getHubActionByModule(building.id);
+      const subPanelId = actionDef ? getHubSubPanelId(actionDef.action) : undefined;
+      const routeText = actionDef
+        ? subPanelId
+          ? `动作：${actionDef.action} → ${subPanelId}`
+          : `动作：${actionDef.action}`
+        : "动作：未配置";
       ctx.fillStyle = this.interactFlash > 0 ? "#ffeb3b" : "rgba(255,255,255,0.54)";
       ctx.font = "bold 12px monospace";
-      ctx.fillText(`${building.bossName}：${building.line} ${actionText}`, x + 20, y + panelH - 22);
+      ctx.fillText(`${building.bossName}：${building.line} ${routeText}`, x + 20, y + panelH - 22);
     }
   }
 
@@ -800,12 +807,12 @@ export class HubCampPanel {
     return null;
   }
 
-  private getBuildingAction(building: CampBuilding): HubCampAction | undefined {
-    return building.action ?? HUB_MODULES.find((module) => module.id === building.id)?.action;
+  private getModuleInteraction(moduleId: HubModuleId): HubCampInteraction | null {
+    return getHubActionByModule(moduleId)?.action ?? null;
   }
 
-  private getBuildingInteraction(building: CampBuilding): HubCampInteraction {
-    return this.getBuildingAction(building) ?? building.id;
+  private getBuildingInteraction(building: CampBuilding): HubCampInteraction | null {
+    return this.getModuleInteraction(building.id);
   }
 
   private panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, fill: string, stroke: string, lineWidth = 1): void {
