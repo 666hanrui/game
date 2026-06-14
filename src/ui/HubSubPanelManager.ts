@@ -1,13 +1,28 @@
+import { ApothecaryPanel } from "./ApothecaryPanel";
+import { ArchivePanel } from "./ArchivePanel";
 import { CraftingPanel } from "./CraftingPanel";
 import { EconomyStoragePanel } from "./EconomyStoragePanel";
+import { LootPanel } from "./LootPanel";
 import { MaterialStoragePanel } from "./MaterialStoragePanel";
 import { MetaTalentPanel } from "./MetaTalentPanel";
 import { QuestBoardPanel } from "./QuestBoardPanel";
+import { RegionMapPanel } from "./RegionMapPanel";
+import { WorkshopPanel } from "./WorkshopPanel";
 import { MetaProgress } from "../systems/MetaProgress";
 import { MetaTalentProgress } from "../systems/MetaTalentProgress";
 import { QuestProgress } from "../systems/QuestProgress";
 
-export type HubSubPanelId = "crafting" | "material_storage" | "economy_storage" | "talents" | "quests";
+export type HubSubPanelId =
+  | "crafting"
+  | "material_storage"
+  | "economy_storage"
+  | "talents"
+  | "quests"
+  | "workshop"
+  | "apothecary"
+  | "loot"
+  | "region_map"
+  | "archive";
 
 export interface HubSubPanelHandleResult {
   closed: boolean;
@@ -20,6 +35,11 @@ export const HUB_SUB_PANEL_LABELS: Record<HubSubPanelId, string> = {
   economy_storage: "资源仓库",
   talents: "天赋祭坛",
   quests: "任务板",
+  workshop: "铁匠工坊",
+  apothecary: "药剂屋",
+  loot: "宝箱陈列台",
+  region_map: "收复沙盘",
+  archive: "异种档案馆",
 };
 
 export class HubSubPanelManager {
@@ -30,6 +50,11 @@ export class HubSubPanelManager {
   private readonly economyStoragePanel = new EconomyStoragePanel();
   private readonly metaTalentPanel = new MetaTalentPanel();
   private readonly questBoardPanel = new QuestBoardPanel();
+  private readonly workshopPanel = new WorkshopPanel();
+  private readonly apothecaryPanel = new ApothecaryPanel();
+  private readonly lootPanel = new LootPanel();
+  private readonly regionMapPanel = new RegionMapPanel();
+  private readonly archivePanel = new ArchivePanel();
 
   private readonly metaProgress = new MetaProgress();
   private readonly metaTalentProgress = new MetaTalentProgress();
@@ -84,6 +109,31 @@ export class HubSubPanelManager {
         if (action === "back") return this.closeWithResult();
         return { closed: false, action };
       }
+      case "workshop": {
+        const action = this.workshopPanel.handleClick(cx, cy);
+        if (action === "back") return this.closeWithResult();
+        return { closed: false, action };
+      }
+      case "apothecary": {
+        const action = this.apothecaryPanel.handleClick(cx, cy);
+        if (action === "back") return this.closeWithResult();
+        return { closed: false, action };
+      }
+      case "loot": {
+        const action = this.lootPanel.handleClick(cx, cy);
+        if (action === "back") return this.closeWithResult();
+        return { closed: false, action };
+      }
+      case "region_map": {
+        const action = this.regionMapPanel.handleClick(cx, cy);
+        if (action === "back") return this.closeWithResult();
+        return { closed: false, action };
+      }
+      case "archive": {
+        const action = this.archivePanel.handleClick(cx, cy);
+        if (action === "back") return this.closeWithResult();
+        return { closed: false, action };
+      }
     }
   }
 
@@ -105,6 +155,21 @@ export class HubSubPanelManager {
         return;
       case "quests":
         this.questBoardPanel.render(ctx, w, h, this.questProgress);
+        return;
+      case "workshop":
+        this.workshopPanel.render(ctx, w, h);
+        return;
+      case "apothecary":
+        this.apothecaryPanel.render(ctx, w, h);
+        return;
+      case "loot":
+        this.lootPanel.render(ctx, w, h);
+        return;
+      case "region_map":
+        this.regionMapPanel.render(ctx, w, h);
+        return;
+      case "archive":
+        this.archivePanel.render(ctx, w, h);
         return;
     }
   }
