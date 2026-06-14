@@ -57,10 +57,10 @@ export const HUB_MODULES: HubModuleDef[] = [
   },
   {
     id: "quests",
-    name: "任务告示牌",
+    name: "指挥公告栏",
     icon: "☰",
-    description: "预留区域收复、Boss 讨伐、材料收集任务入口，是营地目标导向的任务板。",
-    unlockHint: "默认开放。",
+    description: "未来打开 src/ui/QuestBoardPanel.ts，并由 QuestBoardPanel 读取 QuestProgress / game.questState，展示新手引导、区域收复、Boss 讨伐、材料收集和营地建设任务。",
+    unlockHint: "默认开放，任务奖励流向 EconomyInventory、MaterialInventory、MetaTalentProgress 或 MetaProgress。",
   },
   {
     id: "crafting",
