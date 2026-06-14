@@ -71,7 +71,7 @@ export const QUESTS: QuestDefinition[] = [
       { type: "wave_reach", label: "抵达第 8 波", required: 8 },
       { type: "kill_elite", label: "击败精英", required: 2 },
     ],
-    rewards: { economy: { expedition_coin: 260, reclaimed_mark: 3 }, materials: { rift_mark: 3, alien_core: 1 } },
+    rewards: { economy: { expedition_coin: 260, land_mark: 3 }, materials: { rift_mark: 3, alien_core: 1 } },
     unlockHint: "完成初入荒原后出现。",
   },
   {
@@ -95,7 +95,7 @@ export const QUESTS: QuestDefinition[] = [
     description: "击败若干精英异种，降低周边区域压力。",
     story: "精英异种会指挥低阶怪物围杀远征者，必须先剪掉它们。",
     targets: [{ type: "kill_elite", label: "击败精英怪", required: 5 }],
-    rewards: { economy: { expedition_coin: 160, alien_core: 2 }, materials: { alien_core: 1 } },
+    rewards: { economy: { expedition_coin: 160, mutant_core: 2 }, materials: { alien_core: 1 } },
     unlockHint: "遇到精英怪后出现。",
   },
   {
@@ -107,7 +107,7 @@ export const QUESTS: QuestDefinition[] = [
     description: "收集神话生物骨骼，用于高阶古武装备研究。",
     story: "工坊老板说，只要有足够坚硬的骨头，他能把狼牙棒做成传说。",
     targets: [{ type: "collect_material", label: "收集神话生物骨骼", required: 3, id: "myth_bone" }],
-    rewards: { economy: { expedition_coin: 360, workshop_token: 2 }, materials: { blood_amber: 2 } },
+    rewards: { economy: { expedition_coin: 360, ancient_part: 2 }, materials: { blood_amber: 2 } },
     unlockHint: "获得神话生物骨骼后出现。",
   },
   {
@@ -119,7 +119,7 @@ export const QUESTS: QuestDefinition[] = [
     description: "升级道具工坊，解锁更多武器合成路线。",
     story: "收复土地只是第一步，营地必须能把战利品变成真正的战斗力。",
     targets: [{ type: "upgrade_camp", label: "升级道具工坊", required: 1, id: "forge_lv2" }],
-    rewards: { economy: { expedition_coin: 220, workshop_token: 2 }, materials: { machine_core: 1 } },
+    rewards: { economy: { expedition_coin: 220, camp_supply: 120, turret_plan: 1 }, materials: { machine_core: 1 } },
     unlockHint: "获得工坊扩建配方后出现。",
   },
   {
@@ -134,7 +134,7 @@ export const QUESTS: QuestDefinition[] = [
       { type: "wave_reach", label: "携带孤注一击抵达第 10 波", required: 10, id: "solo_strike" },
       { type: "kill_boss", label: "击败任意 Boss", required: 1 },
     ],
-    rewards: { economy: { soul_crystal: 50, talent_essence: 3 }, materials: { star_metal: 1 } },
+    rewards: { economy: { soul_crystal: 50, hunter_badge: 1 }, materials: { star_metal: 1 } },
     unlockHint: "解锁孤注一击后出现。",
   },
 ];
