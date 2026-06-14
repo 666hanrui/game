@@ -43,6 +43,45 @@ function main(): void {
     }
   }, true);
 
+  function renderRuntimeDebug(): void {
+    const ctx = game.ctx;
+    const input = game.input;
+    const move = input.state.moveDir;
+    const aim = input.state.aimDir;
+    const autoFire = typeof input.isAutoFireEnabled === "function" ? input.isAutoFireEnabled() : false;
+    const focus = document.activeElement === canvas ? "canvas" : (document.activeElement?.tagName ?? "none");
+    const lines = [
+      `DEBUG  phase=${game.phase}  hub=${showHubCamp ? "on" : "off"}  focus=${focus}`,
+      `race=${game.selectedRace?.id ?? "-"}  school=${game.selectedSchool?.id ?? "-"}  weapon=${game.selectedWeapon?.id ?? "-"}`,
+      `move=(${move.x.toFixed(2)}, ${move.y.toFixed(2)})  aim=(${aim.x.toFixed(2)}, ${aim.y.toFixed(2)})  shooting=${input.state.shooting ? "yes" : "no"}  auto=${autoFire ? "on" : "off"}`,
+      `player=(${Math.round(game.player.pos.x)}, ${Math.round(game.player.pos.y)})  hp=${Math.round(game.player.hp)}/${game.player.maxHp}  speed=${game.player.speed}`,
+      `camera=(${Math.round(game.camera.pos.x)}, ${Math.round(game.camera.pos.y)})  wave=${game.waveNum}  enemies=${game.enemies.length}  projectiles=${game.projectiles.length}  pickups=${game.pickups.length}`,
+      `shootTimer=${game.shootTimer.toFixed(2)}  time=${game.gameTime.toFixed(1)}  hint: WASD move · mouse/J/space fire · F auto-fire`,
+    ];
+
+    const x = 14;
+    const y = Math.max(92, game.h - 154);
+    const w = Math.min(760, game.w - 28);
+    const h = 138;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+    ctx.strokeStyle = "rgba(128, 222, 234, 0.72)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.font = "12px monospace";
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillStyle = i === 0 ? "#80deea" : "rgba(255,255,255,0.82)";
+      ctx.fillText(lines[i], x + 12, y + 22 + i * 20);
+    }
+    ctx.restore();
+  }
+
   let lastTime = performance.now();
 
   function loop(now: number): void {
@@ -69,6 +108,7 @@ function main(): void {
       runSupply.render(game.ctx);
     }
 
+    renderRuntimeDebug();
     requestAnimationFrame(loop);
   }
 
