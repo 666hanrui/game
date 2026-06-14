@@ -28,9 +28,9 @@ export const HUB_MODULES: HubModuleDef[] = [
   },
   {
     id: "talents",
-    name: "天赋殿堂",
+    name: "天赋祭坛",
     icon: "✦",
-    description: "查看、解锁、购买、装备天赋。新手引导会赠送第一个天赋槽，后续槽位需要带出局资源购买。",
+    description: "预留未来打开 MetaTalentPanel 的入口，读取 game.metaTalentState 管理已解锁、已装备天赋和天赋槽；默认 talentSlots = 1。",
     unlockHint: "完成新手引导后开放。",
   },
   {
