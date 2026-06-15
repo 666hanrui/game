@@ -61,7 +61,6 @@ export class Player {
       this.recoilTimer = 0.15;
     }
 
-    // Spawn trail particles
     if (this.isMoving && Math.random() < 0.45) {
       this.trail.push({
         x: this.pos.x + (Math.random() - 0.5) * 12,
@@ -72,7 +71,6 @@ export class Player {
       });
     }
 
-    // Update trail particles
     for (const p of this.trail) {
       p.alpha -= dt * 1.8;
       p.size = Math.max(0, p.size - dt * 2.5);
@@ -96,7 +94,6 @@ export class Player {
     raceId = "human",
     walkSheet?: HTMLImageElement | null,
   ): void {
-    // Draw trail particles
     const offsetWtoS_X = sx - this.pos.x;
     const offsetWtoS_Y = sy - this.pos.y;
     for (const p of this.trail) {
@@ -109,20 +106,14 @@ export class Player {
       ctx.restore();
     }
 
-    // Walk cycle parameters
     const walkCycle = this.walkTimer;
     const isMoving = this.isMoving;
-
-    // Bobbing height when walking
     const bobY = isMoving ? Math.abs(Math.sin(walkCycle)) * 6.5 : 0;
     const renderY = sy - bobY;
-
-    // Shadow scale and opacity based on jump height (shadow fades slightly when jumping)
     const shadowScaleX = isMoving ? 1.25 - (bobY / 6.5) * 0.15 : 1.25;
     const shadowScaleY = isMoving ? 0.46 - (bobY / 6.5) * 0.08 : 0.46;
     const shadowAlpha = isMoving ? 0.45 - (bobY / 6.5) * 0.15 : 0.45;
 
-    // Soft Shadow at feet
     ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
     ctx.beginPath();
     ctx.ellipse(sx, sy + this.radius + 2, this.radius * shadowScaleX, this.radius * shadowScaleY, 0, 0, Math.PI * 2);
@@ -132,31 +123,20 @@ export class Player {
 
     if (!usedWalkSheet) {
       const flip = aimDir.x < 0;
-
-      // Squash & Stretch factors (Soul Knight procedural animation style)
       const stretchX = isMoving ? 1.0 - Math.abs(Math.sin(walkCycle)) * 0.08 : 1.0;
       const stretchY = isMoving ? 1.0 + Math.abs(Math.sin(walkCycle)) * 0.08 : 1.0;
-      // Rotational sway (tilt back and forth when walking)
       const swayAngle = isMoving ? Math.sin(walkCycle) * 0.08 : 0;
 
-      // Draw Character Body
       ctx.save();
       ctx.translate(sx, renderY);
       ctx.rotate(swayAngle);
-      if (flip) {
-        ctx.scale(-stretchX, stretchY);
-      } else {
-        ctx.scale(stretchX, stretchY);
-      }
-
-      // Outer Glow matching race color
+      if (flip) ctx.scale(-stretchX, stretchY);
+      else ctx.scale(stretchX, stretchY);
       ctx.shadowColor = color;
       ctx.shadowBlur = 12;
 
-      const size = this.radius * 3.3; // Increased size to make the character noticeably larger and clearer
-
-      // Setup boot/hand constants based on race
-      let bootColor = "#795548"; // brown leather
+      const size = this.radius * 3.3;
+      let bootColor = "#795548";
       let bootStroke = "#4e342e";
       let bootW = size * 0.22;
       let bootH = size * 0.12;
@@ -185,16 +165,11 @@ export class Player {
       const fCycle = walkCycle;
       const strideX = size * 0.16;
       const strideY = size * 0.08;
-
-      // Left foot position relative to center (0, 0)
       const lfx = -size * 0.16 + (isMoving ? Math.sin(fCycle) * strideX : 0);
       const lfy = size * 0.44 + (isMoving ? -Math.abs(Math.cos(fCycle)) * strideY : 0);
-
-      // Right foot position relative to center (0, 0)
       const rfx = size * 0.16 + (isMoving ? -Math.sin(fCycle) * strideX : 0);
       const rfy = size * 0.44 + (isMoving ? -Math.abs(Math.sin(fCycle)) * strideY : 0);
 
-      // 1. Draw Back Foot (Left Foot) if not spirit
       if (raceId !== "spirit") {
         ctx.save();
         ctx.fillStyle = bootColor;
@@ -209,7 +184,6 @@ export class Player {
         ctx.restore();
       }
 
-      // 2. Draw Back Hand (Off-hand / Free hand)
       let handColor = "#ffcc80";
       if (raceId === "goblin") handColor = "#a1887f";
       else if (raceId === "orc") handColor = "#ef6c00";
@@ -229,40 +203,29 @@ export class Player {
       ctx.arc(0, 0, handRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      // highlight on hand
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
       ctx.arc(-handRadius * 0.25, -handRadius * 0.25, handRadius * 0.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-      // 3. Draw Body Sprite
       if (raceSprite) {
         ctx.drawImage(raceSprite, -size / 2, -size / 2, size, size);
-
-        // Fine visual overlays to make the character look more detailed & realistic
-        ctx.shadowBlur = 0; // turn off shadow blur for details
-
-        // 1. Cheek Blush
+        ctx.shadowBlur = 0;
         ctx.fillStyle = "rgba(240, 98, 146, 0.48)";
         ctx.beginPath();
         ctx.arc(-size * 0.14, size * 0.04, size * 0.06, 0, Math.PI * 2);
         ctx.arc(size * 0.14, size * 0.04, size * 0.06, 0, Math.PI * 2);
         ctx.fill();
-
-        // 2. Eye glints/highlights for liveliness
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
         ctx.arc(-size * 0.1, -size * 0.05, 2, 0, Math.PI * 2);
         ctx.arc(size * 0.06, -size * 0.05, 2, 0, Math.PI * 2);
         ctx.fill();
-
-        // 3. Cute headband ribbon tail / hair flow on the back
         ctx.fillStyle = color;
         ctx.strokeStyle = "rgba(0,0,0,0.25)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        // Wave ribbon depending on walkTimer
         const ribbonWave = Math.sin(this.walkTimer * 0.6) * 4;
         ctx.moveTo(-size * 0.35, -size * 0.1);
         ctx.quadraticCurveTo(-size * 0.55, -size * 0.08 + ribbonWave, -size * 0.62, size * 0.08 + ribbonWave * 1.5);
@@ -272,7 +235,6 @@ export class Player {
         ctx.fill();
         ctx.stroke();
       } else {
-        // Vector fallback
         ctx.fillStyle = color;
         ctx.strokeStyle = "rgba(255,255,255,0.85)";
         ctx.lineWidth = 2.5;
@@ -282,7 +244,6 @@ export class Player {
         ctx.stroke();
       }
 
-      // 4. Draw Front Foot (Right Foot) if not spirit
       if (raceId !== "spirit") {
         ctx.save();
         ctx.fillStyle = bootColor;
@@ -296,7 +257,6 @@ export class Player {
         ctx.stroke();
         ctx.restore();
       } else {
-        // Spirit floating particles ring
         ctx.save();
         ctx.fillStyle = "rgba(186, 104, 200, 0.6)";
         for (let i = 0; i < 3; i++) {
@@ -313,7 +273,6 @@ export class Player {
       ctx.restore();
     }
 
-    // Draw Weapon
     this.renderWeapon(ctx, sx, sy, aimDir, weaponId, weaponSprite, raceId);
   }
 
@@ -333,14 +292,12 @@ export class Player {
     const direction = this.walkDirection as AnchorDirection;
     const anchor = raceId === "human" ? getHumanWeaponAnchor(weaponId, direction, frame) : null;
 
-    // Recoil offset (backwards along aiming line)
     let recoilDist = 0;
     if (this.recoilTimer > 0) {
       const progress = this.recoilTimer / 0.15;
       recoilDist = -Math.sin(progress * Math.PI) * 11;
     }
 
-    // Calculate hand position offset from body center
     const handRadius = anchor?.handRadius ?? 15;
     const handX = Math.cos(angle) * handRadius + recoilDist * Math.cos(angle) + (anchor?.handOffsetX ?? 0);
     const handY = Math.sin(angle) * handRadius + recoilDist * Math.sin(angle) + (anchor?.handOffsetY ?? 2);
@@ -349,12 +306,9 @@ export class Player {
     ctx.translate(sx + handX, sy + handY);
     ctx.rotate(angle + (anchor?.rotationOffset ?? 0));
 
-    // Auto flip vertically when aiming left to prevent the weapon from being upside down
     const angleDeg = (angle * 180) / Math.PI;
     const shouldFlip = angleDeg > 90 || angleDeg < -90;
-    if (shouldFlip) {
-      ctx.scale(1, -1);
-    }
+    if (shouldFlip) ctx.scale(1, -1);
 
     const size = anchor?.size ?? (weaponId === "staff" ? 54 : weaponId === "spear" ? 58 : weaponId === "mace" ? 50 : 42);
     const spriteOffsetX = anchor?.spriteOffsetX ?? 0;
@@ -365,7 +319,6 @@ export class Player {
     } else {
       ctx.save();
       ctx.translate(spriteOffsetX, spriteOffsetY);
-      // Fallbacks
       if (weaponId === "wand") this.renderWandFallback(ctx, size, "#ce93d8");
       else if (weaponId === "staff") this.renderWandFallback(ctx, size, "#ab47bc");
       else if (weaponId === "flying_blade") this.renderBladeFallback(ctx, size);
@@ -374,7 +327,6 @@ export class Player {
       ctx.restore();
     }
 
-    // Draw floating fist holding the weapon (Soul Knight style!)
     ctx.save();
     ctx.shadowBlur = 0;
     ctx.translate(size * (anchor?.fistOffsetX ?? -0.14), size * (anchor?.fistOffsetY ?? 0.04));
@@ -385,21 +337,17 @@ export class Player {
     ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // highlight on the fist
     ctx.fillStyle = "#ffffff";
     ctx.beginPath();
     ctx.arc(-1.5, -1.5, 1.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // Firing Muzzle Flash / Spark Particles at the weapon tip
     if (this.recoilTimer > 0.08) {
       ctx.fillStyle = "#ffeb3b";
       ctx.beginPath();
       ctx.arc(size / 2 - 2 + spriteOffsetX, spriteOffsetY, Math.random() * 6 + 5, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = "#ff5722";
       ctx.beginPath();
       ctx.arc(size / 2 - 2 + spriteOffsetX, spriteOffsetY, Math.random() * 4 + 2, 0, Math.PI * 2);
@@ -430,7 +378,6 @@ export class Player {
     ctx.moveTo(-size / 2, 0);
     ctx.lineTo(size / 2, 0);
     ctx.stroke();
-
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(size / 2, 0, 4, 0, Math.PI * 2);
@@ -479,48 +426,21 @@ export class Player {
 
     const cols = 4;
     const rows = 4;
-
     const frameW = sheetW / cols;
     const frameH = sheetH / rows;
-
     const fps = 8;
-    const frame = this.isMoving
-      ? Math.floor(this.walkAnimTime * fps) % 4
-      : 0;
-
-    const rowMap: Record<WalkDirection, number> = {
-      down: 0,
-      up: 1,
-      left: 2,
-      right: 3,
-    };
+    const frame = this.isMoving ? Math.floor(this.walkAnimTime * fps) % 4 : 0;
+    const rowMap: Record<WalkDirection, number> = { down: 0, up: 1, left: 2, right: 3 };
     const row = rowMap[this.walkDirection];
-    
     const srcX = frame * frameW;
     const srcY = row * frameH;
-
     const drawW = 58;
     const drawH = 58;
 
     ctx.save();
-
-    // 关闭平滑，让像素风更清晰
     const oldSmoothing = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = false;
-
-    // 锚点放在脚底中心，而不是图片中心
-    ctx.drawImage(
-      sheet,
-      srcX,
-      srcY,
-      frameW,
-      frameH,
-      sx - drawW / 2,
-      sy - drawH + 18,
-      drawW,
-      drawH,
-    );
-
+    ctx.drawImage(sheet, srcX, srcY, frameW, frameH, sx - drawW / 2, sy - drawH + 18, drawW, drawH);
     ctx.imageSmoothingEnabled = oldSmoothing;
     ctx.restore();
 
@@ -543,16 +463,19 @@ export class Player {
     cx.drawImage(walkSheet, 0, 0);
     const data = cx.getImageData(0, 0, canvas.width, canvas.height);
     const arr = data.data;
+
     for (let i = 0; i < arr.length; i += 4) {
       const r = arr[i];
       const g = arr[i + 1];
       const b = arr[i + 2];
       const a = arr[i + 3];
       const nearWhite = a > 0 && r > 238 && g > 238 && b > 238;
-      const neutral = Math.max(r, g, b) - Math.min(r, g, b) <= 16;
-      const checker = a > 0 && neutral && (Math.max(r, g, b) > 186 || Math.max(r, g, b) < 72);
-      if (nearWhite || checker) arr[i + 3] = 0;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const lightNeutralPollution = a > 0 && max - min <= 16 && max > 186;
+      if (nearWhite || lightNeutralPollution) arr[i + 3] = 0;
     }
+
     cx.putImageData(data, 0, 0);
     this.cleanedWalkSheets.set(walkSheet, canvas);
     return canvas;
