@@ -177,6 +177,38 @@ export const DEBUG_HUB_COLLIDERS = true;
 
 调完必须改回 `false`。
 
+## 布局静态检查
+
+新增脚本：
+
+```text
+scripts/check-hub-layout.mjs
+```
+
+命令：
+
+```bash
+npm run check:hub-layout
+```
+
+它会检查：
+
+```text
+1. CAMP_W / CAMP_H 是否能解析；
+2. hubCampLayout.ts 里引用的 hub 图片是否存在；
+3. 建筑 id 是否重复；
+4. 建筑 id 是否都有 hubActions 映射；
+5. 明显非法的矩形尺寸和越界矩形。
+```
+
+调 `hubCampLayout.ts` 后建议执行：
+
+```bash
+npm run check:hub-layout
+npm run typecheck
+npm run build
+```
+
 ## 边界迷雾
 
 `drawEdgeFogOverlay()` 用于遮住地图边缘突兀的绿色硬边。
