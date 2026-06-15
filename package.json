@@ -15,7 +15,8 @@
     "check:hub-layout": "node scripts/check-hub-layout.mjs",
     "check:art": "node scripts/check-art-assets.mjs",
     "check:anchors": "node scripts/check-weapon-anchors.mjs",
-    "check:b-line": "npm run check:hub-layout && npm run check:art && npm run check:anchors && npm run typecheck"
+    "check:b-line": "npm run check:hub-layout && npm run check:art && npm run check:anchors && npm run typecheck",
+    "export:hub-preview": "node scripts/export-hub-layout-preview.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
