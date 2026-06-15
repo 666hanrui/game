@@ -861,6 +861,7 @@ export class Game {
 
     const psp = toScreen(this.player.pos.x, this.player.pos.y);
     const color = this.selectedRace?.color ?? "#4fc3f7";
+    const raceId = this.selectedRace?.id ?? "human";
     this.player.renderAt(
       ctx,
       psp.x,
@@ -868,9 +869,10 @@ export class Game {
       this.input.state.aimDir,
       color,
       this.selectedWeapon?.id,
-      this.assets.get("races", this.selectedRace?.id),
+      this.assets.get("races", raceId),
       this.assets.get("weapons", this.selectedWeapon?.id),
-      this.selectedRace?.id,
+      raceId,
+      this.assets.get("raceWalkSheets", raceId),
     );
 
     this.input.renderSticks(ctx);

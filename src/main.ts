@@ -95,7 +95,7 @@ function main(): void {
 
     if (showHubCamp && game.phase === "menu") {
       if (hubSubPanels.isOpen()) hubSubPanels.render(game.ctx, game.w, game.h);
-      else hubCamp.render(game.ctx, game.w, game.h);
+      else hubCamp.render(game.ctx, game.w, game.h, game);
     } else {
       game.render();
       runSupply.render(game.ctx);

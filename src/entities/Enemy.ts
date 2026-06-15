@@ -98,7 +98,10 @@ export class Enemy {
   }
 
   get assetId(): string {
-    return this.type;
+    if (this.role === "basic") {
+      return this.type;
+    }
+    return `style_${this.role}`;
   }
 
   update(dt: number, playerPos: Vec2): void {
