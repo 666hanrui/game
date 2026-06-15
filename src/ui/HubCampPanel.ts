@@ -106,11 +106,7 @@ const HARD_SCENERY_COLLIDERS: Rect[] = [
   { x: 1034, y: 746, w: 220, h: 54 },
 ];
 const BUILDING_SOLID_COLLIDERS: Rect[] = CAMP_BUILDINGS.flatMap((b) => b.solidRects ?? []);
-const CAMP_COLLIDERS: Rect[] = [
-  ...HARD_SCENERY_COLLIDERS,
-  ...BUILDING_SOLID_COLLIDERS,
-  ...CAMP_BUILDINGS.map((b) => b.footprint),
-];
+const CAMP_COLLIDERS: Rect[] = [...HARD_SCENERY_COLLIDERS, ...BUILDING_SOLID_COLLIDERS, ...CAMP_BUILDINGS.map((b) => b.footprint)];
 
 export class HubCampPanel {
   selectedModule: HubModuleId = "expedition";
@@ -123,6 +119,7 @@ export class HubCampPanel {
   private interactFlash = 0;
   private lastView: CampView | null = null;
   private readonly hubImages = new Map<HubArtKey, HTMLImageElement>();
+  private readonly cleanedHubImages = new Map<HubArtKey, CanvasImageSource>();
   private readonly humanWalkSheet = new Image();
   private avatarDirection: HubAvatarDirection = "down";
   private avatarMoving = false;
@@ -208,6 +205,73 @@ export class HubCampPanel {
     return img;
   }
 
+  private getHubDrawable(key: HubArtKey): CanvasImageSource | null {
+    const img = this.getHubImage(key);
+    if (!img) return null;
+    if (key === "campGround") return img;
+    const cached = this.cleanedHubImages.get(key);
+    if (cached) return cached;
+    const cleaned = this.buildCleanedSprite(img);
+    this.cleanedHubImages.set(key, cleaned);
+    return cleaned;
+  }
+
+  private buildCleanedSprite(img: HTMLImageElement): CanvasImageSource {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const cx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!cx) return img;
+    cx.drawImage(img, 0, 0);
+    const data = cx.getImageData(0, 0, canvas.width, canvas.height);
+    const arr = data.data;
+    const w = canvas.width;
+    const h = canvas.height;
+    const seen = new Uint8Array(w * h);
+    const stack: number[] = [];
+
+    const isNearWhite = (idx: number) => {
+      const i = idx * 4;
+      return arr[i + 3] > 0 && arr[i] > 238 && arr[i + 1] > 238 && arr[i + 2] > 238;
+    };
+    const isCheckerPollution = (idx: number) => {
+      const i = idx * 4;
+      const r = arr[i], g = arr[i + 1], b = arr[i + 2], a = arr[i + 3];
+      if (a === 0) return true;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const neutral = max - min <= 18;
+      return neutral && (max > 186 || max < 74);
+    };
+    const isEdgeGarbage = (idx: number) => isNearWhite(idx) || isCheckerPollution(idx);
+    const pushIf = (idx: number) => {
+      if (idx < 0 || idx >= seen.length || seen[idx]) return;
+      if (!isEdgeGarbage(idx)) return;
+      seen[idx] = 1;
+      stack.push(idx);
+    };
+
+    for (let x = 0; x < w; x++) { pushIf(x); pushIf((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { pushIf(y * w); pushIf(y * w + w - 1); }
+    while (stack.length > 0) {
+      const idx = stack.pop()!;
+      const x = idx % w;
+      const y = Math.floor(idx / w);
+      if (x > 0) pushIf(idx - 1);
+      if (x < w - 1) pushIf(idx + 1);
+      if (y > 0) pushIf(idx - w);
+      if (y < h - 1) pushIf(idx + w);
+    }
+
+    for (let idx = 0; idx < seen.length; idx++) {
+      const i = idx * 4;
+      if (seen[idx] || isNearWhite(idx)) arr[i + 3] = 0;
+      else if (arr[i + 3] > 0 && arr[i + 3] < 252 && arr[i] > 224 && arr[i + 1] > 224 && arr[i + 2] > 224) arr[i + 3] = Math.max(0, arr[i + 3] - 180);
+    }
+    cx.putImageData(data, 0, 0);
+    return canvas;
+  }
+
   private getView(w: number, h: number): CampView {
     const coverScale = Math.max(w / CAMP_W, h / CAMP_H);
     const comfortableScale = Math.min(w / 1220, h / 800);
@@ -225,7 +289,7 @@ export class HubCampPanel {
     ctx.fillStyle = "#172915"; ctx.fillRect(0, 0, w, h);
     ctx.save(); ctx.translate(view.ox, view.oy); ctx.scale(view.scale, view.scale);
     const oldSmoothing = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-    const ground = this.getHubImage("campGround");
+    const ground = this.getHubDrawable("campGround");
     if (ground) ctx.drawImage(ground, 0, 0, CAMP_W, CAMP_H); else this.drawFallbackGround(ctx);
     ctx.imageSmoothingEnabled = oldSmoothing; ctx.restore();
   }
@@ -250,14 +314,14 @@ export class HubCampPanel {
     const active = this.activeBuilding?.id === b.id;
     const selected = this.selectedModule === b.id;
     this.drawBuildingShadow(ctx, view, b, active);
-    const img = this.getHubImage(b.art.back);
+    const img = this.getHubDrawable(b.art.back);
     if (img) this.drawImage(ctx, img, p.x, p.y, b.w * view.scale, b.h * view.scale, active || selected ? b.color : null);
     else this.drawFallbackBuilding(ctx, view, b, active, selected);
     if (active || selected) this.drawBuildingName(ctx, view, b);
   }
 
   private drawBuildingFront(ctx: CanvasRenderingContext2D, view: CampView, b: CampBuilding): void {
-    const img = this.getHubImage(b.art.front); if (!img) return;
+    const img = this.getHubDrawable(b.art.front); if (!img) return;
     const p = view.toScreen(b.x, b.y); this.drawImage(ctx, img, p.x, p.y, b.w * view.scale, b.h * view.scale, null);
   }
 
