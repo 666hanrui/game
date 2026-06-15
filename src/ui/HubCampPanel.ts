@@ -17,7 +17,7 @@ import {
   PLAYER_COLLISION_R,
 } from "../data/hubCampLayout";
 import type { CampBuilding, HubArtKey, HubAvatarDirection, Rect } from "../data/hubCampLayout";
-import { drawHubCampMinimap } from "./HubCampMinimap";
+import { drawHubCampMinimap, pickHubCampMinimapModule } from "./HubCampMinimap";
 
 export type { HubCampAction } from "../data/hubActions";
 
@@ -48,6 +48,8 @@ export class HubCampPanel {
   private targetCycleQueued = 0;
   private navigationFlash = 0;
   private lastView: CampView | null = null;
+  private lastCanvasW = 0;
+  private lastCanvasH = 0;
   private readonly hubImages = new Map<HubArtKey, HTMLImageElement>();
   private readonly cleanedHubImages = new Map<HubArtKey, CanvasImageSource>();
   private readonly humanWalkSheet = new Image();
@@ -126,6 +128,14 @@ export class HubCampPanel {
 
   handleClick(x: number, y: number): HubCampInteraction | null {
     if (this.inRect(x, y, this.startButtonRect)) return this.getModuleInteraction("expedition");
+
+    const minimapTarget = pickHubCampMinimapModule(this.lastCanvasW, this.lastCanvasH, x, y);
+    if (minimapTarget) {
+      this.selectedModule = minimapTarget;
+      this.navigationFlash = 0.55;
+      return null;
+    }
+
     const clicked = this.findBuildingAtScreen(x, y);
     if (!clicked) return null;
 
@@ -141,6 +151,8 @@ export class HubCampPanel {
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number, _game?: unknown): void {
+    this.lastCanvasW = w;
+    this.lastCanvasH = h;
     this.startButtonRect = { x: w - 194, y: h - 80, w: 164, h: 54 };
     const view = this.getView(w, h);
     this.lastView = view;
