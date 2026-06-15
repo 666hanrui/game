@@ -1,0 +1,58 @@
+name: B Line Visual Check
+
+on:
+  pull_request:
+    paths:
+      - "src/ui/HubCampPanel.ts"
+      - "src/ui/HubCampMinimap.ts"
+      - "src/data/hubCampLayout.ts"
+      - "src/data/hubModules.ts"
+      - "src/data/weaponAnchors.ts"
+      - "src/entities/Player.ts"
+      - "public/assets/sprites/**"
+      - "scripts/check-*.mjs"
+      - "scripts/clean-*.mjs"
+      - "docs/*ART*"
+      - "docs/*VISUAL*"
+      - "docs/*HUB*"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    paths:
+      - "src/ui/HubCampPanel.ts"
+      - "src/ui/HubCampMinimap.ts"
+      - "src/data/hubCampLayout.ts"
+      - "src/data/hubModules.ts"
+      - "src/data/weaponAnchors.ts"
+      - "src/entities/Player.ts"
+      - "public/assets/sprites/**"
+      - "scripts/check-*.mjs"
+      - "scripts/clean-*.mjs"
+      - "docs/*ART*"
+      - "docs/*VISUAL*"
+      - "docs/*HUB*"
+      - "package.json"
+      - "package-lock.json"
+
+jobs:
+  b-line-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check B line visual data
+        run: npm run check:b-line
+
+      - name: Build
+        run: npm run build
