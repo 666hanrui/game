@@ -8,6 +8,32 @@ B 线营地建筑化已经从“文字面板 / 节点图”升级成 2.5D 据点
 
 ```text
 src/ui/HubCampPanel.ts
+src/data/hubCampLayout.ts
+```
+
+`HubCampPanel.ts` 现在只负责：
+
+```text
+输入处理
+玩家移动
+碰撞调用
+图片加载与运行时清理
+Canvas 渲染
+交互动作返回
+```
+
+`hubCampLayout.ts` 负责：
+
+```text
+营地尺寸
+建筑资源路径
+建筑坐标
+建筑 footprint
+建筑 solidRects
+建筑 interactPoint
+建筑 depthY
+地图边界碰撞
+建筑主体碰撞集合
 ```
 
 相关资源：
@@ -38,7 +64,7 @@ public/assets/sprites/hub/*_front.png
 
 ## 建筑数据结构
 
-每个建筑在 `CAMP_BUILDINGS` 中配置：
+每个建筑在 `src/data/hubCampLayout.ts` 的 `CAMP_BUILDINGS` 中配置：
 
 ```ts
 interface CampBuilding {
@@ -64,6 +90,8 @@ interface CampBuilding {
 ### x / y / w / h
 
 建筑图片绘制位置和尺寸。
+
+如果建筑图片显示偏移、大小不对，优先调这里。
 
 ### footprint
 
@@ -99,7 +127,7 @@ E 交互
 
 ## 碰撞系统
 
-当前碰撞由三部分组成：
+当前碰撞由三部分组成，定义在 `src/data/hubCampLayout.ts`：
 
 ```text
 HARD_SCENERY_COLLIDERS    地图边界 / 岩壁 / 大场景障碍
@@ -107,7 +135,13 @@ BUILDING_SOLID_COLLIDERS  建筑主体阻挡
 footprint                 建筑底座阻挡
 ```
 
-移动逻辑使用：
+最终导出：
+
+```text
+CAMP_COLLIDERS
+```
+
+移动逻辑仍在 `HubCampPanel.ts`：
 
 ```text
 tryMove()
@@ -120,16 +154,18 @@ collisionPressure()
 
 ## 调试开关
 
+调试开关定义在 `src/data/hubCampLayout.ts`：
+
 ```ts
-const DEBUG_HUB_FOOTPRINT = false;
-const DEBUG_HUB_COLLIDERS = false;
+export const DEBUG_HUB_FOOTPRINT = false;
+export const DEBUG_HUB_COLLIDERS = false;
 ```
 
 调坐标时可以临时改成：
 
 ```ts
-const DEBUG_HUB_FOOTPRINT = true;
-const DEBUG_HUB_COLLIDERS = true;
+export const DEBUG_HUB_FOOTPRINT = true;
+export const DEBUG_HUB_COLLIDERS = true;
 ```
 
 显示内容：
@@ -215,6 +251,7 @@ npm run build
 
 ```text
 src/ui/HubCampPanel.ts
+src/data/hubCampLayout.ts
 public/assets/sprites/hub/
 scripts/clean-hub-sprites.mjs
 ```
