@@ -30,6 +30,7 @@ src/core/GameOpeningFlowFix.ts
 
 ```text
 src/ui/HubCampPanel.ts
+src/data/hubCampLayout.ts
 src/data/hubModules.ts
 src/data/weaponAnchors.ts
 public/assets/sprites/
@@ -51,6 +52,7 @@ scripts/clean-character-sprites.mjs
 9. 营地主角已改为人族 walk sheet，不再使用蓝色占位小人。
 10. 人族武器挂点表已建立并接入 Player.ts。
 11. 营地建筑、角色 walk sheet、怪物 PNG 均有零依赖资源清理脚本。
+12. 营地建筑坐标、资源路径、碰撞框已抽离到 src/data/hubCampLayout.ts。
 ```
 
 关键文档：
@@ -66,13 +68,14 @@ docs/WEAPON_ANCHOR_TUNING.md
 
 ```text
 1. 不要把 HubCampPanel.ts 改回旧的 drawRoads / drawDistrictLabels 节点式界面。
-2. 调建筑碰撞时优先改 solidRects，不要删除整体碰撞系统。
-3. 调建筑交互时优先改 interactPoint 和 interactRadius。
-4. 调遮挡关系时优先改 depthY。
-5. 调人族武器姿势时优先改 src/data/weaponAnchors.ts，不要直接改 Player.ts 的通用武器数学逻辑。
-6. 清理营地建筑资源运行 npm run clean:hub-art。
-7. 清理角色和怪物资源运行 npm run clean:character-art。
-8. 一次性清理全部美术资源运行 npm run clean:art。
+2. 调建筑坐标、图片大小、footprint、solidRects、interactPoint、depthY 时优先改 src/data/hubCampLayout.ts。
+3. 调建筑碰撞时优先改 solidRects，不要删除整体碰撞系统。
+4. 调建筑交互时优先改 interactPoint 和 interactRadius。
+5. 调遮挡关系时优先改 depthY。
+6. 调人族武器姿势时优先改 src/data/weaponAnchors.ts，不要直接改 Player.ts 的通用武器数学逻辑。
+7. 清理营地建筑资源运行 npm run clean:hub-art。
+8. 清理角色和怪物资源运行 npm run clean:character-art。
+9. 一次性清理全部美术资源运行 npm run clean:art。
 ```
 
 注意：B 线不要修改 `Game.ts`，只改营地 UI、美术资源、资源清理脚本和视觉挂点数据。
