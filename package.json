@@ -16,7 +16,8 @@
     "check:art": "node scripts/check-art-assets.mjs",
     "check:anchors": "node scripts/check-weapon-anchors.mjs",
     "check:copy": "node scripts/check-hub-copy.mjs",
-    "check:b-line": "npm run check:hub-layout && npm run check:art && npm run check:anchors && npm run check:copy && npm run typecheck",
+    "check:nav": "node scripts/check-hub-navigation.mjs",
+    "check:b-line": "npm run check:hub-layout && npm run check:art && npm run check:anchors && npm run check:copy && npm run check:nav && npm run typecheck",
     "export:hub-preview": "node scripts/export-hub-layout-preview.mjs"
   },
   "devDependencies": {
