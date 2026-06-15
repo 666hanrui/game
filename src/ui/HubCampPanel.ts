@@ -45,6 +45,8 @@ export class HubCampPanel {
   private wasInteractDown = false;
   private interactDown = false;
   private interactFlash = 0;
+  private targetCycleQueued = 0;
+  private navigationFlash = 0;
   private lastView: CampView | null = null;
   private readonly hubImages = new Map<HubArtKey, HTMLImageElement>();
   private readonly cleanedHubImages = new Map<HubArtKey, CanvasImageSource>();
@@ -60,7 +62,16 @@ export class HubCampPanel {
     const syncKey = (e: KeyboardEvent, down: boolean) => {
       const key = e.key?.toLowerCase?.() ?? "";
       const code = e.code?.toLowerCase?.() ?? "";
-      if (key === "e" || code === "keye") {
+      const isInteract = key === "e" || code === "keye";
+      const isTab = key === "tab" || code === "tab";
+
+      if (down && !e.repeat && isTab) {
+        this.targetCycleQueued += e.shiftKey ? -1 : 1;
+        e.preventDefault();
+        return;
+      }
+
+      if (isInteract) {
         this.interactDown = down;
         if (down) e.preventDefault();
       }
@@ -71,11 +82,17 @@ export class HubCampPanel {
     window.addEventListener("blur", () => {
       this.interactDown = false;
       this.wasInteractDown = false;
+      this.targetCycleQueued = 0;
     });
   }
 
   update(input: Input, dt: number, _w: number, _h: number): HubCampInteraction | null {
     input.update();
+    if (this.targetCycleQueued !== 0) {
+      this.cycleSelectedBuilding(this.targetCycleQueued);
+      this.targetCycleQueued = 0;
+    }
+
     const move = input.state.moveDir;
     const speed = 245;
 
@@ -96,6 +113,7 @@ export class HubCampPanel {
     this.activeBuilding = this.findNearbyBuilding();
     if (this.activeBuilding) this.selectedModule = this.activeBuilding.id;
     if (this.interactFlash > 0) this.interactFlash -= dt;
+    if (this.navigationFlash > 0) this.navigationFlash -= dt;
 
     const pressed = this.interactDown && !this.wasInteractDown;
     this.wasInteractDown = this.interactDown;
@@ -110,10 +128,16 @@ export class HubCampPanel {
     if (this.inRect(x, y, this.startButtonRect)) return this.getModuleInteraction("expedition");
     const clicked = this.findBuildingAtScreen(x, y);
     if (!clicked) return null;
+
     this.selectedModule = clicked.id;
-    this.activeBuilding = clicked;
-    this.interactFlash = 0.28;
-    return this.getBuildingInteraction(clicked);
+    this.navigationFlash = 0.45;
+    const canInteract = this.distanceToBuilding(clicked) <= clicked.interactRadius;
+    if (canInteract) {
+      this.activeBuilding = clicked;
+      this.interactFlash = 0.28;
+      return this.getBuildingInteraction(clicked);
+    }
+    return null;
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number, _game?: unknown): void {
@@ -413,7 +437,7 @@ export class HubCampPanel {
 
   private drawSelectedBuildingGuide(ctx: CanvasRenderingContext2D, view: CampView): void {
     if (this.activeBuilding) return;
-    const building = CAMP_BUILDINGS.find((b) => b.id === this.selectedModule);
+    const building = this.getSelectedBuilding();
     if (!building) return;
     const dx = building.interactPoint.x - this.player.x;
     const dy = building.interactPoint.y - this.player.y;
@@ -433,7 +457,7 @@ export class HubCampPanel {
     ctx.rotate(angle);
     ctx.shadowColor = color;
     ctx.shadowBlur = 12;
-    ctx.fillStyle = this.rgba(color, 0.82);
+    ctx.fillStyle = this.rgba(color, this.navigationFlash > 0 ? 0.98 : 0.82);
     ctx.strokeStyle = "rgba(35, 23, 14, 0.92)";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -448,8 +472,8 @@ export class HubCampPanel {
 
     ctx.save();
     ctx.fillStyle = "rgba(39, 27, 17, 0.82)";
-    ctx.strokeStyle = this.rgba(color, 0.65);
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = this.rgba(color, this.navigationFlash > 0 ? 0.92 : 0.65);
+    ctx.lineWidth = this.navigationFlash > 0 ? 2 : 1;
     const label = `${building.name} ${Math.round(dist)}m`;
     const textW = Math.max(86, ctx.measureText(label).width + 18);
     this.roundRect(ctx, arrowX - textW / 2, arrowY + 16 * view.scale, textW, 24, 9);
@@ -560,21 +584,21 @@ export class HubCampPanel {
   }
 
   private drawHud(ctx: CanvasRenderingContext2D, w: number): void {
-    this.panel(ctx, 20, 20, Math.min(540, w - 40), 76, 18, "rgba(39, 27, 17, 0.72)", "rgba(255,224,130,0.34)");
+    this.panel(ctx, 20, 20, Math.min(620, w - 40), 76, 18, "rgba(39, 27, 17, 0.72)", "rgba(255,224,130,0.34)");
     ctx.fillStyle = "#ffca28";
     ctx.font = "bold 26px monospace";
     ctx.textAlign = "left";
     ctx.fillText("远征营地", 44, 54);
     ctx.fillStyle = "rgba(255,255,255,0.68)";
     ctx.font = "12px monospace";
-    ctx.fillText("WASD 移动 · 靠近建筑门口按 E 交互 · 右上角查看营地方位", 46, 79);
+    ctx.fillText("WASD 移动 · Tab 切换目标 · 靠近建筑门口按 E 交互 · 右上角查看营地方位", 46, 79);
   }
 
   private drawInteractionPanel(ctx: CanvasRenderingContext2D, w: number, h: number): void {
     const module = HUB_MODULES.find((m) => m.id === this.selectedModule) ?? HUB_MODULES[0];
-    const building = CAMP_BUILDINGS.find((b) => b.id === this.selectedModule);
-    const panelW = Math.min(448, w - 40);
-    const panelH = 140;
+    const building = this.getSelectedBuilding();
+    const panelW = Math.min(468, w - 40);
+    const panelH = 156;
     const x = 20;
     const y = h - panelH - 22;
     const color = MODULE_ACCENT[this.selectedModule];
@@ -591,6 +615,10 @@ export class HubCampPanel {
     if (building) {
       const actionDef = getHubActionByModule(building.id);
       const actionLabel = actionDef?.label ?? "暂未开放";
+      const navHint = this.activeBuilding?.id === building.id ? "已到达，按 E 交互" : "Tab 切换目标 · 跟随箭头前往门口";
+      ctx.fillStyle = this.navigationFlash > 0 ? "#ffeb3b" : "rgba(255,255,255,0.56)";
+      ctx.font = "bold 11px monospace";
+      ctx.fillText(navHint, x + 20, y + panelH - 42);
       ctx.fillStyle = this.interactFlash > 0 ? "#ffeb3b" : "rgba(255,255,255,0.6)";
       ctx.font = "bold 12px monospace";
       ctx.fillText(`${building.npc}：${building.line} · ${actionLabel}`, x + 20, y + panelH - 22);
@@ -643,9 +671,7 @@ export class HubCampPanel {
     let best: CampBuilding | null = null;
     let bestDist = Infinity;
     for (const b of CAMP_BUILDINGS) {
-      const dx = this.player.x - b.interactPoint.x;
-      const dy = this.player.y - b.interactPoint.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dist = this.distanceToBuilding(b);
       if (dist < b.interactRadius && dist < bestDist) {
         best = b;
         bestDist = dist;
@@ -659,6 +685,24 @@ export class HubCampPanel {
     const world = this.lastView.toWorld(x, y);
     const ordered = [...CAMP_BUILDINGS].sort((a, b) => b.depthY - a.depthY);
     return ordered.find((b) => this.inRect(world.x, world.y, { x: b.x, y: b.y, w: b.w, h: b.h })) ?? null;
+  }
+
+  private getSelectedBuilding(): CampBuilding | undefined {
+    return CAMP_BUILDINGS.find((b) => b.id === this.selectedModule);
+  }
+
+  private cycleSelectedBuilding(offset: number): void {
+    if (CAMP_BUILDINGS.length === 0) return;
+    const currentIndex = Math.max(0, CAMP_BUILDINGS.findIndex((building) => building.id === this.selectedModule));
+    const nextIndex = (currentIndex + offset + CAMP_BUILDINGS.length) % CAMP_BUILDINGS.length;
+    this.selectedModule = CAMP_BUILDINGS[nextIndex].id;
+    this.navigationFlash = 0.55;
+  }
+
+  private distanceToBuilding(building: CampBuilding): number {
+    const dx = this.player.x - building.interactPoint.x;
+    const dy = this.player.y - building.interactPoint.y;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   private getModuleInteraction(moduleId: HubModuleId): HubCampInteraction | null {
