@@ -14,7 +14,8 @@
     "clean:art": "npm run clean:hub-art && npm run clean:character-art",
     "check:hub-layout": "node scripts/check-hub-layout.mjs",
     "check:art": "node scripts/check-art-assets.mjs",
-    "check:b-line": "npm run check:hub-layout && npm run check:art && npm run typecheck"
+    "check:anchors": "node scripts/check-weapon-anchors.mjs",
+    "check:b-line": "npm run check:hub-layout && npm run check:art && npm run check:anchors && npm run typecheck"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
