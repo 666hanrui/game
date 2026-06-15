@@ -47,6 +47,7 @@ export class HubCampPanel {
   private interactFlash = 0;
   private targetCycleQueued = 0;
   private navigationFlash = 0;
+  private uiTimer = 0;
   private lastView: CampView | null = null;
   private lastCanvasW = 0;
   private lastCanvasH = 0;
@@ -90,6 +91,7 @@ export class HubCampPanel {
 
   update(input: Input, dt: number, _w: number, _h: number): HubCampInteraction | null {
     input.update();
+    this.uiTimer += dt;
     if (this.targetCycleQueued !== 0) {
       this.cycleSelectedBuilding(this.targetCycleQueued);
       this.targetCycleQueued = 0;
@@ -161,6 +163,7 @@ export class HubCampPanel {
     this.drawGroundLayer(ctx, view, w, h);
     this.drawSceneLayer(ctx, view);
     this.drawFrontOverlayLayer(ctx, view);
+    this.drawTargetInteractMarker(ctx, view);
     this.drawSelectedBuildingGuide(ctx, view);
     this.drawInteractionHints(ctx, view);
     this.drawDebugFootprints(ctx, view);
@@ -445,6 +448,34 @@ export class HubCampPanel {
     ctx.font = `bold ${Math.max(10, 12 * s)}px monospace`;
     ctx.textAlign = "center";
     ctx.fillText("你", x, y + 30 * s);
+  }
+
+  private drawTargetInteractMarker(ctx: CanvasRenderingContext2D, view: CampView): void {
+    const building = this.activeBuilding ?? this.getSelectedBuilding();
+    if (!building) return;
+    const p = view.toScreen(building.interactPoint.x, building.interactPoint.y);
+    const color = MODULE_ACCENT[building.id];
+    const pulse = (Math.sin(this.uiTimer * 5.2) + 1) / 2;
+    const active = this.activeBuilding?.id === building.id;
+    const baseR = (active ? 28 : 22) * view.scale;
+    const r = baseR + pulse * 6 * view.scale;
+
+    ctx.save();
+    ctx.globalAlpha = active ? 0.88 : 0.62;
+    ctx.strokeStyle = this.rgba(color, active ? 0.92 : 0.68);
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = active ? 18 : 10;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, r * 1.35, r * 0.46, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = active ? 0.32 : 0.18;
+    ctx.fillStyle = this.rgba(color, 0.38);
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, r * 1.1, r * 0.36, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   private drawSelectedBuildingGuide(ctx: CanvasRenderingContext2D, view: CampView): void {
