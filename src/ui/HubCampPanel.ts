@@ -8,15 +8,13 @@ import { ASSET_MANIFEST } from "../data/assetManifest";
 export type { HubCampAction } from "../data/hubActions";
 
 type HubCampInteraction = HubCampAction;
-
+type HubAvatarDirection = "down" | "up" | "left" | "right";
 type HubArtKey =
   | "campGround" | "expeditionBack" | "expeditionFront" | "talentsBack" | "talentsFront"
   | "economyStorageBack" | "economyStorageFront" | "workshopBack" | "workshopFront"
   | "apothecaryBack" | "apothecaryFront" | "questsBack" | "questsFront"
   | "craftingBack" | "craftingFront" | "materialStorageBack" | "materialStorageFront"
   | "lootBack" | "lootFront" | "regionMapBack" | "regionMapFront" | "archiveBack" | "archiveFront";
-
-type HubAvatarDirection = "down" | "up" | "left" | "right";
 
 interface Rect { x: number; y: number; w: number; h: number; }
 interface CampView {
@@ -26,7 +24,6 @@ interface CampView {
   toScreen: (x: number, y: number) => { x: number; y: number };
   toWorld: (x: number, y: number) => { x: number; y: number };
 }
-
 interface CampBuilding {
   id: HubModuleId;
   name: string;
@@ -44,11 +41,11 @@ interface CampBuilding {
   npc: string;
   line: string;
 }
-
 interface SceneItem { depth: number; draw: () => void; }
 
 const CAMP_W = 1320;
 const CAMP_H = 860;
+const PLAYER_COLLISION_R = 10;
 const DEBUG_HUB_FOOTPRINT = false;
 const DEBUG_HUB_COLLIDERS = false;
 const CAMP_PLAY_BOUNDS: Rect = { x: 28, y: 28, w: CAMP_W - 56, h: CAMP_H - 56 };
@@ -99,14 +96,15 @@ const CAMP_BUILDINGS: CampBuilding[] = [
   { id: "loot", name: "宝箱陈列台", icon: "▤", x: 1064, y: 646, w: 228, h: 158, footprint: { x: 1114, y: 750, w: 134, h: 40 }, interactPoint: { x: 1181, y: 824 }, interactRadius: 86, depthY: 790, art: { back: "lootBack", front: "lootFront" }, color: MODULE_ACCENT.loot, npc: "战利品记录员", line: "查看宝箱和本局带出物。" },
 ];
 
-const CAMP_COLLIDERS: Rect[] = [
-  { x: 0, y: 0, w: CAMP_W, h: 34 }, { x: 0, y: CAMP_H - 34, w: CAMP_W, h: 34 },
-  { x: 0, y: 0, w: 34, h: CAMP_H }, { x: CAMP_W - 34, y: 0, w: 34, h: CAMP_H },
-  { x: 770, y: 52, w: 475, h: 126 }, { x: 1138, y: 164, w: 122, h: 380 },
-  { x: 1020, y: 724, w: 245, h: 76 }, { x: 456, y: 596, w: 134, h: 72 },
-  { x: 666, y: 544, w: 116, h: 54 }, { x: 352, y: 356, w: 78, h: 60 },
-  ...CAMP_BUILDINGS.map((b) => b.footprint),
+const HARD_SCENERY_COLLIDERS: Rect[] = [
+  { x: 0, y: 0, w: CAMP_W, h: 24 },
+  { x: 0, y: CAMP_H - 24, w: CAMP_W, h: 24 },
+  { x: 0, y: 0, w: 24, h: CAMP_H },
+  { x: CAMP_W - 24, y: 0, w: 24, h: CAMP_H },
+  { x: 1118, y: 110, w: 128, h: 430 },
+  { x: 1034, y: 746, w: 220, h: 54 },
 ];
+const CAMP_COLLIDERS: Rect[] = [...HARD_SCENERY_COLLIDERS, ...CAMP_BUILDINGS.map((b) => b.footprint)];
 
 export class HubCampPanel {
   selectedModule: HubModuleId = "expedition";
@@ -350,11 +348,28 @@ export class HubCampPanel {
   }
 
   private tryMove(dx: number, dy: number): void {
-    if (dx === 0 && dy === 0) return; const nextX = this.clamp(this.player.x + dx, CAMP_PLAY_BOUNDS.x + 16, CAMP_PLAY_BOUNDS.x + CAMP_PLAY_BOUNDS.w - 16); const nextY = this.clamp(this.player.y + dy, CAMP_PLAY_BOUNDS.y + 16, CAMP_PLAY_BOUNDS.y + CAMP_PLAY_BOUNDS.h - 16); if (!this.collidesWithCamp(nextX, nextY)) { this.player.x = nextX; this.player.y = nextY; }
+    if (dx === 0 && dy === 0) return;
+    const nextX = this.clamp(this.player.x + dx, CAMP_PLAY_BOUNDS.x + 16, CAMP_PLAY_BOUNDS.x + CAMP_PLAY_BOUNDS.w - 16);
+    const nextY = this.clamp(this.player.y + dy, CAMP_PLAY_BOUNDS.y + 16, CAMP_PLAY_BOUNDS.y + CAMP_PLAY_BOUNDS.h - 16);
+    const currentPressure = this.collisionPressure(this.player.x, this.player.y);
+    const nextPressure = this.collisionPressure(nextX, nextY);
+    if (nextPressure <= 0 || (currentPressure > 0 && nextPressure < currentPressure)) {
+      this.player.x = nextX;
+      this.player.y = nextY;
+    }
   }
 
-  private collidesWithCamp(px: number, py: number): boolean {
-    const r = 13; for (const c of CAMP_COLLIDERS) { const nearestX = this.clamp(px, c.x, c.x + c.w); const nearestY = this.clamp(py, c.y, c.y + c.h); const dx = px - nearestX; const dy = py - nearestY; if (dx * dx + dy * dy < r * r) return true; } return false;
+  private collisionPressure(px: number, py: number): number {
+    let pressure = 0;
+    for (const c of CAMP_COLLIDERS) {
+      const nearestX = this.clamp(px, c.x, c.x + c.w);
+      const nearestY = this.clamp(py, c.y, c.y + c.h);
+      const dx = px - nearestX;
+      const dy = py - nearestY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      pressure += Math.max(0, PLAYER_COLLISION_R - dist);
+    }
+    return pressure;
   }
 
   private findNearbyBuilding(): CampBuilding | null { let best: CampBuilding | null = null; let bestDist = Infinity; for (const b of CAMP_BUILDINGS) { const dx = this.player.x - b.interactPoint.x; const dy = this.player.y - b.interactPoint.y; const dist = Math.sqrt(dx * dx + dy * dy); if (dist < b.interactRadius && dist < bestDist) { best = b; bestDist = dist; } } return best; }
