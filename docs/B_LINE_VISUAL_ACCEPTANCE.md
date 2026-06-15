@@ -14,6 +14,18 @@ npm run build
 npm run dev
 ```
 
+如果只想先看营地布局坐标，也可以执行：
+
+```bash
+npm run export:hub-preview
+```
+
+会生成：
+
+```text
+docs/generated/hub-layout-preview.svg
+```
+
 其中：
 
 ```text
@@ -21,8 +33,18 @@ clean:art          清理营地建筑、角色 walk sheet、怪物 PNG 的白底
 check:hub-layout   检查营地布局数据、资源路径、建筑 id、碰撞矩形
 check:art          检查 assetManifest 资源、营地 back/front、walk sheet、怪物 PNG
 check:anchors      检查武器挂点表结构
-check:b-line       串起布局、美术、挂点、TypeScript 检查
+check:copy         检查营地玩家可见文案是否混入开发术语
+check:b-line       串起布局、美术、挂点、文案、TypeScript 检查
+export:hub-preview 导出营地布局 SVG 预览图
 ```
+
+GitHub Actions 已新增 B 线检查工作流：
+
+```text
+.github/workflows/b-line-visual-check.yml
+```
+
+修改营地、美术资源、武器挂点或检查脚本时，会自动跑 `npm run check:b-line` 和 `npm run build`。
 
 ## 二、营地地图验收
 
@@ -131,6 +153,24 @@ src/data/hubCampLayout.ts -> solidRects
 ```
 
 `HubCampPanel` 只负责返回动作，真正打开面板由 `HubSubPanelManager` 负责。
+
+### 6. 玩家可见文案
+
+检查底部建筑说明：
+
+```text
+不要出现 open_xxx；
+不要出现 HubSubPanelManager；
+不要出现具体类名；
+不要出现 game.metaXXX 这种内部存储名；
+应该像真正游戏里的建筑说明。
+```
+
+如果不确定，运行：
+
+```bash
+npm run check:copy
+```
 
 ## 三、局内角色验收
 
