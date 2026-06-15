@@ -24,30 +24,58 @@ src/core/GameOpeningFlowFix.ts
 
 注意：A 线进行时，其他协作者不要同时修改 `Game.ts`。
 
-## B 线：营地建筑化
+## B 线：营地建筑化与美术辨识度
 
 负责范围：
 
 ```text
 src/ui/HubCampPanel.ts
 src/data/hubModules.ts
+src/data/weaponAnchors.ts
 public/assets/sprites/
+scripts/clean-hub-sprites.mjs
+scripts/clean-character-sprites.mjs
 ```
 
-当前目标：
+当前状态：
 
 ```text
-1. 把营地从文字面板改成可移动据点地图。
-2. 远征入口做成传送门或城门。
-3. 道具工坊做成铁匠铺 / 工坊建筑。
-4. 药房做成药剂屋。
-5. 任务系统做成告示牌。
-6. 合成系统做成符文台或锻造台。
-7. 材料仓库做成仓库建筑。
-8. 玩家靠近建筑后显示 “E 交互”。
+1. 营地已经从文字面板升级为 2.5D 可移动据点地图。
+2. 地面层使用 camp-ground.png。
+3. 建筑使用 *_back.png / *_front.png 分层。
+4. 建筑 back 层和玩家一起 Y-sort。
+5. 建筑 front 层最后绘制，用于遮挡玩家。
+6. 玩家靠近建筑 interactPoint 后显示 “E 交互”。
+7. 建筑主体 solidRects 已接入，玩家不能从侧边钻进建筑内部。
+8. 边界迷雾已接入，用于遮盖地图硬边。
+9. 营地主角已改为人族 walk sheet，不再使用蓝色占位小人。
+10. 人族武器挂点表已建立并接入 Player.ts。
+11. 营地建筑、角色 walk sheet、怪物 PNG 均有零依赖资源清理脚本。
 ```
 
-注意：B 线不要修改 `Game.ts`，只改营地 UI 和营地数据。
+关键文档：
+
+```text
+docs/HUB_2_5D_HANDOFF.md
+docs/HUB_ART_CLEANUP.md
+docs/CHARACTER_ART_CLEANUP.md
+docs/WEAPON_ANCHOR_TUNING.md
+```
+
+维护规则：
+
+```text
+1. 不要把 HubCampPanel.ts 改回旧的 drawRoads / drawDistrictLabels 节点式界面。
+2. 调建筑碰撞时优先改 solidRects，不要删除整体碰撞系统。
+3. 调建筑交互时优先改 interactPoint 和 interactRadius。
+4. 调遮挡关系时优先改 depthY。
+5. 调人族武器姿势时优先改 src/data/weaponAnchors.ts，不要直接改 Player.ts 的通用武器数学逻辑。
+6. 清理营地建筑资源运行 npm run clean:hub-art。
+7. 清理角色和怪物资源运行 npm run clean:character-art。
+8. 一次性清理全部美术资源运行 npm run clean:art。
+```
+
+注意：B 线不要修改 `Game.ts`，只改营地 UI、美术资源、资源清理脚本和视觉挂点数据。
 
 ## C 线：局内补给与宝箱
 
@@ -99,6 +127,12 @@ src/systems/MetaProgress.ts
 ```bash
 npm run typecheck
 npm run build
+```
+
+美术资源更新后建议额外执行：
+
+```bash
+npm run clean:art
 ```
 
 提交前确认：
