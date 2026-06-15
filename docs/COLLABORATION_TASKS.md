@@ -36,6 +36,9 @@ src/data/weaponAnchors.ts
 public/assets/sprites/
 scripts/clean-hub-sprites.mjs
 scripts/clean-character-sprites.mjs
+scripts/check-hub-layout.mjs
+scripts/check-art-assets.mjs
+scripts/check-weapon-anchors.mjs
 ```
 
 当前状态：
@@ -53,6 +56,7 @@ scripts/clean-character-sprites.mjs
 10. 人族武器挂点表已建立并接入 Player.ts。
 11. 营地建筑、角色 walk sheet、怪物 PNG 均有零依赖资源清理脚本。
 12. 营地建筑坐标、资源路径、碰撞框已抽离到 src/data/hubCampLayout.ts。
+13. B 线已有统一检查入口 npm run check:b-line。
 ```
 
 关键文档：
@@ -62,6 +66,8 @@ docs/HUB_2_5D_HANDOFF.md
 docs/HUB_ART_CLEANUP.md
 docs/CHARACTER_ART_CLEANUP.md
 docs/WEAPON_ANCHOR_TUNING.md
+docs/B_LINE_VISUAL_ACCEPTANCE.md
+docs/ART_ASSET_STANDARDS.md
 ```
 
 维护规则：
@@ -76,6 +82,7 @@ docs/WEAPON_ANCHOR_TUNING.md
 7. 清理营地建筑资源运行 npm run clean:hub-art。
 8. 清理角色和怪物资源运行 npm run clean:character-art。
 9. 一次性清理全部美术资源运行 npm run clean:art。
+10. 提交 B 线改动前运行 npm run check:b-line。
 ```
 
 注意：B 线不要修改 `Game.ts`，只改营地 UI、美术资源、资源清理脚本和视觉挂点数据。
@@ -136,6 +143,7 @@ npm run build
 
 ```bash
 npm run clean:art
+npm run check:b-line
 ```
 
 提交前确认：
@@ -145,5 +153,7 @@ npm run clean:art
 没有 Console 运行时报错；
 没有新增 main.ts 绕过核心系统的临时玩法；
 没有硬写自动开火；
-没有长期保留 monkey patch。
+没有长期保留 monkey patch；
+没有把营地 2.5D 改回文字面板；
+没有提交带白底/棋盘格的美术资源。
 ```
