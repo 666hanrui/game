@@ -13,11 +13,22 @@ interface Rect {
   h: number;
 }
 
+interface MinimapLayout {
+  panel: Rect;
+  map: Rect;
+}
+
 export interface HubCampMinimapState {
   player: Point;
   selectedModule: HubModuleId;
   activeModule?: HubModuleId | null;
 }
+
+const MINIMAP_MIN_W = 920;
+const MINIMAP_MIN_H = 560;
+const MINIMAP_W = 232;
+const MINIMAP_H = 176;
+const MINIMAP_MARGIN = 22;
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const rr = Math.min(r, w / 2, h / 2);
@@ -38,11 +49,8 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function worldToMini(rect: Rect, point: Point): Point {
-  return {
-    x: rect.x + (point.x / CAMP_W) * rect.w,
-    y: rect.y + (point.y / CAMP_H) * rect.h,
-  };
+function inRect(x: number, y: number, rect: Rect): boolean {
+  return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }
 
 function distance(a: Point, b: Point): number {
@@ -51,14 +59,66 @@ function distance(a: Point, b: Point): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-export function drawHubCampMinimap(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number, state: HubCampMinimapState): void {
-  if (canvasW < 920 || canvasH < 560) return;
+function getMinimapLayout(canvasW: number, canvasH: number): MinimapLayout | null {
+  if (canvasW < MINIMAP_MIN_W || canvasH < MINIMAP_MIN_H) return null;
+  const panel: Rect = {
+    x: canvasW - MINIMAP_W - MINIMAP_MARGIN,
+    y: MINIMAP_MARGIN,
+    w: MINIMAP_W,
+    h: MINIMAP_H,
+  };
+  return {
+    panel,
+    map: { x: panel.x + 14, y: panel.y + 36, w: panel.w - 28, h: panel.h - 68 },
+  };
+}
 
-  const panelW = 232;
-  const panelH = 176;
-  const x = canvasW - panelW - 22;
-  const y = 22;
-  const map: Rect = { x: x + 14, y: y + 36, w: panelW - 28, h: panelH - 68 };
+function worldToMini(rect: Rect, point: Point): Point {
+  return {
+    x: rect.x + (point.x / CAMP_W) * rect.w,
+    y: rect.y + (point.y / CAMP_H) * rect.h,
+  };
+}
+
+function miniToWorld(rect: Rect, point: Point): Point {
+  return {
+    x: clamp(((point.x - rect.x) / rect.w) * CAMP_W, 0, CAMP_W),
+    y: clamp(((point.y - rect.y) / rect.h) * CAMP_H, 0, CAMP_H),
+  };
+}
+
+export function pickHubCampMinimapModule(canvasW: number, canvasH: number, x: number, y: number): HubModuleId | null {
+  const layout = getMinimapLayout(canvasW, canvasH);
+  if (!layout || !inRect(x, y, layout.panel)) return null;
+
+  const point = { x, y };
+  let best: { id: HubModuleId; dist: number } | null = null;
+  for (const building of CAMP_BUILDINGS) {
+    const center = { x: building.x + building.w / 2, y: building.y + building.h / 2 };
+    const p = worldToMini(layout.map, center);
+    const dist = distance(point, p);
+    if (!best || dist < best.dist) best = { id: building.id, dist };
+  }
+
+  if (best && best.dist <= 18) return best.id;
+  if (inRect(x, y, layout.map)) {
+    const world = miniToWorld(layout.map, point);
+    let nearest: { id: HubModuleId; dist: number } | null = null;
+    for (const building of CAMP_BUILDINGS) {
+      const center = { x: building.x + building.w / 2, y: building.y + building.h / 2 };
+      const dist = distance(world, center);
+      if (!nearest || dist < nearest.dist) nearest = { id: building.id, dist };
+    }
+    return nearest?.id ?? null;
+  }
+  return null;
+}
+
+export function drawHubCampMinimap(ctx: CanvasRenderingContext2D, canvasW: number, canvasH: number, state: HubCampMinimapState): void {
+  const layout = getMinimapLayout(canvasW, canvasH);
+  if (!layout) return;
+
+  const { panel, map } = layout;
   const selectedBuilding = CAMP_BUILDINGS.find((building) => building.id === state.selectedModule) ?? CAMP_BUILDINGS[0];
   const activeBuilding = state.activeModule ? CAMP_BUILDINGS.find((building) => building.id === state.activeModule) : null;
   const target = activeBuilding ?? selectedBuilding;
@@ -68,7 +128,7 @@ export function drawHubCampMinimap(ctx: CanvasRenderingContext2D, canvasW: numbe
   ctx.fillStyle = "rgba(33, 24, 16, 0.76)";
   ctx.strokeStyle = "rgba(255, 224, 130, 0.38)";
   ctx.lineWidth = 1.5;
-  roundRect(ctx, x, y, panelW, panelH, 16);
+  roundRect(ctx, panel.x, panel.y, panel.w, panel.h, 16);
   ctx.fill();
   ctx.stroke();
 
@@ -82,12 +142,12 @@ export function drawHubCampMinimap(ctx: CanvasRenderingContext2D, canvasW: numbe
   ctx.fillStyle = "#ffecb3";
   ctx.font = "bold 13px monospace";
   ctx.textAlign = "left";
-  ctx.fillText("营地方位", x + 14, y + 21);
+  ctx.fillText("营地方位", panel.x + 14, panel.y + 21);
 
   ctx.fillStyle = activeBuilding ? "#ffeb3b" : "rgba(255,255,255,0.7)";
   ctx.font = "10px monospace";
   ctx.textAlign = "right";
-  ctx.fillText(activeBuilding ? "可交互" : "目标", x + panelW - 14, y + 21);
+  ctx.fillText(activeBuilding ? "可交互" : "目标", panel.x + panel.w - 14, panel.y + 21);
 
   for (const building of CAMP_BUILDINGS) {
     const center = {
@@ -131,10 +191,10 @@ export function drawHubCampMinimap(ctx: CanvasRenderingContext2D, canvasW: numbe
   ctx.fillStyle = "rgba(255,255,255,0.64)";
   ctx.font = "10px monospace";
   ctx.textAlign = "left";
-  ctx.fillText("白点=你  彩点=建筑", x + 14, y + panelH - 31);
+  ctx.fillText("白点=你  彩点=建筑", panel.x + 14, panel.y + panel.h - 31);
 
   ctx.fillStyle = targetColor;
   ctx.font = "bold 11px monospace";
-  ctx.fillText(`${target.name} · ${targetDistance}m`, x + 14, y + panelH - 13);
+  ctx.fillText(`${target.name} · ${targetDistance}m`, panel.x + 14, panel.y + panel.h - 13);
   ctx.restore();
 }
