@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "clean:hub-art": "node scripts/clean-hub-sprites.mjs",
     "clean:character-art": "node scripts/clean-character-sprites.mjs",
-    "clean:art": "npm run clean:hub-art && npm run clean:character-art"
+    "clean:art": "npm run clean:hub-art && npm run clean:character-art",
+    "check:hub-layout": "node scripts/check-hub-layout.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
