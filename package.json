@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clean:hub-art": "node scripts/clean-hub-sprites.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
