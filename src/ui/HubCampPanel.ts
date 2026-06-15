@@ -33,6 +33,7 @@ interface CampBuilding {
   w: number;
   h: number;
   footprint: Rect;
+  solidRects?: Rect[];
   interactPoint: { x: number; y: number };
   interactRadius: number;
   depthY: number;
@@ -83,17 +84,17 @@ const MODULE_ACCENT: Record<HubModuleId, string> = {
 };
 
 const CAMP_BUILDINGS: CampBuilding[] = [
-  { id: "expedition", name: "远征城门", icon: "▲", x: 540, y: 56, w: 260, h: 196, footprint: { x: 596, y: 190, w: 150, h: 46 }, interactPoint: { x: 671, y: 258 }, interactRadius: 86, depthY: 236, art: { back: "expeditionBack", front: "expeditionFront" }, color: MODULE_ACCENT.expedition, npc: "前线队长", line: "开始局内战斗。" },
-  { id: "talents", name: "天赋祭坛", icon: "✦", x: 236, y: 130, w: 246, h: 184, footprint: { x: 294, y: 252, w: 132, h: 44 }, interactPoint: { x: 360, y: 326 }, interactRadius: 84, depthY: 296, art: { back: "talentsBack", front: "talentsFront" }, color: MODULE_ACCENT.talents, npc: "天赋导师", line: "管理局外天赋。" },
-  { id: "economyStorage", name: "资源仓库", icon: "¤", x: 70, y: 282, w: 236, h: 176, footprint: { x: 118, y: 396, w: 140, h: 46 }, interactPoint: { x: 188, y: 470 }, interactRadius: 84, depthY: 442, art: { back: "economyStorageBack", front: "economyStorageFront" }, color: MODULE_ACCENT.economyStorage, npc: "资源管理员", line: "查看远征币和魂晶。" },
-  { id: "workshop", name: "铁匠工坊", icon: "⚒", x: 826, y: 160, w: 282, h: 206, footprint: { x: 892, y: 302, w: 152, h: 48 }, interactPoint: { x: 968, y: 376 }, interactRadius: 88, depthY: 350, art: { back: "workshopBack", front: "workshopFront" }, color: MODULE_ACCENT.workshop, npc: "工坊老板", line: "装备和神话武器路线。" },
-  { id: "storage", name: "材料仓库", icon: "▣", x: 78, y: 468, w: 246, h: 184, footprint: { x: 128, y: 590, w: 144, h: 46 }, interactPoint: { x: 200, y: 662 }, interactRadius: 86, depthY: 636, art: { back: "materialStorageBack", front: "materialStorageFront" }, color: MODULE_ACCENT.storage, npc: "仓库管理员", line: "查看带出局材料。" },
-  { id: "archive", name: "异种档案馆", icon: "?", x: 552, y: 310, w: 226, h: 172, footprint: { x: 602, y: 424, w: 128, h: 42 }, interactPoint: { x: 666, y: 496 }, interactRadius: 82, depthY: 466, art: { back: "archiveBack", front: "archiveFront" }, color: MODULE_ACCENT.archive, npc: "档案员", line: "查看怪物与世界观档案。" },
-  { id: "map", name: "收复沙盘", icon: "◎", x: 1048, y: 362, w: 236, h: 156, footprint: { x: 1098, y: 458, w: 136, h: 38 }, interactPoint: { x: 1166, y: 528 }, interactRadius: 84, depthY: 496, art: { back: "regionMapBack", front: "regionMapFront" }, color: MODULE_ACCENT.map, npc: "测绘员", line: "查看区域收复地图。" },
-  { id: "crafting", name: "符文合成台", icon: "◇", x: 862, y: 510, w: 250, h: 176, footprint: { x: 914, y: 622, w: 150, h: 44 }, interactPoint: { x: 989, y: 694 }, interactRadius: 86, depthY: 666, art: { back: "craftingBack", front: "craftingFront" }, color: MODULE_ACCENT.crafting, npc: "合成匠", line: "打开局外合成。" },
-  { id: "apothecary", name: "药剂屋", icon: "✚", x: 242, y: 636, w: 248, h: 182, footprint: { x: 294, y: 756, w: 144, h: 46 }, interactPoint: { x: 366, y: 828 }, interactRadius: 88, depthY: 802, art: { back: "apothecaryBack", front: "apothecaryFront" }, color: MODULE_ACCENT.apothecary, npc: "药房老板", line: "永久药剂和局外药。" },
-  { id: "quests", name: "指挥公告栏", icon: "☰", x: 560, y: 648, w: 230, h: 158, footprint: { x: 610, y: 750, w: 130, h: 40 }, interactPoint: { x: 675, y: 824 }, interactRadius: 84, depthY: 790, art: { back: "questsBack", front: "questsFront" }, color: MODULE_ACCENT.quests, npc: "任务书记", line: "任务、讨伐和材料委托。" },
-  { id: "loot", name: "宝箱陈列台", icon: "▤", x: 1064, y: 646, w: 228, h: 158, footprint: { x: 1114, y: 750, w: 134, h: 40 }, interactPoint: { x: 1181, y: 824 }, interactRadius: 86, depthY: 790, art: { back: "lootBack", front: "lootFront" }, color: MODULE_ACCENT.loot, npc: "战利品记录员", line: "查看宝箱和本局带出物。" },
+  { id: "expedition", name: "远征城门", icon: "▲", x: 540, y: 56, w: 260, h: 196, footprint: { x: 596, y: 190, w: 150, h: 46 }, solidRects: [{ x: 566, y: 88, w: 220, h: 118 }], interactPoint: { x: 671, y: 258 }, interactRadius: 86, depthY: 236, art: { back: "expeditionBack", front: "expeditionFront" }, color: MODULE_ACCENT.expedition, npc: "前线队长", line: "开始局内战斗。" },
+  { id: "talents", name: "天赋祭坛", icon: "✦", x: 236, y: 130, w: 246, h: 184, footprint: { x: 294, y: 252, w: 132, h: 44 }, solidRects: [{ x: 256, y: 154, w: 206, h: 110 }, { x: 284, y: 236, w: 152, h: 38 }], interactPoint: { x: 360, y: 326 }, interactRadius: 84, depthY: 296, art: { back: "talentsBack", front: "talentsFront" }, color: MODULE_ACCENT.talents, npc: "天赋导师", line: "管理局外天赋。" },
+  { id: "economyStorage", name: "资源仓库", icon: "¤", x: 70, y: 282, w: 236, h: 176, footprint: { x: 118, y: 396, w: 140, h: 46 }, solidRects: [{ x: 90, y: 306, w: 198, h: 102 }, { x: 112, y: 386, w: 150, h: 32 }], interactPoint: { x: 188, y: 470 }, interactRadius: 84, depthY: 442, art: { back: "economyStorageBack", front: "economyStorageFront" }, color: MODULE_ACCENT.economyStorage, npc: "资源管理员", line: "查看远征币和魂晶。" },
+  { id: "workshop", name: "铁匠工坊", icon: "⚒", x: 826, y: 160, w: 282, h: 206, footprint: { x: 892, y: 302, w: 152, h: 48 }, solidRects: [{ x: 850, y: 184, w: 238, h: 122 }, { x: 872, y: 288, w: 196, h: 40 }], interactPoint: { x: 968, y: 376 }, interactRadius: 88, depthY: 350, art: { back: "workshopBack", front: "workshopFront" }, color: MODULE_ACCENT.workshop, npc: "工坊老板", line: "装备和神话武器路线。" },
+  { id: "storage", name: "材料仓库", icon: "▣", x: 78, y: 468, w: 246, h: 184, footprint: { x: 128, y: 590, w: 144, h: 46 }, solidRects: [{ x: 102, y: 494, w: 202, h: 106 }, { x: 122, y: 574, w: 154, h: 40 }], interactPoint: { x: 200, y: 662 }, interactRadius: 86, depthY: 636, art: { back: "materialStorageBack", front: "materialStorageFront" }, color: MODULE_ACCENT.storage, npc: "仓库管理员", line: "查看带出局材料。" },
+  { id: "archive", name: "异种档案馆", icon: "?", x: 552, y: 310, w: 226, h: 172, footprint: { x: 602, y: 424, w: 128, h: 42 }, solidRects: [{ x: 576, y: 332, w: 178, h: 104 }, { x: 596, y: 410, w: 138, h: 36 }], interactPoint: { x: 666, y: 496 }, interactRadius: 82, depthY: 466, art: { back: "archiveBack", front: "archiveFront" }, color: MODULE_ACCENT.archive, npc: "档案员", line: "查看怪物与世界观档案。" },
+  { id: "map", name: "收复沙盘", icon: "◎", x: 1048, y: 362, w: 236, h: 156, footprint: { x: 1098, y: 458, w: 136, h: 38 }, solidRects: [{ x: 1070, y: 386, w: 192, h: 84 }, { x: 1092, y: 448, w: 148, h: 30 }], interactPoint: { x: 1166, y: 528 }, interactRadius: 84, depthY: 496, art: { back: "regionMapBack", front: "regionMapFront" }, color: MODULE_ACCENT.map, npc: "测绘员", line: "查看区域收复地图。" },
+  { id: "crafting", name: "符文合成台", icon: "◇", x: 862, y: 510, w: 250, h: 176, footprint: { x: 914, y: 622, w: 150, h: 44 }, solidRects: [{ x: 890, y: 536, w: 198, h: 100 }, { x: 908, y: 606, w: 160, h: 38 }], interactPoint: { x: 989, y: 694 }, interactRadius: 86, depthY: 666, art: { back: "craftingBack", front: "craftingFront" }, color: MODULE_ACCENT.crafting, npc: "合成匠", line: "打开局外合成。" },
+  { id: "apothecary", name: "药剂屋", icon: "✚", x: 242, y: 636, w: 248, h: 182, footprint: { x: 294, y: 756, w: 144, h: 46 }, solidRects: [{ x: 266, y: 660, w: 202, h: 108 }, { x: 288, y: 740, w: 154, h: 38 }], interactPoint: { x: 366, y: 828 }, interactRadius: 88, depthY: 802, art: { back: "apothecaryBack", front: "apothecaryFront" }, color: MODULE_ACCENT.apothecary, npc: "药房老板", line: "永久药剂和局外药。" },
+  { id: "quests", name: "指挥公告栏", icon: "☰", x: 560, y: 648, w: 230, h: 158, footprint: { x: 610, y: 750, w: 130, h: 40 }, solidRects: [{ x: 584, y: 674, w: 182, h: 86 }, { x: 604, y: 738, w: 140, h: 34 }], interactPoint: { x: 675, y: 824 }, interactRadius: 84, depthY: 790, art: { back: "questsBack", front: "questsFront" }, color: MODULE_ACCENT.quests, npc: "任务书记", line: "任务、讨伐和材料委托。" },
+  { id: "loot", name: "宝箱陈列台", icon: "▤", x: 1064, y: 646, w: 228, h: 158, footprint: { x: 1114, y: 750, w: 134, h: 40 }, solidRects: [{ x: 1088, y: 672, w: 180, h: 86 }, { x: 1108, y: 738, w: 146, h: 34 }], interactPoint: { x: 1181, y: 824 }, interactRadius: 86, depthY: 790, art: { back: "lootBack", front: "lootFront" }, color: MODULE_ACCENT.loot, npc: "战利品记录员", line: "查看宝箱和本局带出物。" },
 ];
 
 const HARD_SCENERY_COLLIDERS: Rect[] = [
@@ -104,7 +105,12 @@ const HARD_SCENERY_COLLIDERS: Rect[] = [
   { x: 1118, y: 110, w: 128, h: 430 },
   { x: 1034, y: 746, w: 220, h: 54 },
 ];
-const CAMP_COLLIDERS: Rect[] = [...HARD_SCENERY_COLLIDERS, ...CAMP_BUILDINGS.map((b) => b.footprint)];
+const BUILDING_SOLID_COLLIDERS: Rect[] = CAMP_BUILDINGS.flatMap((b) => b.solidRects ?? []);
+const CAMP_COLLIDERS: Rect[] = [
+  ...HARD_SCENERY_COLLIDERS,
+  ...BUILDING_SOLID_COLLIDERS,
+  ...CAMP_BUILDINGS.map((b) => b.footprint),
+];
 
 export class HubCampPanel {
   selectedModule: HubModuleId = "expedition";
@@ -309,7 +315,7 @@ export class HubCampPanel {
     if (!DEBUG_HUB_FOOTPRINT && !DEBUG_HUB_COLLIDERS) return;
     ctx.save(); ctx.translate(view.ox, view.oy); ctx.scale(view.scale, view.scale);
     if (DEBUG_HUB_COLLIDERS) { ctx.strokeStyle = "rgba(255,82,82,0.9)"; ctx.lineWidth = 2; for (const c of CAMP_COLLIDERS) ctx.strokeRect(c.x, c.y, c.w, c.h); }
-    if (DEBUG_HUB_FOOTPRINT) for (const b of CAMP_BUILDINGS) { ctx.strokeStyle = "rgba(255,235,59,0.9)"; ctx.lineWidth = 2; ctx.strokeRect(b.footprint.x, b.footprint.y, b.footprint.w, b.footprint.h); ctx.fillStyle = "rgba(255,64,64,0.95)"; ctx.beginPath(); ctx.arc(b.interactPoint.x, b.interactPoint.y, 5, 0, Math.PI * 2); ctx.fill(); }
+    if (DEBUG_HUB_FOOTPRINT) for (const b of CAMP_BUILDINGS) { ctx.strokeStyle = "rgba(255,235,59,0.9)"; ctx.lineWidth = 2; ctx.strokeRect(b.footprint.x, b.footprint.y, b.footprint.w, b.footprint.h); if (b.solidRects) for (const r of b.solidRects) ctx.strokeRect(r.x, r.y, r.w, r.h); ctx.fillStyle = "rgba(255,64,64,0.95)"; ctx.beginPath(); ctx.arc(b.interactPoint.x, b.interactPoint.y, 5, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
   }
 
@@ -353,10 +359,7 @@ export class HubCampPanel {
     const nextY = this.clamp(this.player.y + dy, CAMP_PLAY_BOUNDS.y + 16, CAMP_PLAY_BOUNDS.y + CAMP_PLAY_BOUNDS.h - 16);
     const currentPressure = this.collisionPressure(this.player.x, this.player.y);
     const nextPressure = this.collisionPressure(nextX, nextY);
-    if (nextPressure <= 0 || (currentPressure > 0 && nextPressure < currentPressure)) {
-      this.player.x = nextX;
-      this.player.y = nextY;
-    }
+    if (nextPressure <= 0 || (currentPressure > 0 && nextPressure < currentPressure)) { this.player.x = nextX; this.player.y = nextY; }
   }
 
   private collisionPressure(px: number, py: number): number {
