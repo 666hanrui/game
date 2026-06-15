@@ -209,6 +209,38 @@ npm run typecheck
 npm run build
 ```
 
+## 布局预览导出
+
+新增脚本：
+
+```text
+scripts/export-hub-layout-preview.mjs
+```
+
+命令：
+
+```bash
+npm run export:hub-preview
+```
+
+它会根据 `src/data/hubCampLayout.ts` 导出：
+
+```text
+docs/generated/hub-layout-preview.svg
+```
+
+预览图颜色含义：
+
+```text
+黄色：建筑图片绘制区域
+蓝色：footprint
+红色：solidRects 主体碰撞
+青色：interactPoint
+浅绿色虚线：地图安全边界
+```
+
+生成物已加入 `.gitignore`，默认不要提交。调营地坐标时可以先导出 SVG 看大概位置，再进游戏实测。
+
 ## 边界迷雾
 
 `drawEdgeFogOverlay()` 用于遮住地图边缘突兀的绿色硬边。
