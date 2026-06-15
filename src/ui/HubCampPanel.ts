@@ -1,7 +1,7 @@
 import { Input } from "../core/Input";
 import { HUB_MODULES } from "../data/hubModules";
 import type { HubModuleId } from "../data/hubModules";
-import { getHubActionByModule, getHubSubPanelId } from "../data/hubActions";
+import { getHubActionByModule } from "../data/hubActions";
 import type { HubCampAction } from "../data/hubActions";
 import { ASSET_MANIFEST } from "../data/assetManifest";
 import {
@@ -17,6 +17,7 @@ import {
   PLAYER_COLLISION_R,
 } from "../data/hubCampLayout";
 import type { CampBuilding, HubArtKey, HubAvatarDirection, Rect } from "../data/hubCampLayout";
+import { drawHubCampMinimap } from "./HubCampMinimap";
 
 export type { HubCampAction } from "../data/hubActions";
 
@@ -124,10 +125,16 @@ export class HubCampPanel {
     this.drawGroundLayer(ctx, view, w, h);
     this.drawSceneLayer(ctx, view);
     this.drawFrontOverlayLayer(ctx, view);
+    this.drawSelectedBuildingGuide(ctx, view);
     this.drawInteractionHints(ctx, view);
     this.drawDebugFootprints(ctx, view);
     this.drawEdgeFogOverlay(ctx, w, h);
     this.drawHud(ctx, w);
+    drawHubCampMinimap(ctx, w, h, {
+      player: this.player,
+      selectedModule: this.selectedModule,
+      activeModule: this.activeBuilding?.id ?? null,
+    });
     this.drawInteractionPanel(ctx, w, h);
     this.drawStartFallback(ctx, w, h);
     ctx.restore();
@@ -404,6 +411,57 @@ export class HubCampPanel {
     ctx.fillText("你", x, y + 30 * s);
   }
 
+  private drawSelectedBuildingGuide(ctx: CanvasRenderingContext2D, view: CampView): void {
+    if (this.activeBuilding) return;
+    const building = CAMP_BUILDINGS.find((b) => b.id === this.selectedModule);
+    if (!building) return;
+    const dx = building.interactPoint.x - this.player.x;
+    const dy = building.interactPoint.y - this.player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < building.interactRadius + 28) return;
+
+    const playerScreen = view.toScreen(this.player.x, this.player.y);
+    const nx = dx / Math.max(1, dist);
+    const ny = dy / Math.max(1, dist);
+    const arrowX = playerScreen.x + nx * 58 * view.scale;
+    const arrowY = playerScreen.y + ny * 58 * view.scale;
+    const angle = Math.atan2(ny, nx);
+    const color = MODULE_ACCENT[building.id];
+
+    ctx.save();
+    ctx.translate(arrowX, arrowY);
+    ctx.rotate(angle);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = this.rgba(color, 0.82);
+    ctx.strokeStyle = "rgba(35, 23, 14, 0.92)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(18 * view.scale, 0);
+    ctx.lineTo(-10 * view.scale, -9 * view.scale);
+    ctx.lineTo(-5 * view.scale, 0);
+    ctx.lineTo(-10 * view.scale, 9 * view.scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = "rgba(39, 27, 17, 0.82)";
+    ctx.strokeStyle = this.rgba(color, 0.65);
+    ctx.lineWidth = 1;
+    const label = `${building.name} ${Math.round(dist)}m`;
+    const textW = Math.max(86, ctx.measureText(label).width + 18);
+    this.roundRect(ctx, arrowX - textW / 2, arrowY + 16 * view.scale, textW, 24, 9);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#fff8e1";
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(label, arrowX, arrowY + 32 * view.scale);
+    ctx.restore();
+  }
+
   private drawInteractionHints(ctx: CanvasRenderingContext2D, view: CampView): void {
     if (!this.activeBuilding) return;
     const p = view.toScreen(this.activeBuilding.interactPoint.x, this.activeBuilding.interactPoint.y - 44);
@@ -509,7 +567,7 @@ export class HubCampPanel {
     ctx.fillText("远征营地", 44, 54);
     ctx.fillStyle = "rgba(255,255,255,0.68)";
     ctx.font = "12px monospace";
-    ctx.fillText("WASD 移动 · 靠近建筑门口按 E 交互 · 远征城门开始战斗", 46, 79);
+    ctx.fillText("WASD 移动 · 靠近建筑门口按 E 交互 · 右上角查看营地方位", 46, 79);
   }
 
   private drawInteractionPanel(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -532,10 +590,10 @@ export class HubCampPanel {
 
     if (building) {
       const actionDef = getHubActionByModule(building.id);
-      const subPanelId = actionDef ? getHubSubPanelId(actionDef.action) : undefined;
+      const actionLabel = actionDef?.label ?? "暂未开放";
       ctx.fillStyle = this.interactFlash > 0 ? "#ffeb3b" : "rgba(255,255,255,0.6)";
       ctx.font = "bold 12px monospace";
-      ctx.fillText(`${building.npc}：${building.line} ${actionDef?.action ?? "未配置"}${subPanelId ? ` → ${subPanelId}` : ""}`, x + 20, y + panelH - 22);
+      ctx.fillText(`${building.npc}：${building.line} · ${actionLabel}`, x + 20, y + panelH - 22);
     }
   }
 
