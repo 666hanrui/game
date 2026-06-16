@@ -1,5 +1,14 @@
 import { SkillSchool } from "./skills";
 
+export type WeaponAttackMode =
+  | "ranged_projectile"
+  | "melee_thrust"
+  | "melee_slash"
+  | "melee_slam"
+  | "short_returning_blade"
+  | "orbit"
+  | "summon";
+
 export interface Weapon {
   id: string;
   school: SkillSchool;
@@ -8,6 +17,7 @@ export interface Weapon {
   color: string;
   description: string;
   theme: string;
+  attackMode: WeaponAttackMode;
 }
 
 export const WEAPONS: Weapon[] = [
@@ -17,8 +27,9 @@ export const WEAPONS: Weapon[] = [
     name: "弓箭",
     icon: "🏹",
     color: "#ffd54f",
-    description: "多重箭 · 追踪箭 · 爆裂箭",
+    description: "远程箭矢 · 多重箭 · 追踪箭 · 爆裂箭",
     theme: "参考《弓箭手大作战》的核心爽点：从单发成长到满屏箭雨",
+    attackMode: "ranged_projectile",
   },
   {
     id: "flying_blade",
@@ -26,8 +37,9 @@ export const WEAPONS: Weapon[] = [
     name: "飞刃",
     icon: "✦",
     color: "#ef5350",
-    description: "飞刃增殖 · 回旋 · 近身爆发",
-    theme: "偏近中距离，靠数量和回旋轨迹处理怪群",
+    description: "短距飞刃 · 回旋 · 近身爆发",
+    theme: "偏近中距离，靠数量和回旋轨迹处理怪群，不作为普通远程圆球",
+    attackMode: "short_returning_blade",
   },
   {
     id: "spear",
@@ -35,8 +47,9 @@ export const WEAPONS: Weapon[] = [
     name: "长枪",
     icon: "◆",
     color: "#ffb74d",
-    description: "穿刺 · 冲锋 · 击退",
-    theme: "直线穿透和距离控制，适合硬朗的古武路线",
+    description: "近战刺击 · 枪芒成长 · 直线穿透",
+    theme: "前期是近距离刺击，拿到枪芒类升级后才获得远程派生能力",
+    attackMode: "melee_thrust",
   },
   {
     id: "mace",
@@ -44,8 +57,9 @@ export const WEAPONS: Weapon[] = [
     name: "狼牙棒",
     icon: "✹",
     color: "#bc8f5a",
-    description: "重击 · 破甲 · 震地",
-    theme: "慢攻速高冲击的钝器路线，靠破甲、击退和震地处理高护甲怪群",
+    description: "近战重击 · 破甲 · 震地",
+    theme: "慢攻速高冲击的钝器路线，前期靠近身重击，后续通过地裂和震荡波扩展范围",
+    attackMode: "melee_slam",
   },
   {
     id: "wand",
@@ -53,8 +67,9 @@ export const WEAPONS: Weapon[] = [
     name: "魔杖",
     icon: "✧",
     color: "#ce93d8",
-    description: "光弹 · 连发 · 元素附着",
+    description: "奥术光弹 · 连发 · 元素联动",
     theme: "轻量施法媒介，弹体密集，成长平滑",
+    attackMode: "ranged_projectile",
   },
   {
     id: "staff",
@@ -62,8 +77,9 @@ export const WEAPONS: Weapon[] = [
     name: "法杖",
     icon: "🔮",
     color: "#ab47bc",
-    description: "法阵 · 连锁 · 范围爆发",
+    description: "符文飞弹 · 法阵 · 范围爆发",
     theme: "重型施法媒介，偏控制和大范围清怪",
+    attackMode: "ranged_projectile",
   },
   {
     id: "orb",
@@ -71,8 +87,9 @@ export const WEAPONS: Weapon[] = [
     name: "法球",
     icon: "●",
     color: "#90caf9",
-    description: "环绕 · 护盾 · 自动释放",
+    description: "法球环绕 · 护盾 · 自动释放",
     theme: "偏自动化和防守反击，适合后期成型",
+    attackMode: "orbit",
   },
   {
     id: "drone_core",
@@ -80,8 +97,9 @@ export const WEAPONS: Weapon[] = [
     name: "无人机核心",
     icon: "⚙️",
     color: "#42a5f5",
-    description: "自动单位 · 编队 · 协同攻击",
+    description: "无人机单位 · 编队 · 协同攻击",
     theme: "用机械单位补足火力，后期靠数量和频率压制怪群",
+    attackMode: "summon",
   },
   {
     id: "energy_core",
@@ -89,8 +107,9 @@ export const WEAPONS: Weapon[] = [
     name: "能量核心",
     icon: "◇",
     color: "#4dd0e1",
-    description: "能量弹 · 过载 · 折射",
+    description: "科技能量弹 · 过载 · 折射",
     theme: "偏未来感的能量装置路线，强调弹道变化和爆发窗口",
+    attackMode: "ranged_projectile",
   },
 ];
 
