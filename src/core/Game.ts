@@ -20,6 +20,7 @@ import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
 import { Weapon } from "../data/weapons";
 import { getWeaponAttackProfile, isMeleeProfile, isPointInMeleeArc, WeaponAttackProfile } from "../systems/WeaponAttackRuntime";
+import { buildActiveSynergyIdSet } from "../systems/SynergyRuntime";
 import { distance, randRange, vec2, Vec2 } from "../utils/math";
 
 export type GamePhase = "menu" | "meta_upgrade" | "playing" | "paused" | "upgrade" | "school_choice" | "weapon_choice" | "result";
@@ -286,6 +287,10 @@ export class Game {
     return this.appliedSkillIds.filter((skillId) => skillId === id).length;
   }
 
+  private activeSynergies(): Set<string> {
+    return buildActiveSynergyIdSet(this.appliedSkillIds);
+  }
+
   private goalStats(): GoalStats {
     return { wave: this.waveNum, kills: this.kills, bossKills: this.bossKills };
   }
@@ -505,6 +510,7 @@ export class Game {
     const nx = aimDir.x / dirLen;
     const ny = aimDir.y / dirLen;
     const flashLife = profile.meleeType === "slam" ? 0.24 : 0.16;
+    const synergies = this.activeSynergies();
 
     this.meleeFlashes.push({
       pos: vec2(this.player.pos.x, this.player.pos.y),
@@ -530,6 +536,9 @@ export class Game {
       const isCrit = this.player.critChance > 0 && Math.random() < this.player.critChance;
       const raw = Math.floor(this.player.damage * profile.meleeDamageMultiplier);
       const dmg = isCrit ? Math.floor(raw * this.player.critMultiplier) : raw;
+      if (this.selectedWeapon?.id === "mace" && this.hasSkill("armor_breaker")) {
+        e.breakArmor(1 + this.skillCount("armor_breaker") * 2);
+      }
       const defeated = this.combat.dealDamage(e, dmg);
       hitCount++;
 
@@ -556,19 +565,75 @@ export class Game {
         hitCount > 0 ? 210 : 130,
       );
     }
+
+    if (this.selectedWeapon?.id === "spear" && this.hasSkill("spear_shadow")) this.releaseSpearBeam(nx, ny, synergies);
+    if (this.selectedWeapon?.id === "mace" && this.hasSkill("earthquake")) this.releaseMaceQuake(nx, ny, synergies);
+    if (this.selectedWeapon?.id === "mace" && this.hasSkill("mace_shockwave")) this.releaseMaceShockwaves(synergies);
+  }
+
+  private releaseSpearBeam(nx: number, ny: number, synergies: Set<string>): void {
+    const count = Math.min(5, this.skillCount("spear_shadow"));
+    const speed = 760 + count * 24;
+    const damage = Math.max(4, Math.floor(this.player.damage * (0.36 + count * 0.05)));
+    const spread = count <= 1 ? 0 : 0.09;
+    const color = synergies.has("lightning_spear_beam") ? "#90caf9" : synergies.has("ice_spear_beam") ? "#80deea" : "#ffb74d";
+
+    for (let i = 0; i < count; i++) {
+      const offset = (i - (count - 1) / 2) * spread;
+      const cos = Math.cos(offset);
+      const sin = Math.sin(offset);
+      const x = nx * cos - ny * sin;
+      const y = nx * sin + ny * cos;
+      this.projectiles.push(new Projectile(this.player.pos.x + nx * 24, this.player.pos.y + ny * 24, x * speed, y * speed, false, damage, "spear_beam"));
+    }
+
+    this.spawnParticles(this.player.pos.x + nx * 42, this.player.pos.y + ny * 42, color, 8 + count * 2, 2.6, 160);
+  }
+
+  private releaseMaceQuake(nx: number, ny: number, synergies: Set<string>): void {
+    const count = Math.min(4, this.skillCount("earthquake"));
+    const speed = 360 + count * 18;
+    const damage = Math.max(5, Math.floor(this.player.damage * (0.26 + count * 0.045)));
+    const color = synergies.has("fire_mace_quake") ? "#ff7043" : synergies.has("ice_mace_quake") ? "#80deea" : "#bc8f5a";
+
+    for (let i = 0; i < count; i++) {
+      const offset = (i - (count - 1) / 2) * 0.16;
+      const cos = Math.cos(offset);
+      const sin = Math.sin(offset);
+      const x = nx * cos - ny * sin;
+      const y = nx * sin + ny * cos;
+      this.projectiles.push(new Projectile(this.player.pos.x + nx * 34, this.player.pos.y + ny * 34, x * speed, y * speed, false, damage, "shockwave"));
+    }
+
+    this.spawnParticles(this.player.pos.x + nx * 58, this.player.pos.y + ny * 58, color, 10 + count * 2, 3.2, 180);
+  }
+
+  private releaseMaceShockwaves(synergies: Set<string>): void {
+    const count = Math.min(10, 4 + this.skillCount("mace_shockwave") * 2);
+    const damage = Math.max(4, Math.floor(this.player.damage * (0.18 + this.skillCount("mace_shockwave") * 0.035)));
+    const color = synergies.has("fire_mace_quake") ? "#ff7043" : synergies.has("ice_mace_quake") ? "#80deea" : "#bc8f5a";
+
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * 280, Math.sin(angle) * 280, false, damage, "shockwave"));
+    }
+    this.spawnParticles(this.player.pos.x, this.player.pos.y, color, 14, 3.6, 200);
   }
 
   private updateTrackingArrows(dt: number): void {
     if (!this.hasSkill("tracking")) return;
+    const synergies = this.activeSynergies();
+    const guided = synergies.has("tech_tracking_arrow");
     for (const p of this.projectiles) {
       if (!p.alive || p.fromEnemy) continue;
-      const target = this.findNearestEnemy(p.pos.x, p.pos.y, 420);
+      if (p.kind !== "arrow") continue;
+      const target = this.findNearestEnemy(p.pos.x, p.pos.y, guided ? 640 : 420);
       if (!target) continue;
       const dx = target.pos.x - p.pos.x;
       const dy = target.pos.y - p.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
       const speed = Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y) || 600;
-      const blend = Math.min(1, dt * (5 + this.skillCount("tracking") * 1.5));
+      const blend = Math.min(1, dt * (guided ? 9 + this.skillCount("tracking") * 2.1 : 5 + this.skillCount("tracking") * 1.5));
       p.vel.x += ((dx / len) * speed - p.vel.x) * blend;
       p.vel.y += ((dy / len) * speed - p.vel.y) * blend;
     }
@@ -578,6 +643,8 @@ export class Game {
     const count = this.skillCount("drone") + (this.selectedWeapon?.id === "drone_core" ? 1 : 0);
     const swarm = this.skillCount("drone_swarm");
     if (count <= 0) return;
+    const synergies = this.activeSynergies();
+    const arcaneDrone = synergies.has("arcane_drone");
     const interval = Math.max(0.18, 1.15 - count * 0.14 - swarm * 0.07);
     const tick = Math.floor(this.gameTime / interval);
     const prev = Math.floor((this.gameTime - dt) / interval);
@@ -589,7 +656,7 @@ export class Game {
       const dx = target.pos.x - this.player.pos.x;
       const dy = target.pos.y - this.player.pos.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5 + swarm * 4, "drone"));
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, (dx / len) * 620, (dy / len) * 620, false, 12 + count * 5 + swarm * 4 + (arcaneDrone ? 6 : 0), arcaneDrone ? "magic" : "drone"));
     }
   }
 
@@ -624,6 +691,66 @@ export class Game {
       this.addText(e.pos.x, e.pos.y - e.radius, `-${damage}`, "#ffb74d");
       this.spawnParticles(e.pos.x, e.pos.y, "#ff7043", 5, 2.5, 120);
       if (defeated) this.onKill(e);
+    }
+  }
+
+  private chainLightningFrom(source: Enemy, damage: number, radius: number, color = "#90caf9"): void {
+    let target: Enemy | null = null;
+    let best = radius;
+    for (const e of this.enemies) {
+      if (!e.alive || e === source) continue;
+      const d = distance(source.pos, e.pos);
+      if (d < best) { best = d; target = e; }
+    }
+    if (!target) return;
+    const defeated = target.takeDamage(damage);
+    this.addText(target.pos.x, target.pos.y - target.radius, `⚡-${damage}`, color);
+    this.spawnParticles(target.pos.x, target.pos.y, color, 12, 3, 190);
+    this.spawnParticles(source.pos.x, source.pos.y, color, 6, 2, 120);
+    if (defeated) this.onKill(target);
+  }
+
+  private applyProjectileSynergy(p: Projectile, e: Enemy, dmg: number, synergies: Set<string>): void {
+    if (p.kind === "arrow") {
+      if (synergies.has("lightning_split_arrow") && this.hasSkill("multi_arrow")) {
+        this.chainLightningFrom(e, Math.max(3, Math.floor(dmg * 0.28)), 260, "#90caf9");
+      }
+      if (synergies.has("ice_frost_arrow") && this.hasSkill("frost_arrow")) {
+        e.applySlow(0.32, 1.4 + this.skillCount("frost_arrow") * 0.3);
+        this.spawnParticles(e.pos.x, e.pos.y, "#80deea", 8, 2.6, 120);
+      }
+      if (synergies.has("fire_explosive_arrow") && this.hasSkill("fireball")) {
+        this.explodeAt(e.pos.x, e.pos.y, 45 + this.skillCount("fireball") * 8, Math.max(2, Math.floor(dmg * 0.22)), e);
+        this.spawnParticles(e.pos.x, e.pos.y, "#ff7043", 10, 3, 150);
+      }
+    }
+
+    if (p.kind === "spear_beam") {
+      if (synergies.has("lightning_spear_beam")) this.chainLightningFrom(e, Math.max(3, Math.floor(dmg * 0.34)), 280, "#90caf9");
+      if (synergies.has("ice_spear_beam")) {
+        e.applySlow(0.38, 1.25 + this.skillCount("spear_shadow") * 0.18);
+        this.spawnParticles(e.pos.x, e.pos.y, "#80deea", 8, 2.6, 130);
+      }
+    }
+
+    if (p.kind === "shockwave") {
+      if (synergies.has("fire_mace_quake")) {
+        this.explodeAt(e.pos.x, e.pos.y, 54 + this.skillCount("earthquake") * 9, Math.max(2, Math.floor(dmg * 0.26)), e);
+        this.spawnParticles(e.pos.x, e.pos.y, "#ff7043", 10, 3.2, 150);
+      }
+      if (synergies.has("ice_mace_quake")) {
+        e.applySlow(0.36, 1.35 + this.skillCount("earthquake") * 0.22);
+        this.spawnParticles(e.pos.x, e.pos.y, "#80deea", 10, 3, 150);
+      }
+    }
+
+    if (p.kind === "blade" && synergies.has("poison_blade_whirl")) {
+      e.applySlow(0.62, 0.9 + this.skillCount("whirl_blade") * 0.18);
+      this.spawnParticles(e.pos.x, e.pos.y, "#81c784", 9, 2.6, 120);
+    }
+
+    if (p.kind === "magic" && synergies.has("arcane_drone") && this.selectedWeapon?.id === "drone_core") {
+      this.spawnParticles(e.pos.x, e.pos.y, "#b39ddb", 10, 3, 150);
     }
   }
 
@@ -666,6 +793,7 @@ export class Game {
     for (const pk of this.pickups) pk.update(dt);
     this.pickups = this.pickups.filter((pk) => pk.alive);
 
+    const activeSynergies = this.activeSynergies();
     for (const p of this.projectiles) {
       if (!p.alive || p.fromEnemy) continue;
       for (const e of this.enemies) {
@@ -680,6 +808,7 @@ export class Game {
 
           if (this.hasSkill("frost_arrow")) e.applySlow(0.45, 1.5 + this.skillCount("frost_arrow") * 0.4);
           if (this.hasSkill("fireball")) this.explodeAt(e.pos.x, e.pos.y, 90 + this.skillCount("fireball") * 25, Math.max(4, Math.floor(dmg * 0.5)), e);
+          this.applyProjectileSynergy(p, e, dmg, activeSynergies);
 
           if (this.selectedWeapon?.id === "staff") {
             const bloom = this.skillCount("spell_bloom");
