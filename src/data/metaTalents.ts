@@ -23,6 +23,7 @@ export interface MetaTalentDef {
 
 // 局外天赋：名称必须是四个字。
 // 普通天赋主要消耗通用物品；职业天赋和高阶突破才消耗特殊物品。
+// lightning / fire / ice / poison / arcane / tech 等英文标签是隐藏联动条件，不会作为局内卡种暴露给玩家。
 export const META_TALENTS: MetaTalentDef[] = [
   {
     id: "combo_chase",
@@ -39,7 +40,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "expedition_coin", amount: 80 },
       { itemId: "soul_crystal", amount: 12 },
     ],
-    tags: ["连击", "攻速", "清怪"],
+    tags: ["连击", "攻速", "清怪", "combo", "speed"],
   },
   {
     id: "blood_return",
@@ -56,7 +57,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "expedition_coin", amount: 140 },
       { itemId: "mutant_core", amount: 10 },
     ],
-    tags: ["吸血", "续航", "暴击"],
+    tags: ["吸血", "续航", "暴击", "lifesteal", "crit"],
   },
   {
     id: "solo_strike",
@@ -74,7 +75,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "expedition_coin", amount: 520 },
       { itemId: "king_core", amount: 1 },
     ],
-    tags: ["风险", "高伤", "高手"],
+    tags: ["风险", "高伤", "高手", "risk", "damage"],
   },
   {
     id: "bone_array",
@@ -92,7 +93,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "soul_crystal", amount: 120 },
       { itemId: "crown_shard", amount: 1 },
     ],
-    tags: ["死灵", "召唤", "滚雪球"],
+    tags: ["死灵", "召唤", "滚雪球", "summon"],
   },
   {
     id: "turret_matrix",
@@ -110,7 +111,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "soul_crystal", amount: 120 },
       { itemId: "turret_plan", amount: 1 },
     ],
-    tags: ["机械", "炮塔", "阵地"],
+    tags: ["机械", "炮塔", "阵地", "tech", "turret"],
   },
   {
     id: "treasure_greed",
@@ -128,7 +129,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "expedition_coin", amount: 180 },
       { itemId: "land_mark", amount: 4 },
     ],
-    tags: ["宝箱", "材料", "风险"],
+    tags: ["宝箱", "材料", "风险", "loot", "risk"],
   },
   {
     id: "reverse_frenzy",
@@ -146,7 +147,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "expedition_coin", amount: 260 },
       { itemId: "mutant_core", amount: 18 },
     ],
-    tags: ["低血", "狂战", "风险"],
+    tags: ["低血", "狂战", "风险", "risk", "speed"],
   },
   {
     id: "shield_echo",
@@ -164,7 +165,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "expedition_coin", amount: 160 },
       { itemId: "soul_crystal", amount: 28 },
     ],
-    tags: ["护盾", "反击", "生存"],
+    tags: ["护盾", "反击", "生存", "shield", "survival"],
   },
   {
     id: "element_surge",
@@ -182,7 +183,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "soul_crystal", amount: 110 },
       { itemId: "element_page", amount: 1 },
     ],
-    tags: ["魔法", "元素", "爆发"],
+    tags: ["魔法", "元素", "爆发", "lightning", "fire", "ice", "arcane"],
   },
   {
     id: "martial_legacy",
@@ -200,7 +201,7 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "soul_crystal", amount: 110 },
       { itemId: "ancient_part", amount: 1 },
     ],
-    tags: ["古武", "破甲", "武技"],
+    tags: ["古武", "破甲", "武技", "martial", "armor_break"],
   },
   {
     id: "hunter_oath",
@@ -217,7 +218,109 @@ export const META_TALENTS: MetaTalentDef[] = [
       { itemId: "soul_crystal", amount: 100 },
       { itemId: "hunter_badge", amount: 1 },
     ],
-    tags: ["游侠", "精英", "Boss"],
+    tags: ["游侠", "精英", "Boss", "boss", "elite"],
+  },
+  {
+    id: "thunder_mark",
+    name: "雷纹共鸣",
+    category: "magic",
+    rarity: "rare",
+    color: "#90caf9",
+    description: "提供雷电倾向。分裂箭、枪芒、剑气等升级会自动获得跳电或电弧联动。",
+    unlockCosts: [
+      { itemId: "expedition_coin", amount: 260 },
+      { itemId: "element_page", amount: 1 },
+    ],
+    upgradeCosts: [
+      { itemId: "soul_crystal", amount: 70 },
+      { itemId: "element_page", amount: 1 },
+    ],
+    tags: ["雷电", "联动", "元素", "lightning"],
+  },
+  {
+    id: "flame_vein",
+    name: "炎脉涌动",
+    category: "magic",
+    rarity: "rare",
+    color: "#ff8a65",
+    description: "提供火焰倾向。爆裂箭和地裂类升级会自动获得燃烧、熔岩或爆燃联动。",
+    unlockCosts: [
+      { itemId: "expedition_coin", amount: 260 },
+      { itemId: "element_page", amount: 1 },
+    ],
+    upgradeCosts: [
+      { itemId: "soul_crystal", amount: 70 },
+      { itemId: "element_page", amount: 1 },
+    ],
+    tags: ["火焰", "联动", "元素", "fire"],
+  },
+  {
+    id: "frost_breath",
+    name: "霜息凝痕",
+    category: "magic",
+    rarity: "rare",
+    color: "#80deea",
+    description: "提供冰霜倾向。冰霜箭、枪芒和地裂类升级会自动获得冰痕、减速或冻结联动。",
+    unlockCosts: [
+      { itemId: "expedition_coin", amount: 260 },
+      { itemId: "element_page", amount: 1 },
+    ],
+    upgradeCosts: [
+      { itemId: "soul_crystal", amount: 70 },
+      { itemId: "element_page", amount: 1 },
+    ],
+    tags: ["冰霜", "联动", "元素", "ice"],
+  },
+  {
+    id: "poison_spread",
+    name: "毒蚀蔓延",
+    category: "magic",
+    rarity: "rare",
+    color: "#81c784",
+    description: "提供毒蚀倾向。飞刃、剑气和多段命中类升级会自动获得毒雾或腐蚀联动。",
+    unlockCosts: [
+      { itemId: "expedition_coin", amount: 260 },
+      { itemId: "mutant_core", amount: 12 },
+    ],
+    upgradeCosts: [
+      { itemId: "soul_crystal", amount: 70 },
+      { itemId: "mutant_core", amount: 8 },
+    ],
+    tags: ["毒蚀", "联动", "元素", "poison"],
+  },
+  {
+    id: "arcane_ring",
+    name: "奥术星环",
+    category: "magic",
+    rarity: "rare",
+    color: "#b39ddb",
+    description: "提供奥术倾向。无人机、法阵和能量类升级会自动获得奥术弹体或符文爆发联动。",
+    unlockCosts: [
+      { itemId: "expedition_coin", amount: 280 },
+      { itemId: "star_marrow", amount: 1 },
+    ],
+    upgradeCosts: [
+      { itemId: "soul_crystal", amount: 80 },
+      { itemId: "star_marrow", amount: 1 },
+    ],
+    tags: ["奥术", "联动", "元素", "arcane"],
+  },
+  {
+    id: "guided_core",
+    name: "机巧制导",
+    category: "tech",
+    rarity: "rare",
+    color: "#4dd0e1",
+    description: "提供科技制导倾向。追踪箭、能量弹和无人机类升级会自动获得锁定或目标分配联动。",
+    unlockCosts: [
+      { itemId: "expedition_coin", amount: 280 },
+      { itemId: "turret_plan", amount: 1 },
+    ],
+    upgradeCosts: [
+      { itemId: "soul_crystal", amount: 80 },
+      { itemId: "turret_plan", amount: 1 },
+    ],
+    tags: ["科技", "制导", "联动", "tech"],
   },
 ];
 
