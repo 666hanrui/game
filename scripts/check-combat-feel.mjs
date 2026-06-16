@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 const CHECKS = [
   { file: "src/entities/Projectile.ts", includes: ["ProjectileHitShape", "ProjectileHitProfile", "ProjectileRenderQuality", "hitProfile", "hitsCircle", "distToSegmentSq", "capsule", "wide_wave", "perf", "fullDraws", "simpleDraws", "takeSpawnToken", "takeShockVisualSlot", "renderCheap", "nextTrackAt", "cachedTargetIndex"] },
   { file: "src/systems/SpatialHashGrid.ts", includes: ["SpatialHashGrid", "rebuild", "queryCircle", "cellSize"] },
+  { file: "src/systems/CombatPerformanceRuntime.ts", includes: ["CombatPerformanceRuntime", "beforeGameUpdate", "afterGameUpdate", "SpatialHashGrid", "patch", "updateTrackingArrows", "maxEnemyProjectiles", "maxShockwaves", "trimProjectiles", "keepNearest"] },
+  { file: "src/main.ts", includes: ["CombatPerformanceRuntime", "combatPerformance.beforeGameUpdate(game)", "combatPerformance.afterGameUpdate(game)"] },
   { file: "src/systems/CombatSystem.ts", includes: ["p.hitsCircle(e.pos, e.radius)"] },
   { file: "src/data/weapons.ts", includes: ["WeaponAttackMode", "WeaponWeightClass", "weightClass", "EXTRA_WEAPONS", "visualRole"] },
   { file: "src/data/weaponExpansion.ts", includes: ["EXTRA_WEAPONS", "EXTRA_SKILLS", "MARTIAL_WEAPON_SEEDS", "MAGIC_WEAPON_SEEDS", "TECH_WEAPON_SEEDS", "UPGRADE_TEMPLATE"] },
@@ -17,6 +19,7 @@ const CHECKS = [
   { file: "src/core/Game.ts", includes: ["buildActiveSynergyIdSet", "releaseSpearBeam", "releaseMaceQuake", "releaseMaceShockwaves", "applyProjectileSynergy", "renderMeleeFlashes"] },
   { file: "src/ui/BuildEffectOverlay.ts", includes: ["buildBuildProgress", "renderSubtleAura", "renderHybridPulse", "visualRole"] },
   { file: "docs/WEAPON_EXPANSION_AND_VISUAL_NOISE_PLAN.md", includes: ["30 把新武器", "300 张新升级卡", "视觉降噪", "枪芒不能自动攻击"] },
+  { file: "docs/PROJECTILE_PERFORMANCE_REWORK.md", includes: ["Projectile performance rework", "Spatial hash grid", "Tracking throttle", "Local validation"] },
 ];
 
 let failed = false;
