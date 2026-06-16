@@ -1,6 +1,6 @@
-# 战斗爽感第一批执行说明
+# 战斗爽感第一阶段执行说明
 
-本文件记录 `docs/COMBAT_FEEL_REWORK_PLAN.md` 第一批落地内容。
+本文件记录 `docs/COMBAT_FEEL_REWORK_PLAN.md` 第一阶段落地内容。
 
 ## 当前已完成
 
@@ -81,32 +81,134 @@ drone_core -> summon
 energy_core -> ranged_projectile
 ```
 
-这一步先把“哪些武器天生远程，哪些武器前期必须近战”的数据边界立起来。
+### 3. 武器攻击运行时配置
 
-## 尚未完成
-
-第一批里还有这几项需要继续推进：
+已新增：
 
 ```text
-1. Game.ts / 战斗运行时根据 attackMode 区分远程和近战。
-2. 长枪初始改成真正近战刺击。
-3. 狼牙棒初始改成真正近战重击。
-4. 飞刃改成短距离回旋或返回机制。
-5. 剑系武器目前尚未进入武器表，后续新增剑时应使用 melee_slash。
-6. 近战命中特效和近战判定还需要接入运行时。
+src/systems/WeaponAttackRuntime.ts
 ```
 
-## 重要边界
+这个文件集中维护：
 
-不要新增玩家可见的新卡种。
+```text
+武器基础攻击形态
+远程 projectile kind
+远程 projectile speed
+近战类型
+近战距离
+近战宽度 / 角度
+近战伤害倍率
+近战视觉颜色
+```
 
-枪芒、剑气、地裂、震荡波都只是普通升级卡的效果，不是单独的“形态解锁卡”。
+主要导出：
 
-元素不要进入局内升级卡池，元素倾向后续由天赋提供。
+```text
+getWeaponAttackProfile()
+isMeleeProfile()
+isPointInMeleeArc()
+```
+
+### 4. 战斗主循环已接入近战基础攻击
+
+已修改：
+
+```text
+src/core/Game.ts
+```
+
+现在 `fireWeapon()` 会先读取 `getWeaponAttackProfile()`。
+
+如果是远程武器：
+
+```text
+继续生成 Projectile。
+弓箭 -> arrow。
+魔杖 -> magic。
+法杖 -> heavy_magic。
+能量核心 -> energy。
+无人机核心 -> drone。
+飞刃 -> blade。
+```
+
+如果是近战武器：
+
+```text
+不再生成初始远程圆球。
+长枪 -> performMeleeAttack() 的 thrust 刺击判定。
+狼牙棒 -> performMeleeAttack() 的 slam 重击判定。
+```
+
+近战命中仍然使用原本的伤害、暴击、onKill、经验和掉落结算链路，不绕过击杀奖励。
+
+### 5. 近战视觉反馈
+
+已在 `Game.ts` 内新增 `meleeFlashes`。
+
+当前表现：
+
+```text
+长枪刺击：向瞄准方向出现细长刺击光。
+狼牙棒重击：向瞄准方向出现扇形冲击圈，并带落点粒子。
+```
+
+这只是第一阶段的基础表现，后续“枪芒 / 地裂 / 震荡波”会作为普通升级卡继续扩展。
+
+### 6. 战斗爽感检查命令
+
+已新增：
+
+```text
+scripts/check-combat-feel.mjs
+```
+
+并接入：
+
+```text
+npm run check:combat-feel
+npm run check:b-line
+```
+
+检查内容包括：
+
+```text
+Projectile 视觉类型是否还在。
+WeaponAttackMode 是否还在。
+WeaponAttackRuntime 是否还在。
+Game.ts 是否接入 performMeleeAttack 和 renderMeleeFlashes。
+重构文档是否还保留“升级卡 / 天赋 / 自动联动”的原则。
+```
+
+## 第一阶段已完成范围
+
+```text
+1. 弓箭、魔法、科技的弹体辨识度第一版完成。
+2. 长枪初始攻击已经不再是远程弹体，而是近战刺击。
+3. 狼牙棒初始攻击已经不再是远程弹体，而是近战重击。
+4. 飞刃已改为更短生命周期的 blade projectile，视觉上不再是普通圆球。
+5. 近战命中和击杀结算仍走原本链路。
+6. 检查脚本已接入，避免后续回退。
+```
+
+## 后续阶段不要混淆
+
+下一阶段不是新增卡种，而是把这些内容作为普通升级卡继续推进：
+
+```text
+枪芒：长枪刺击后额外释放远程枪芒。
+剑气：剑系新增后，斩击后额外释放剑气。
+地裂：狼牙棒重击后释放地裂波。
+震荡波：狼牙棒重击或命中后释放环形震荡。
+```
+
+元素仍然不要进入局内升级卡池，元素倾向后续由天赋提供。
 
 ## 本地建议检查
 
 ```bash
+npm run check:combat-feel
+npm run check:b-line
 npm run typecheck
 npm run build
 ```
@@ -114,10 +216,14 @@ npm run build
 进入游戏后优先观察：
 
 ```text
-弓箭是否看起来像箭；
-魔法弹是否明显区别于箭；
-科技弹是否明显区别于魔法；
-无人机弹是否像三角脉冲；
-飞刃是否不再像普通球；
-狼牙棒相关 projectile 是否更像冲击圈。
+弓箭是否看起来像箭。
+魔法弹是否明显区别于箭。
+科技弹是否明显区别于魔法。
+无人机弹是否像三角脉冲。
+飞刃是否不再像普通球。
+长枪是否不能远程打怪，必须靠近刺击。
+狼牙棒是否不能远程打怪，必须靠近重击。
+长枪刺击是否有细长刺击光。
+狼牙棒重击是否有扇形冲击圈和落点粒子。
+击杀敌人后经验和掉落是否仍正常。
 ```
