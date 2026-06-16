@@ -73,6 +73,8 @@ const CHECKS = [
       "buildActiveSynergyIdSet",
       "getSkillSynergyHintText",
       "MetaTalentProgress",
+      "选择后联动",
+      "已激活联动",
     ],
   },
   {
@@ -103,8 +105,8 @@ const CHECKS = [
     file: "src/ui/LuckyUpgradePanel.ts",
     includes: [
       "getSkillSynergyHintText",
-      "选择后联动",
-      "已激活联动",
+      "synergyText",
+      "synergySuffix",
     ],
   },
   {
