@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 
 const CHECKS = [
-  { file: "src/entities/Projectile.ts", includes: ["spear_beam", "sword_wave", "shockwave", "renderArrow", "renderArcaneBolt", "renderEnergy", "renderShockwave"] },
+  { file: "src/entities/Projectile.ts", includes: ["ProjectileHitShape", "ProjectileHitProfile", "hitProfile", "hitsCircle", "distToSegmentSq", "capsule", "wide_wave", "spear_beam", "shockwave", "renderSpearBeam"] },
+  { file: "src/systems/CombatSystem.ts", includes: ["p.hitsCircle(e.pos, e.radius)"] },
   { file: "src/data/weapons.ts", includes: ["WeaponAttackMode", "EXTRA_WEAPONS", "visualRole", "melee_thrust", "melee_slam", "short_returning_blade"] },
   { file: "src/data/weaponExpansion.ts", includes: ["EXTRA_WEAPONS", "EXTRA_SKILLS", "MARTIAL_WEAPON_SEEDS", "MAGIC_WEAPON_SEEDS", "TECH_WEAPON_SEEDS", "UPGRADE_TEMPLATE", "turret_controller", "plasma_blade", "rune_book"] },
   { file: "src/data/skills.ts", includes: ["EXTRA_SKILLS", "tags?: string[]", "spear_beam", "mace_shockwave", "projectile_unlock", "shockwave"] },
@@ -14,7 +15,7 @@ const CHECKS = [
   { file: "src/systems/WeaponAttackRuntime.ts", includes: ["buildGenericProfile", "WeaponAttackProfile", "MeleeAttackType", "getWeaponAttackProfile", "isPointInMeleeArc"] },
   { file: "src/core/Game.ts", includes: ["buildActiveSynergyIdSet", "releaseSpearBeam", "releaseMaceQuake", "releaseMaceShockwaves", "applyProjectileSynergy", "renderMeleeFlashes"] },
   { file: "src/ui/LuckyUpgradePanel.ts", includes: ["getSkillSynergyHintText", "getSkillStageInfo", "stageText", "synergySuffix"] },
-  { file: "src/ui/BuildEffectOverlay.ts", includes: ["buildBuildProgress", "renderBuildBadge", "renderSubtleAura", "renderHybridPulse", "visualRole"] },
+  { file: "src/ui/BuildEffectOverlay.ts", includes: ["buildBuildProgress", "renderSubtleAura", "renderHybridPulse", "visualRole"] },
   { file: "src/ui/StatsPanel.ts", includes: ["buildBuildProgress", "activeSynergyCount", "build.hybrid"] },
   { file: "docs/WEAPON_EXPANSION_AND_VISUAL_NOISE_PLAN.md", includes: ["30 把新武器", "300 张新升级卡", "视觉降噪", "枪芒不能自动攻击"] },
 ];
@@ -29,6 +30,10 @@ for (const check of CHECKS) {
     if (!text.includes(needle)) fail(`${check.file} -> ${needle}`);
   }
 }
+
+const overlayText = readFileSync("src/ui/BuildEffectOverlay.ts", "utf8");
+if (overlayText.includes("fillText(label")) fail("BuildEffectOverlay 不允许在角色头顶绘制流派名");
+if (overlayText.includes("renderBuildBadge")) fail("BuildEffectOverlay 不允许保留头顶流派徽标函数");
 
 if (failed) process.exit(1);
 console.log("combat feel checks ok");
