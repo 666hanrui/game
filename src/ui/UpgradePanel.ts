@@ -28,17 +28,11 @@ export class UpgradePanel {
 
   generateChoices(playerSchool: SkillSchool | null, ownedIds: string[], weaponId: string | null = null): Skill[] {
     this.ownedIds = [...ownedIds];
-
-    const available = ALL_SKILLS.filter((s: Skill) => {
-      const ownedCount = ownedIds.filter((id) => id === s.id).length;
-      return ownedCount < s.maxLevel;
-    });
-
+    const available = ALL_SKILLS.filter((s: Skill) => ownedIds.filter((id) => id === s.id).length < s.maxLevel);
     const weaponPool = available.filter((s: Skill) => s.school === playerSchool && s.weapon === weaponId);
     const schoolPool = available.filter((s: Skill) => s.school === playerSchool && !s.weapon);
     const neutralPool = available.filter((s: Skill) => s.school === "neutral");
     const otherPool = available.filter((s: Skill) => s.school !== playerSchool && s.school !== "neutral");
-
     const result: Skill[] = [];
     const picked = new Set<string>();
 
@@ -84,7 +78,6 @@ export class UpgradePanel {
     ctx.font = "bold 22px monospace";
     ctx.textAlign = "center";
     ctx.fillText("⬆ 升级！选择一项强化", w / 2, startY - 34);
-
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     ctx.font = "11px monospace";
     ctx.fillText("同一武器路线可以持续升级，例如弓箭从单发一路成长到箭雨", w / 2, startY - 14);
@@ -104,7 +97,6 @@ export class UpgradePanel {
       ctx.lineWidth = 2;
       this.roundRect(ctx, cx, cy, this.cardW, this.cardH, 10);
       ctx.fill(); ctx.stroke();
-
       ctx.fillStyle = this.getRarityColor(skill.rarity);
       ctx.fillRect(cx, cy, this.cardW, 5);
       ctx.fillStyle = meta.color;
@@ -278,6 +270,21 @@ export class WeaponPanel {
   private cardRects: { x: number; y: number; w: number; h: number; weapon: Weapon }[] = [];
   private pageButtons = { prev: { x: 0, y: 0, w: 0, h: 0 }, next: { x: 0, y: 0, w: 0, h: 0 } };
   private weapons: Weapon[] = [];
+  private lastRenderAt = 0;
+  private lastWheelAt = 0;
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("wheel", (e) => {
+        const now = performance.now();
+        if (now - this.lastRenderAt > 420) return;
+        if (now - this.lastWheelAt < 120) return;
+        this.lastWheelAt = now;
+        this.handleWheel(e.deltaY);
+        e.preventDefault();
+      }, { passive: false });
+    }
+  }
 
   setSchool(school: SkillSchool | null): void {
     this.weapons = getWeaponsBySchool(school);
@@ -297,6 +304,7 @@ export class WeaponPanel {
   }
 
   render(ctx: CanvasRenderingContext2D, w: number, h: number, assets?: AssetLike): void {
+    this.lastRenderAt = performance.now();
     this.cardRects = [];
     const totalPages = this.totalPages();
     this.page = Math.max(0, Math.min(this.page, totalPages - 1));
