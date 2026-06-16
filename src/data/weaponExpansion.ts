@@ -95,6 +95,6 @@ export const EXTRA_SKILLS: Skill[] = EXTRA_WEAPONS.flatMap((weapon) =>
     maxLevel: upgrade.maxLevel,
     mods: upgrade.mods,
     special: `${weapon.id}_${upgrade.specialTag}`,
-    tags: [weapon.id, weapon.school, weapon.attackMode, weapon.category, weapon.subCategory, upgrade.specialTag, upgrade.visualRole, ...((weapon as ExpandedWeaponSeed).tags ?? [])],
+    tags: [weapon.id, weapon.school, weapon.attackMode, weapon.category, weapon.subCategory, upgrade.specialTag, upgrade.visualRole, ...((weapon as ExpandedWeaponSeed).tags ?? [])] as string[],
   }))
 );

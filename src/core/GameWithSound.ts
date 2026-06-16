@@ -444,7 +444,7 @@ export class GameWithSound extends Game {
       this.fireArrowRain(score);
       this.buildPowerTimer = Math.max(0.36, 1.25 - score * 0.045);
     } else if (weaponId === "mace") {
-      this.releaseMaceQuake(score);
+      this.releaseMaceQuakeFX(score);
       this.buildPowerTimer = Math.max(0.5, 1.45 - score * 0.045 - this.diamondCount() * 0.08);
     } else if (this.isMartialWeapon(weaponId)) {
       this.releaseWeaponAura(score);
@@ -503,7 +503,7 @@ export class GameWithSound extends Game {
     }
   }
 
-  private releaseMaceQuake(score: number): void {
+  private releaseMaceQuakeFX(score: number): void {
     this.applyMaceShockwave(false);
     const count = Math.min(14, 5 + Math.floor(score / 2) + this.diamondCount() * 2);
     const speed = 360;
@@ -608,8 +608,8 @@ export class GameWithSound extends Game {
     if (after.phase !== "playing" && before.phase !== "playing") return;
     if (after.hp < before.hp) this.sound.playerHurt();
     if (after.level > before.level) this.sound.levelUp();
-    if (after.kills > before.kills) this.sound.enemyDeath();
-    if (after.playerShots > before.playerShots) this.sound.shoot();
+    if (after.kills > before.kills) this.sound.kill();
+    if (after.playerShots > before.playerShots) this.sound.attack();
     if (after.bossCount > before.bossCount) this.sound.bossSpawn();
   }
 
