@@ -70,6 +70,7 @@ export function getWeaponAttackProfile(weapon: Weapon | null | undefined): Weapo
     visualLength: raw.visualLength * rangeMul,
     visualWidth: raw.visualWidth * rangeMul,
     visualArc: raw.visualArc,
+    meleeDamageMultiplier: Math.max(0.35, raw.meleeDamageMultiplier * stats.damageMultiplier),
   };
 }
 
@@ -97,11 +98,21 @@ function buildGenericProfile(weapon: Weapon): PartialProfile {
     const circle = weapon.subCategory === "counter" || weapon.subCategory === "mace";
     return melee("slam", circle ? "slam_circle" : "slam_cone", heavy ? 96 : 78, heavy ? 118 : 96, circle ? Math.PI : heavy ? 1.25 : 1.08, heavy ? 1.38 : 1.2, color);
   }
-  if (weapon.attackMode === "short_returning_blade") return ranged("blade", 520, color, light ? 0.86 : 0.92);
-  if (weapon.attackMode === "orbit") return ranged(weapon.school === "tech" ? "energy" : "magic", 440, color, 0.78);
-  if (weapon.attackMode === "summon") return ranged(weapon.school === "magic" ? "magic" : "drone", 600, color, 0.9);
-  if (weapon.school === "magic") return ranged(weapon.subCategory === "fire" || weapon.subCategory === "field" ? "heavy_magic" : "magic", weapon.subCategory === "time" ? 420 : 560, color);
-  if (weapon.school === "tech") return ranged(weapon.subCategory === "crossbow" ? "arrow" : "energy", weapon.subCategory === "gun" ? 820 : weapon.subCategory === "shotgun" ? 560 : 660, color);
+  if (weapon.attackMode === "short_returning_blade") {
+    return ranged("blade", 520, color, light ? 0.86 : 0.92);
+  }
+  if (weapon.attackMode === "orbit") {
+    return ranged(weapon.school === "tech" ? "energy" : "magic", 440, color, 0.78);
+  }
+  if (weapon.attackMode === "summon") {
+    return ranged(weapon.school === "magic" ? "magic" : "drone", 600, color, 0.9);
+  }
+  if (weapon.school === "magic") {
+    return ranged(weapon.subCategory === "fire" || weapon.subCategory === "field" ? "heavy_magic" : "magic", weapon.subCategory === "time" ? 420 : 560, color);
+  }
+  if (weapon.school === "tech") {
+    return ranged(weapon.subCategory === "crossbow" ? "arrow" : "energy", weapon.subCategory === "gun" ? 820 : weapon.subCategory === "shotgun" ? 560 : 660, color);
+  }
   return ranged("arrow", 620, color);
 }
 
