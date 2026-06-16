@@ -19,6 +19,7 @@ import { Race, RACES } from "../data/races";
 import { School } from "../data/schools";
 import { Skill, SkillSchool } from "../data/skills";
 import { Weapon } from "../data/weapons";
+import { getWeaponAttackProfile, isMeleeProfile, isPointInMeleeArc, WeaponAttackProfile } from "../systems/WeaponAttackRuntime";
 import { distance, randRange, vec2, Vec2 } from "../utils/math";
 
 export type GamePhase = "menu" | "meta_upgrade" | "playing" | "paused" | "upgrade" | "school_choice" | "weapon_choice" | "result";
@@ -43,6 +44,18 @@ interface FloatingText {
   maxLife: number;
 }
 
+interface MeleeFlash {
+  pos: Vec2;
+  dir: Vec2;
+  type: "thrust" | "slash" | "slam";
+  color: string;
+  life: number;
+  maxLife: number;
+  range: number;
+  width: number;
+  arc: number;
+}
+
 export class Game {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -59,6 +72,7 @@ export class Game {
   pickups: Pickup[] = [];
   particles: Particle[] = [];
   floatingTexts: FloatingText[] = [];
+  meleeFlashes: MeleeFlash[] = [];
 
   wave: WaveSystem;
   combat: CombatSystem;
@@ -208,6 +222,7 @@ export class Game {
     this.pickups = [];
     this.particles = [];
     this.floatingTexts = [];
+    this.meleeFlashes = [];
     this.selectedRace = null;
     this.selectedSchool = null;
     this.selectedWeapon = null;
@@ -337,6 +352,10 @@ export class Game {
       t.pos.y -= 34 * dt;
     }
     this.floatingTexts = this.floatingTexts.filter((t) => t.life > 0);
+
+    for (const flash of this.meleeFlashes) flash.life -= dt;
+    this.meleeFlashes = this.meleeFlashes.filter((flash) => flash.life > 0);
+
     if (this.bannerTimer > 0) this.bannerTimer -= dt;
   }
 
@@ -424,27 +443,13 @@ export class Game {
   }
 
   private projectileKind(): ProjectileKind {
-    switch (this.selectedWeapon?.id) {
-      case "wand": return "magic";
-      case "staff": return "heavy_magic";
-      case "energy_core": return "energy";
-      case "flying_blade": return "blade";
-      case "drone_core": return "energy";
-      case "orb": return "magic";
-      default: return "arrow";
-    }
+    const profile = getWeaponAttackProfile(this.selectedWeapon);
+    return profile.projectileKind ?? "arrow";
   }
 
   private projectileSpeed(): number {
-    switch (this.selectedWeapon?.id) {
-      case "staff": return 500;
-      case "wand": return 560;
-      case "flying_blade": return 520;
-      case "energy_core": return 650;
-      case "spear": return 760;
-      case "orb": return 460;
-      default: return 600;
-    }
+    const profile = getWeaponAttackProfile(this.selectedWeapon);
+    return profile.projectileSpeed || 600;
   }
 
   private createProjectile(dir: Vec2, angleOffset = 0, damage = this.player.damage, kind = this.projectileKind(), speedOverride?: number): Projectile {
@@ -459,31 +464,28 @@ export class Game {
   private fireWeapon(): void {
     const baseDir = this.input.state.aimDir;
     const weaponId = this.selectedWeapon?.id;
+    const profile = getWeaponAttackProfile(this.selectedWeapon);
+
+    if (isMeleeProfile(profile)) {
+      this.performMeleeAttack(profile, baseDir);
+      return;
+    }
 
     if (weaponId === "orb") {
       const count = 3 + this.player.projectileExtra;
       for (let i = 0; i < count; i++) {
         const offset = (i - (count - 1) / 2) * 0.32;
-        this.projectiles.push(this.createProjectile(baseDir, offset, Math.floor(this.player.damage * 0.75), "magic", 460));
+        this.projectiles.push(this.createProjectile(baseDir, offset, Math.floor(this.player.damage * 0.75), profile.projectileKind ?? "magic", profile.projectileSpeed || 460));
       }
       return;
     }
 
-    if (weaponId === "spear") {
-      this.projectiles.push(this.createProjectile(baseDir, 0, this.player.damage, "arrow", 760));
-      for (let i = 0; i < this.player.projectileExtra; i++) {
-        const offset = (i + 1) * 0.07 * (i % 2 === 0 ? 1 : -1);
-        this.projectiles.push(this.createProjectile(baseDir, offset, Math.floor(this.player.damage * 0.78), "arrow", 760));
-      }
-      return;
-    }
-
-    this.projectiles.push(this.createProjectile(baseDir));
+    this.projectiles.push(this.createProjectile(baseDir, 0, Math.floor(this.player.damage * profile.meleeDamageMultiplier), profile.projectileKind ?? this.projectileKind(), profile.projectileSpeed || undefined));
 
     const spreadStep = weaponId === "flying_blade" ? 0.24 : 0.15;
     for (let i = 0; i < this.player.projectileExtra; i++) {
       const angle = (i + 1) * spreadStep * (i % 2 === 0 ? 1 : -1);
-      this.projectiles.push(this.createProjectile(baseDir, angle));
+      this.projectiles.push(this.createProjectile(baseDir, angle, Math.floor(this.player.damage * profile.meleeDamageMultiplier), profile.projectileKind ?? this.projectileKind(), profile.projectileSpeed || undefined));
     }
 
     if (weaponId === "staff") {
@@ -495,6 +497,64 @@ export class Game {
       const count = this.skillCount("energy_refraction");
       this.projectiles.push(this.createProjectile(baseDir, 0.34, Math.floor(this.player.damage * (0.55 + count * 0.08)), "energy", 640));
       this.projectiles.push(this.createProjectile(baseDir, -0.34, Math.floor(this.player.damage * (0.55 + count * 0.08)), "energy", 640));
+    }
+  }
+
+  private performMeleeAttack(profile: WeaponAttackProfile, aimDir: Vec2): void {
+    const dirLen = Math.sqrt(aimDir.x * aimDir.x + aimDir.y * aimDir.y) || 1;
+    const nx = aimDir.x / dirLen;
+    const ny = aimDir.y / dirLen;
+    const flashLife = profile.meleeType === "slam" ? 0.24 : 0.16;
+
+    this.meleeFlashes.push({
+      pos: vec2(this.player.pos.x, this.player.pos.y),
+      dir: vec2(nx, ny),
+      type: profile.meleeType === "slam" ? "slam" : profile.meleeType === "slash" ? "slash" : "thrust",
+      color: profile.visualColor,
+      life: flashLife,
+      maxLife: flashLife,
+      range: profile.meleeRange,
+      width: profile.meleeWidth,
+      arc: profile.meleeArc,
+    });
+
+    let hitCount = 0;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const dx = e.pos.x - this.player.pos.x;
+      const dy = e.pos.y - this.player.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > profile.meleeRange + e.radius) continue;
+      if (!isPointInMeleeArc(this.player.pos.x, this.player.pos.y, nx, ny, e.pos.x, e.pos.y, profile)) continue;
+
+      const isCrit = this.player.critChance > 0 && Math.random() < this.player.critChance;
+      const raw = Math.floor(this.player.damage * profile.meleeDamageMultiplier);
+      const dmg = isCrit ? Math.floor(raw * this.player.critMultiplier) : raw;
+      const defeated = this.combat.dealDamage(e, dmg);
+      hitCount++;
+
+      const label = profile.meleeType === "slam" ? "重击" : profile.meleeType === "thrust" ? "刺击" : "斩击";
+      this.addText(e.pos.x, e.pos.y - e.radius, `${isCrit ? "暴击 " : ""}${label} -${dmg}`, isCrit ? "#ffeb3b" : profile.visualColor);
+      this.spawnParticles(e.pos.x, e.pos.y, isCrit ? "#ffeb3b" : profile.visualColor, isCrit ? 16 : 9, isCrit ? 4.4 : 3, isCrit ? 220 : 150);
+
+      if (this.selectedWeapon?.id === "spear" && this.hasSkill("pierce")) {
+        const pierce = this.skillCount("pierce");
+        this.explodeAt(e.pos.x, e.pos.y, 38 + pierce * 10, Math.max(3, Math.floor(dmg * (0.18 + pierce * 0.06))), e);
+      }
+
+      if (defeated) this.onKill(e);
+    }
+
+    if (profile.meleeType === "slam") {
+      const shakeCount = hitCount > 0 ? 14 : 7;
+      this.spawnParticles(
+        this.player.pos.x + nx * profile.meleeRange * 0.55,
+        this.player.pos.y + ny * profile.meleeRange * 0.55,
+        profile.visualColor,
+        shakeCount,
+        hitCount > 0 ? 4.5 : 3,
+        hitCount > 0 ? 210 : 130,
+      );
     }
   }
 
@@ -832,6 +892,7 @@ export class Game {
       const sp = toScreen(p.pos.x, p.pos.y);
       p.renderAt(ctx, sp.x, sp.y, this.assets.get("projectiles", p.kind));
     }
+    this.renderMeleeFlashes(ctx, toScreen);
     for (const e of this.enemies) {
       const sp = toScreen(e.pos.x, e.pos.y);
       e.renderAt(ctx, sp.x, sp.y, this.assets.get("enemies", e.assetId));
@@ -904,6 +965,61 @@ export class Game {
       ctx.font = "10px monospace";
       ctx.fillStyle = "rgba(255,255,255,0.4)";
       ctx.fillText(this.appliedSkills.map((s) => s.name).join(" · "), 16, this.h - 16);
+    }
+  }
+
+  private renderMeleeFlashes(ctx: CanvasRenderingContext2D, toScreen: (wx: number, wy: number) => { x: number; y: number }): void {
+    for (const flash of this.meleeFlashes) {
+      const p = toScreen(flash.pos.x, flash.pos.y);
+      const angle = Math.atan2(flash.dir.y, flash.dir.x);
+      const alpha = Math.max(0, flash.life / flash.maxLife);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(angle);
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = flash.color;
+      ctx.shadowBlur = 16;
+
+      if (flash.type === "thrust") {
+        const grad = ctx.createLinearGradient(0, 0, flash.range, 0);
+        grad.addColorStop(0, "rgba(255,255,255,0)");
+        grad.addColorStop(0.35, flash.color + "aa");
+        grad.addColorStop(1, "rgba(255,255,255,0.94)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(10, -flash.width * 0.45);
+        ctx.lineTo(flash.range, 0);
+        ctx.lineTo(10, flash.width * 0.45);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.82)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(flash.range + 12, 0);
+        ctx.stroke();
+      } else if (flash.type === "slam") {
+        ctx.strokeStyle = flash.color;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 0, flash.range * (1.12 - alpha * 0.25), -flash.arc, flash.arc);
+        ctx.stroke();
+        ctx.globalAlpha = alpha * 0.28;
+        ctx.fillStyle = flash.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, flash.range, -flash.arc, flash.arc);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = flash.color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, flash.range, -flash.arc, flash.arc);
+        ctx.stroke();
+      }
+
+      ctx.restore();
     }
   }
 
