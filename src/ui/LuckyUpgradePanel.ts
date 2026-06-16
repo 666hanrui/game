@@ -1,6 +1,7 @@
 import { Skill, SkillRarity, SkillSchool, ALL_SKILLS } from "../data/skills";
 import { getSchool } from "../data/schools";
 import { getWeapon } from "../data/weapons";
+import { getSkillSynergyHintText } from "../systems/SynergyRuntime";
 
 interface AssetLike {
   get(group: string, id: string | null | undefined): HTMLImageElement | null;
@@ -263,11 +264,13 @@ export class LuckyUpgradePanel {
 
     const label = this.getRarityLabel(rarity);
     const diamondText = rarity === "diamond" ? "｜钻石质变：会启动当前路线的超载效果" : "";
+    const synergyText = getSkillSynergyHintText(base.id, this.ownedIds);
+    const synergySuffix = synergyText ? `｜${synergyText}` : "";
     return {
       ...base,
       rarity,
       name: rarity === base.rarity && rarity !== "diamond" ? base.name : `${label}·${base.name}`,
-      description: `${base.description}｜本次为${label}强化，数值倍率 x${mult.toFixed(rarity === "common" ? 0 : 2)}${diamondText}`,
+      description: `${base.description}｜本次为${label}强化，数值倍率 x${mult.toFixed(rarity === "common" ? 0 : 2)}${diamondText}${synergySuffix}`,
       mods,
     };
   }
