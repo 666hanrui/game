@@ -30,6 +30,17 @@ const CHECKS = [
     ],
   },
   {
+    file: "src/systems/WeaponAttackRuntime.ts",
+    includes: [
+      "WeaponAttackProfile",
+      "MeleeAttackType",
+      "getWeaponAttackProfile",
+      "isPointInMeleeArc",
+      "meleeRange",
+      "meleeDamageMultiplier",
+    ],
+  },
+  {
     file: "docs/COMBAT_FEEL_REWORK_PLAN.md",
     includes: [
       "升级卡负责武器机制",
@@ -63,7 +74,7 @@ for (const check of CHECKS) {
 }
 
 if (failed) {
-  console.error("战斗爽感检查失败：请确认投射物视觉、武器攻击形态和重构文档没有被覆盖。 ");
+  console.error("战斗爽感检查失败：请确认投射物视觉、武器攻击形态、运行时配置和重构文档没有被覆盖。 ");
   process.exit(1);
 }
 
