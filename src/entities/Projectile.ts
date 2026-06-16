@@ -1,35 +1,32 @@
 import { vec2, Vec2 } from "../utils/math";
 
-export type ProjectileKind =
-  | "arrow"
-  | "magic"
-  | "heavy_magic"
-  | "energy"
-  | "blade"
-  | "drone"
-  | "hammer"
-  | "spear_beam"
-  | "sword_wave"
-  | "shockwave";
-
+export type ProjectileKind = "arrow" | "magic" | "heavy_magic" | "energy" | "blade" | "drone" | "hammer" | "spear_beam" | "sword_wave" | "shockwave";
 export type ProjectileHitShape = "circle" | "capsule" | "wide_wave";
+export type ProjectileRenderQuality = "full" | "simple" | "minimal";
 
-export interface ProjectileHitProfile {
-  shape: ProjectileHitShape;
-  radius: number;
-  length: number;
-  width: number;
-}
+export interface ProjectileHitProfile { shape: ProjectileHitShape; radius: number; length: number; width: number; }
 
 export class Projectile {
+  private static frameId = -1;
+  private static frameDraws = 0;
+  private static tokenAt = 0;
+  private static tokens = 120;
+  private static shockAt = 0;
+  private static shockCount = 0;
+
+  static perf = { fullDraws: 120, simpleDraws: 240, maxEnemyTokens: 150, enemyRefill: 90, shockWindowMs: 320, shockFull: 24 };
+
   pos: Vec2;
   vel: Vec2;
   fromEnemy: boolean;
   damage: number;
   kind: ProjectileKind;
   alive = true;
+  nextTrackAt = 0;
+  cachedTargetIndex = -1;
   private maxLife = 3;
   private life = 0;
+  private forcedQuality: ProjectileRenderQuality | null = null;
 
   constructor(x: number, y: number, vx: number, vy: number, fromEnemy: boolean, damage: number, kind: ProjectileKind = "arrow") {
     this.pos = vec2(x, y);
@@ -37,14 +34,15 @@ export class Projectile {
     this.fromEnemy = fromEnemy;
     this.damage = damage;
     this.kind = kind;
-    if (kind === "hammer" || kind === "shockwave") this.maxLife = 1.15;
+    if (fromEnemy && !Projectile.takeSpawnToken()) this.alive = false;
+    if (kind === "hammer" || kind === "shockwave") this.maxLife = 0.78;
     if (kind === "blade") this.maxLife = 0.95;
-    if (kind === "spear_beam" || kind === "sword_wave") this.maxLife = 1.25;
+    if (kind === "spear_beam" || kind === "sword_wave") this.maxLife = 1.05;
+    if (kind === "shockwave" && !Projectile.takeShockVisualSlot()) this.forcedQuality = "minimal";
   }
 
-  get hitRadius(): number {
-    return this.hitProfile.radius;
-  }
+  get hitRadius(): number { return this.hitProfile.radius; }
+  get lifeRatio(): number { return Math.max(0, Math.min(1, this.life / this.maxLife)); }
 
   get hitProfile(): ProjectileHitProfile {
     switch (this.kind) {
@@ -54,10 +52,10 @@ export class Projectile {
       case "blade": return { shape: "circle", radius: 15, length: 30, width: 30 };
       case "magic": return { shape: "capsule", radius: 10, length: 36, width: 14 };
       case "heavy_magic": return { shape: "circle", radius: 16, length: 32, width: 32 };
-      case "hammer": return { shape: "circle", radius: 20 + this.life * 46, length: 0, width: 0 };
+      case "hammer": return { shape: "circle", radius: 18 + this.life * 34, length: 0, width: 0 };
       case "spear_beam": return { shape: "capsule", radius: 18, length: 112, width: 26 };
       case "sword_wave": return { shape: "capsule", radius: 20, length: 58, width: 34 };
-      case "shockwave": return { shape: "wide_wave", radius: 24 + this.life * 62, length: 92 + this.life * 112, width: 34 + this.life * 48 };
+      case "shockwave": return { shape: "wide_wave", radius: 22 + this.life * 52, length: 86 + this.life * 92, width: 30 + this.life * 38 };
       default: return { shape: "circle", radius: 8, length: 0, width: 0 };
     }
   }
@@ -70,20 +68,15 @@ export class Projectile {
   hitsCircle(center: Vec2, radius: number): boolean {
     const profile = this.hitProfile;
     if (profile.shape === "circle") return distanceSq(this.pos.x, this.pos.y, center.x, center.y) <= square(profile.radius + radius);
-
     const dir = this.direction;
     const half = profile.length / 2;
     const back = profile.shape === "wide_wave" ? half * 0.35 : half;
     const front = profile.shape === "wide_wave" ? half * 1.05 : half;
-    const ax = this.pos.x - dir.x * back;
-    const ay = this.pos.y - dir.y * back;
-    const bx = this.pos.x + dir.x * front;
-    const by = this.pos.y + dir.y * front;
-    const capsuleRadius = profile.shape === "wide_wave" ? profile.width * 0.5 : profile.width * 0.5;
-    return distToSegmentSq(center.x, center.y, ax, ay, bx, by) <= square(capsuleRadius + radius);
+    return distToSegmentSq(center.x, center.y, this.pos.x - dir.x * back, this.pos.y - dir.y * back, this.pos.x + dir.x * front, this.pos.y + dir.y * front) <= square(profile.width * 0.5 + radius);
   }
 
   update(dt: number): void {
+    if (!this.alive) return;
     this.pos.x += this.vel.x * dt;
     this.pos.y += this.vel.y * dt;
     this.life += dt;
@@ -92,6 +85,8 @@ export class Projectile {
 
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, sprite?: HTMLImageElement | null): void {
     const angle = Math.atan2(this.vel.y, this.vel.x);
+    const quality = this.renderQuality();
+    if (quality !== "full") return this.renderCheap(ctx, sx, sy, angle, quality);
     if (this.kind === "magic") return this.renderArcaneBolt(ctx, sx, sy, angle);
     if (this.kind === "heavy_magic") return this.renderRuneBolt(ctx, sx, sy, angle);
     if (this.kind === "energy") return this.renderEnergy(ctx, sx, sy, angle);
@@ -104,107 +99,44 @@ export class Projectile {
     return this.renderArrow(ctx, sx, sy, angle);
   }
 
-  private renderArrow(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    const color = this.fromEnemy ? "#ef5350" : "#ffd54f";
-    const headColor = this.fromEnemy ? "#ff8a80" : "#fffde7";
-    const shaftColor = this.fromEnemy ? "#ffcdd2" : "#f6d179";
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle);
-    const trail = ctx.createLinearGradient(-34, 0, 4, 0);
-    trail.addColorStop(0, "rgba(255,255,255,0)"); trail.addColorStop(0.65, color + "66"); trail.addColorStop(1, color + "aa");
-    ctx.fillStyle = trail; ctx.beginPath(); ctx.moveTo(-34, -3.4); ctx.lineTo(3, -1.35); ctx.lineTo(3, 1.35); ctx.lineTo(-34, 3.4); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "rgba(59,37,14,0.9)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(9, 0); ctx.stroke();
-    ctx.strokeStyle = shaftColor; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(8, 0); ctx.stroke();
-    ctx.fillStyle = headColor; ctx.strokeStyle = "rgba(80,55,25,0.9)"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(6, -5); ctx.lineTo(8, 0); ctx.lineTo(6, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = this.fromEnemy ? "#ef9a9a" : "#fff8c6"; ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-25, -5); ctx.lineTo(-21, 0); ctx.lineTo(-25, 5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.fillRect(-2, -0.6, 8, 1.2); ctx.restore();
+  private renderQuality(): ProjectileRenderQuality {
+    if (this.forcedQuality) return this.forcedQuality;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const frame = Math.floor(now / 16.7);
+    if (frame !== Projectile.frameId) { Projectile.frameId = frame; Projectile.frameDraws = 0; }
+    Projectile.frameDraws++;
+    if (Projectile.frameDraws > Projectile.perf.simpleDraws) return "minimal";
+    if (Projectile.frameDraws > Projectile.perf.fullDraws || (this.kind === "shockwave" && Projectile.frameDraws > 60)) return "simple";
+    return "full";
   }
 
-  private renderArcaneBolt(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle);
-    const trail = ctx.createLinearGradient(-26, 0, 6, 0);
-    trail.addColorStop(0, "rgba(156,39,176,0)"); trail.addColorStop(1, "rgba(206,147,216,0.78)");
-    ctx.fillStyle = trail; ctx.beginPath(); ctx.moveTo(-26, -4); ctx.quadraticCurveTo(-8, -1.5, 8, -2.5); ctx.lineTo(8, 2.5); ctx.quadraticCurveTo(-8, 1.5, -26, 4); ctx.closePath(); ctx.fill();
-    ctx.shadowColor = "#ce93d8"; ctx.shadowBlur = 12; ctx.fillStyle = "#ce93d8"; ctx.beginPath(); ctx.ellipse(3, 0, 9, 5.5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#f3e5f5"; ctx.beginPath(); ctx.arc(6, -1.6, 2.4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  }
-
-  private renderRuneBolt(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle);
-    ctx.shadowColor = "#ab47bc"; ctx.shadowBlur = 18; ctx.strokeStyle = "rgba(225,190,231,0.72)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
-    ctx.rotate(this.life * 5); ctx.fillStyle = "#ab47bc"; ctx.strokeStyle = "#f3e5f5"; ctx.lineWidth = 1.2; ctx.beginPath();
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const r = i % 2 === 0 ? 12 : 6; const x = Math.cos(a) * r; const y = Math.sin(a) * r; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
-    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  }
-
-  private renderEnergy(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle);
-    const trail = ctx.createLinearGradient(-28, 0, 12, 0);
-    trail.addColorStop(0, "rgba(77,208,225,0)"); trail.addColorStop(0.8, "rgba(77,208,225,0.66)"); trail.addColorStop(1, "rgba(224,247,250,0.94)");
-    ctx.fillStyle = trail; ctx.beginPath(); ctx.moveTo(-28, -5); ctx.lineTo(9, 0); ctx.lineTo(-28, 5); ctx.closePath(); ctx.fill();
-    ctx.shadowColor = "#4dd0e1"; ctx.shadowBlur = 10; ctx.fillStyle = "#4dd0e1"; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(2, -8); ctx.lineTo(-11, 0); ctx.lineTo(2, 8); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "#e0f7fa"; ctx.lineWidth = 1.2; ctx.stroke(); ctx.globalAlpha = 0.75; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 0.8;
-    for (const x of [-8, -3, 2]) { ctx.beginPath(); ctx.moveTo(x, -7); ctx.lineTo(x + 7, 7); ctx.stroke(); }
+  private renderCheap(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, quality: ProjectileRenderQuality): void {
+    const color = this.colorForKind();
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.globalAlpha = quality === "minimal" ? 0.42 : 0.78; ctx.strokeStyle = color; ctx.fillStyle = color;
+    if (this.kind === "shockwave" || this.kind === "hammer") { const r = this.hitProfile.radius; ctx.lineWidth = quality === "minimal" ? 1.5 : 2.6; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); }
+    else if (this.kind === "sword_wave") { ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 22, -0.9, 0.9); ctx.stroke(); }
+    else if (this.kind === "spear_beam") { ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-44, 0); ctx.lineTo(68, 0); ctx.stroke(); }
+    else { ctx.fillRect(-8, -2, 16, 4); }
     ctx.restore();
   }
 
-  private renderDronePulse(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle);
-    ctx.shadowColor = "#42a5f5"; ctx.shadowBlur = 10; ctx.fillStyle = "rgba(66,165,245,0.72)"; ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "#e3f2fd"; ctx.lineWidth = 1.2; ctx.stroke(); ctx.globalAlpha = 0.55; ctx.strokeStyle = "#90caf9"; ctx.beginPath(); ctx.moveTo(-22, -5); ctx.lineTo(-8, 0); ctx.lineTo(-22, 5); ctx.stroke(); ctx.restore();
-  }
+  private renderArrow(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.strokeStyle = this.fromEnemy ? "#ff8a80" : "#fffde7"; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(14, 0); ctx.stroke(); ctx.fillStyle = this.fromEnemy ? "#ef5350" : "#ffd54f"; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(5, -5); ctx.lineTo(7, 0); ctx.lineTo(5, 5); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  private renderArcaneBolt(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { this.renderGlowDot(ctx, sx, sy, angle, "#ce93d8", 9, 22); }
+  private renderRuneBolt(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { this.renderGlowDot(ctx, sx, sy, angle, "#ab47bc", 13, 18); }
+  private renderEnergy(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.shadowColor = "#4dd0e1"; ctx.shadowBlur = 8; ctx.fillStyle = "#4dd0e1"; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(2, -8); ctx.lineTo(-11, 0); ctx.lineTo(2, 8); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  private renderDronePulse(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.fillStyle = "rgba(66,165,245,0.72)"; ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  private renderBlade(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle + this.life * 18); ctx.fillStyle = "#cfd8dc"; ctx.strokeStyle = "#607d8b"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -13); ctx.quadraticCurveTo(10, -2, 2, 13); ctx.lineTo(-4, 5); ctx.quadraticCurveTo(2, 0, -4, -5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  private renderSpearBeam(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.globalAlpha = Math.max(0.15, 1 - this.lifeRatio); ctx.strokeStyle = "#fff3e0"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-52, 0); ctx.lineTo(68, 0); ctx.stroke(); ctx.strokeStyle = "rgba(255,183,77,0.65)"; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(-42, 0); ctx.lineTo(58, 0); ctx.stroke(); ctx.restore(); }
+  private renderSwordWave(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.globalAlpha = Math.max(0.18, 1 - this.lifeRatio); ctx.strokeStyle = "#90caf9"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 24, -0.95, 0.95); ctx.stroke(); ctx.restore(); }
+  private renderShockwave(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void { const a = Math.max(0, 1 - this.lifeRatio); ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.globalAlpha = 0.4 * a; ctx.strokeStyle = "#bc8f5a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 0, 22 + this.life * 58, 9 + this.life * 24, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+  private renderHammerShock(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, sprite?: HTMLImageElement | null): void { ctx.save(); ctx.globalAlpha = Math.max(0, 1 - this.lifeRatio) * 0.22; ctx.strokeStyle = "#bc8f5a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx, sy, 10 + this.life * 34, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 0.9; ctx.translate(sx, sy); ctx.rotate(angle + this.life * 4); if (sprite) ctx.drawImage(sprite, -15, -15, 30, 30); else { ctx.fillStyle = "#9e9e9e"; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill(); } ctx.restore(); }
+  private renderGlowDot(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, color: string, r: number, tail: number): void { ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.shadowColor = color; ctx.shadowBlur = 10; ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(3, 0, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.45; ctx.fillRect(-tail, -2, tail, 4); ctx.restore(); }
+  private colorForKind(): string { if (this.fromEnemy) return "#ef5350"; if (this.kind === "energy") return "#4dd0e1"; if (this.kind === "magic" || this.kind === "heavy_magic") return "#ce93d8"; if (this.kind === "shockwave" || this.kind === "hammer") return "#bc8f5a"; if (this.kind === "spear_beam") return "#ffb74d"; if (this.kind === "sword_wave") return "#90caf9"; return "#ffd54f"; }
 
-  private renderBlade(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle + this.life * 18);
-    ctx.shadowColor = "#cfd8dc"; ctx.shadowBlur = 8; ctx.fillStyle = "#cfd8dc"; ctx.strokeStyle = "#607d8b"; ctx.lineWidth = 1.5;
-    for (let i = 0; i < 2; i++) { ctx.rotate(Math.PI); ctx.beginPath(); ctx.moveTo(0, -13); ctx.quadraticCurveTo(10, -2, 2, 13); ctx.lineTo(-4, 5); ctx.quadraticCurveTo(2, 0, -4, -5); ctx.closePath(); ctx.fill(); ctx.stroke(); }
-    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  }
-
-  private renderSpearBeam(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); ctx.shadowColor = "#ffb74d"; ctx.shadowBlur = 12;
-    const alpha = Math.max(0.15, 1 - this.life / this.maxLife); ctx.globalAlpha = alpha;
-    ctx.fillStyle = "rgba(255,183,77,0.72)"; ctx.beginPath(); ctx.moveTo(64, 0); ctx.lineTo(-46, -11); ctx.lineTo(-28, 0); ctx.lineTo(-46, 11); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "#fff3e0"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-52, 0); ctx.lineTo(68, 0); ctx.stroke(); ctx.restore();
-  }
-
-  private renderSwordWave(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle); const alpha = Math.max(0.18, 1 - this.life / this.maxLife); ctx.globalAlpha = alpha;
-    ctx.shadowColor = "#90caf9"; ctx.shadowBlur = 14; ctx.strokeStyle = "#e3f2fd"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 24, -0.95, 0.95); ctx.stroke();
-    ctx.strokeStyle = "#42a5f5"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 17, -0.85, 0.85); ctx.stroke(); ctx.restore();
-  }
-
-  private renderShockwave(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    const alpha = Math.max(0, 1 - this.life / this.maxLife); ctx.save(); ctx.translate(sx, sy); ctx.rotate(angle);
-    ctx.globalAlpha = 0.72 * alpha; ctx.strokeStyle = "#bc8f5a"; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(0, 0, 24 + this.life * 74, 11 + this.life * 32, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.globalAlpha = 0.28 * alpha; ctx.fillStyle = "#8d6e63"; ctx.beginPath(); ctx.ellipse(0, 0, 21 + this.life * 68, 8 + this.life * 26, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  }
-
-  private renderHammerShock(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, sprite?: HTMLImageElement | null): void {
-    const alpha = Math.max(0, 1 - this.life / this.maxLife); ctx.save();
-    ctx.globalAlpha = 0.18 * alpha; ctx.strokeStyle = "#bc8f5a"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(sx, sy, 12 + this.life * 46, 0, Math.PI * 2); ctx.stroke();
-    ctx.globalAlpha = 0.9; ctx.translate(sx, sy); ctx.rotate(angle + this.life * 4);
-    if (sprite) ctx.drawImage(sprite, -15, -15, 30, 30);
-    else { ctx.fillStyle = "#9e9e9e"; ctx.strokeStyle = "#4e342e"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#6d4c41"; ctx.fillRect(-3, 4, 6, 18); }
-    ctx.restore();
-  }
+  private static takeSpawnToken(): boolean { const now = typeof performance !== "undefined" ? performance.now() : Date.now(); if (Projectile.tokenAt <= 0) Projectile.tokenAt = now; const dt = Math.max(0, (now - Projectile.tokenAt) / 1000); Projectile.tokenAt = now; Projectile.tokens = Math.min(Projectile.perf.maxEnemyTokens, Projectile.tokens + dt * Projectile.perf.enemyRefill); if (Projectile.tokens < 1) return false; Projectile.tokens -= 1; return true; }
+  private static takeShockVisualSlot(): boolean { const now = typeof performance !== "undefined" ? performance.now() : Date.now(); if (now - Projectile.shockAt > Projectile.perf.shockWindowMs) { Projectile.shockAt = now; Projectile.shockCount = 0; } Projectile.shockCount++; return Projectile.shockCount <= Projectile.perf.shockFull; }
 }
 
 function square(n: number): number { return n * n; }
-
-function distanceSq(ax: number, ay: number, bx: number, by: number): number {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return dx * dx + dy * dy;
-}
-
-function distToSegmentSq(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
-  const vx = bx - ax;
-  const vy = by - ay;
-  const wx = px - ax;
-  const wy = py - ay;
-  const lenSq = vx * vx + vy * vy || 1;
-  const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / lenSq));
-  const cx = ax + vx * t;
-  const cy = ay + vy * t;
-  return distanceSq(px, py, cx, cy);
-}
+function distanceSq(ax: number, ay: number, bx: number, by: number): number { const dx = ax - bx; const dy = ay - by; return dx * dx + dy * dy; }
+function distToSegmentSq(px: number, py: number, ax: number, ay: number, bx: number, by: number): number { const vx = bx - ax; const vy = by - ay; const wx = px - ax; const wy = py - ay; const lenSq = vx * vx + vy * vy || 1; const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / lenSq)); return distanceSq(px, py, ax + vx * t, ay + vy * t); }
