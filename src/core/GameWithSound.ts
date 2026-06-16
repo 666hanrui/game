@@ -261,7 +261,7 @@ export class GameWithSound extends Game {
       const angle = spear
         ? base + (i - (count - 1) / 2) * 0.11
         : base + (i / count) * Math.PI * 2;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, spear ? "arrow" : "blade"));
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, spear ? "spear_beam" : "blade"));
     }
   }
 
@@ -320,7 +320,6 @@ export class GameWithSound extends Game {
       this.sound.playerHurt();
     }
 
-    // 爆炸怪会伤到其他敌人，但这里控制为“非致死削血”，避免绕过原本击杀/经验结算。
     for (const other of this.enemies) {
       if (!other.alive || other === enemy) continue;
       const d = this.dist(enemy.pos.x, enemy.pos.y, other.pos.x, other.pos.y);
@@ -409,10 +408,13 @@ export class GameWithSound extends Game {
     const newCount = Math.max(0, playerShots.length - beforePlayerShots);
     if (newCount <= 0) return;
 
-    const newShots = playerShots.slice(-newCount);
+    // 狼牙棒第一阶段已改成近战基础攻击；地裂 / 震荡波会生成 shockwave。
+    // 这里不能再把所有新弹体强行改成 hammer，否则会覆盖地裂视觉和隐藏联动。
+    const newHammerShots = playerShots.slice(-newCount).filter((p) => p.kind === "hammer");
+    if (newHammerShots.length <= 0) return;
+
     const diamond = this.diamondCount();
-    for (const p of newShots) {
-      p.kind = "hammer";
+    for (const p of newHammerShots) {
       p.damage = Math.floor(p.damage * (1.35 + diamond * 0.18));
       const len = Math.sqrt(p.vel.x * p.vel.x + p.vel.y * p.vel.y) || 1;
       const speed = 410 + diamond * 24;
@@ -471,127 +473,198 @@ export class GameWithSound extends Game {
   }
 
   private fireArrowRain(score: number): void {
-    const target = this.findBuildTarget();
-    const base = target ? Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x) : Math.random() * Math.PI * 2;
-    const count = Math.min(14, 3 + this.player.projectileExtra + Math.floor(score / 4) + this.diamondCount() * 2);
-    const spread = 0.95;
-    const speed = 720;
-    const damage = Math.max(5, Math.floor(this.player.damage * 0.42));
+    const count = Math.min(22, 8 + Math.floor(score / 1.5) + this.diamondCount() * 3);
+    const speed = 760 + Math.min(160, score * 10);
+    const damage = Math.max(5, Math.floor(this.player.damage * (0.32 + Math.min(0.26, score * 0.01))));
+    const target = this.getPriorityTargets(1, 920)[0];
+    const base = target ? Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x) : Math.atan2(this.input.state.aimDir.y, this.input.state.aimDir.x);
 
     for (let i = 0; i < count; i++) {
-      const t = count <= 1 ? 0.5 : i / (count - 1);
-      const angle = base - spread / 2 + spread * t;
-      const sx = this.player.pos.x - Math.cos(angle) * 36 + (Math.random() - 0.5) * 36;
-      const sy = this.player.pos.y - Math.sin(angle) * 36 + (Math.random() - 0.5) * 36;
+      const offset = (i - (count - 1) / 2) * 0.045;
+      const angle = base + offset + (Math.random() - 0.5) * 0.08;
+      const sx = this.player.pos.x - Math.cos(base) * 40 + Math.cos(base + Math.PI / 2) * (i - count / 2) * 8;
+      const sy = this.player.pos.y - Math.sin(base) * 40 + Math.sin(base + Math.PI / 2) * (i - count / 2) * 8;
       this.projectiles.push(new Projectile(sx, sy, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "arrow"));
     }
   }
 
   private releaseWeaponAura(score: number): void {
     const spear = this.selectedWeapon?.id === "spear";
-    const count = spear ? Math.min(8, 3 + Math.floor(score / 4)) : Math.min(12, 4 + Math.floor(score / 3));
-    const speed = spear ? 790 : 610;
-    const damage = Math.max(6, Math.floor(this.player.damage * (spear ? 0.54 : 0.42)));
-    const base = Math.atan2(this.input.state.aimDir.y, this.input.state.aimDir.x);
+    const count = Math.min(18, 6 + Math.floor(score / 1.8) + this.diamondCount() * 2);
+    const speed = spear ? 820 : 650;
+    const kind: ProjectileKind = spear ? "spear_beam" : "blade";
+    const damage = Math.max(6, Math.floor(this.player.damage * (spear ? 0.42 : 0.34)));
+    const target = this.getPriorityTargets(1, 760)[0];
+    const base = target ? Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x) : Math.atan2(this.input.state.aimDir.y, this.input.state.aimDir.x);
 
     for (let i = 0; i < count; i++) {
-      const angle = spear
-        ? base + (i - (count - 1) / 2) * 0.18
-        : base + (i / count) * Math.PI * 2;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, spear ? "arrow" : "blade"));
+      const angle = spear ? base + (i - count / 2) * 0.06 : base + (i / count) * Math.PI * 2;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, kind));
     }
   }
 
   private releaseMaceQuake(score: number): void {
-    this.applyMaceShockwave(true);
-    const count = Math.min(16, 6 + Math.floor(score / 3) + this.diamondCount() * 3);
-    const damage = Math.max(8, Math.floor(this.player.damage * (0.34 + this.diamondCount() * 0.04)));
+    this.applyMaceShockwave(false);
+    const count = Math.min(14, 5 + Math.floor(score / 2) + this.diamondCount() * 2);
     const speed = 360;
-    const offset = performance.now() / 700;
-
+    const damage = Math.max(8, Math.floor(this.player.damage * (0.26 + Math.min(0.22, score * 0.008))));
+    const base = Math.atan2(this.input.state.aimDir.y, this.input.state.aimDir.x);
     for (let i = 0; i < count; i++) {
-      const angle = offset + (i / count) * Math.PI * 2;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "hammer"));
-    }
-  }
-
-  private applyMaceShockwave(empowered: boolean): void {
-    const score = this.getBuildPowerScore();
-    const diamond = this.diamondCount();
-    const armorBreakSkill = this.countSpecial("armor_break");
-    const quakeSkill = this.countSpecial("earthquake");
-    const radius = 74 + quakeSkill * 22 + this.player.projectileExtra * 8 + diamond * 26 + (empowered ? 48 : 0);
-    const damage = Math.floor(this.player.damage * (empowered ? 0.34 : 0.18) + score * (empowered ? 1.2 : 0.55));
-    const armorBreak = 3 + armorBreakSkill * 7 + diamond * 9 + (empowered ? 8 : 0);
-    const knock = 28 + quakeSkill * 10 + diamond * 12 + (empowered ? 26 : 0);
-
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const dx = e.pos.x - this.player.pos.x;
-      const dy = e.pos.y - this.player.pos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      if (dist > radius + e.radius) continue;
-
-      e.breakArmor(armorBreak);
-      const safeDamage = Math.min(Math.max(0, e.hp - 1), damage);
-      if (safeDamage > 0) e.takeDamage(safeDamage, armorBreak);
-      const push = knock * (1 - Math.min(1, dist / Math.max(1, radius)));
-      e.pos.x += (dx / dist) * push;
-      e.pos.y += (dy / dist) * push;
+      const angle = base + (i - (count - 1) / 2) * 0.18;
+      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, "shockwave"));
     }
   }
 
   private fireTechVolley(score: number): void {
-    const targets = this.enemies
-      .filter((e) => e.alive)
-      .sort((a, b) => this.dist2(a.pos.x, a.pos.y) - this.dist2(b.pos.x, b.pos.y))
-      .slice(0, Math.min(8, 2 + Math.floor(score / 4) + this.diamondCount()));
-
+    const targets = this.getPriorityTargets(Math.min(8, 2 + Math.floor(score / 3)), 980);
     if (targets.length <= 0) return;
-
     const kind: ProjectileKind = this.selectedWeapon?.id === "drone_core" ? "drone" : "energy";
-    const speed = kind === "drone" ? 660 : 760;
-    const damage = Math.max(5, Math.floor(this.player.damage * (kind === "drone" ? 0.34 : 0.46)));
-    const shots = Math.min(12, targets.length + this.player.projectileExtra + this.diamondCount() * 2);
-
-    for (let i = 0; i < shots; i++) {
-      const target = targets[i % targets.length];
-      const dx = target.pos.x - this.player.pos.x;
-      const dy = target.pos.y - this.player.pos.y;
-      const base = Math.atan2(dy, dx) + (i - shots / 2) * 0.035;
-      this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(base) * speed, Math.sin(base) * speed, false, damage, kind));
+    const speed = kind === "drone" ? 700 : 780;
+    const damage = Math.max(5, Math.floor(this.player.damage * (0.28 + Math.min(0.22, score * 0.01))));
+    for (const target of targets) {
+      const base = Math.atan2(target.pos.y - this.player.pos.y, target.pos.x - this.player.pos.x);
+      for (const offset of [-0.05, 0.05]) {
+        const angle = base + offset;
+        this.projectiles.push(new Projectile(this.player.pos.x, this.player.pos.y, Math.cos(angle) * speed, Math.sin(angle) * speed, false, damage, kind));
+      }
     }
   }
 
-  private findBuildTarget(): Enemy | null {
-    return this.getPriorityTargets(1, 1200)[0] ?? null;
+  private applyMaceShockwave(strong: boolean): void {
+    const radius = strong ? 170 + this.diamondCount() * 22 : 118 + this.diamondCount() * 14;
+    const damage = Math.max(5, Math.floor(this.player.damage * (strong ? 0.45 : 0.28)));
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const d = this.distToPlayer(enemy);
+      if (d > radius + enemy.radius) continue;
+      enemy.breakArmor(strong ? 4 + this.diamondCount() : 2 + Math.floor(this.diamondCount() / 2));
+      const defeated = enemy.takeDamage(damage, strong ? 4 + this.diamondCount() : 2);
+      enemy.applySlow(strong ? 0.45 : 0.62, strong ? 0.7 : 0.36);
+      if (defeated) this.kills++;
+    }
   }
 
-  private getPriorityTargets(limit: number, maxDist: number): Enemy[] {
+  private updateBossPatterns(dt: number): void {
+    if (this.phase !== "playing") return;
+    for (const enemy of this.enemies) {
+      if (!enemy.alive || enemy.role !== "boss") continue;
+      const timers = this.getBossTimers(enemy);
+      timers.fan -= dt;
+      timers.triple -= dt;
+      timers.ring -= dt;
+      if (timers.fan <= 0) { this.fireBossFan(enemy); timers.fan = Math.max(1.8, 3.6 - this.waveNum * 0.03); }
+      if (timers.triple <= 0) { this.fireBossTriple(enemy); timers.triple = Math.max(1.3, 2.7 - this.waveNum * 0.02); }
+      if (timers.ring <= 0) { this.fireBossRing(enemy); timers.ring = Math.max(2.4, 5.2 - this.waveNum * 0.04); }
+    }
+    this.updateQueuedEnemyShots(dt);
+  }
+
+  private getBossTimers(enemy: Enemy): BossPatternTimers {
+    let timers = this.bossTimers.get(enemy as object);
+    if (!timers) {
+      timers = { fan: 1.5, triple: 2.2, ring: 3.4 };
+      this.bossTimers.set(enemy as object, timers);
+    }
+    return timers;
+  }
+
+  private fireBossFan(enemy: Enemy): void {
+    const base = Math.atan2(this.player.pos.y - enemy.pos.y, this.player.pos.x - enemy.pos.x);
+    for (let i = -3; i <= 3; i++) {
+      const angle = base + i * 0.15;
+      this.queuedEnemyShots.push({ x: enemy.pos.x, y: enemy.pos.y, vx: Math.cos(angle) * 300, vy: Math.sin(angle) * 300, damage: 12 + Math.floor(this.waveNum * 0.35), kind: "heavy_magic", delay: Math.abs(i) * 0.035 });
+    }
+  }
+
+  private fireBossTriple(enemy: Enemy): void {
+    const base = Math.atan2(this.player.pos.y - enemy.pos.y, this.player.pos.x - enemy.pos.x);
+    for (let burst = 0; burst < 3; burst++) {
+      for (const offset of [-0.09, 0, 0.09]) {
+        const angle = base + offset;
+        this.queuedEnemyShots.push({ x: enemy.pos.x, y: enemy.pos.y, vx: Math.cos(angle) * (330 + burst * 25), vy: Math.sin(angle) * (330 + burst * 25), damage: 10 + burst * 2, kind: burst === 2 ? "heavy_magic" : "energy", delay: burst * 0.18 });
+      }
+    }
+  }
+
+  private fireBossRing(enemy: Enemy): void {
+    const count = 18;
+    const speed = 250 + this.waveNum * 2;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      this.queuedEnemyShots.push({ x: enemy.pos.x, y: enemy.pos.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: 11, kind: "energy", delay: i * 0.01 });
+    }
+  }
+
+  private updateQueuedEnemyShots(dt: number): void {
+    for (const shot of this.queuedEnemyShots) shot.delay -= dt;
+    const ready = this.queuedEnemyShots.filter((shot) => shot.delay <= 0);
+    this.queuedEnemyShots = this.queuedEnemyShots.filter((shot) => shot.delay > 0);
+    for (const shot of ready) {
+      this.projectiles.push(new Projectile(shot.x, shot.y, shot.vx, shot.vy, true, shot.damage, shot.kind));
+    }
+  }
+
+  private updateSounds(before: GameSoundSnapshot, after: GameSoundSnapshot): void {
+    if (after.phase !== "playing" && before.phase !== "playing") return;
+    if (after.hp < before.hp) this.sound.playerHurt();
+    if (after.level > before.level) this.sound.levelUp();
+    if (after.kills > before.kills) this.sound.enemyDeath();
+    if (after.playerShots > before.playerShots) this.sound.shoot();
+    if (after.bossCount > before.bossCount) this.sound.bossSpawn();
+  }
+
+  private snapshot(): GameSoundSnapshot {
+    return {
+      hp: this.player.hp,
+      maxHp: this.player.maxHp,
+      level: this.xp.level,
+      xp: this.xp.xp,
+      kills: this.kills,
+      bossKills: this.bossKills,
+      playerShots: this.projectiles.filter((p) => !p.fromEnemy).length,
+      bossCount: this.enemies.filter((e) => e.alive && e.role === "boss").length,
+      phase: this.phase,
+    };
+  }
+
+  private diamondCount(): number {
+    return this.appliedSkills.filter((skill) => skill.rarity === "diamond").length;
+  }
+
+  private hasDiamondSkill(id: string): boolean {
+    return this.appliedSkills.some((skill) => skill.id === id && skill.rarity === "diamond");
+  }
+
+  private hasDiamondSpecial(special: string): boolean {
+    return this.appliedSkills.some((skill) => skill.special === special && skill.rarity === "diamond");
+  }
+
+  private isMagicWeapon(id: string): boolean {
+    return id === "wand" || id === "staff" || id === "orb";
+  }
+
+  private isTechWeapon(id: string): boolean {
+    return id === "drone_core" || id === "energy_core";
+  }
+
+  private isMartialWeapon(id: string): boolean {
+    return id === "bow" || id === "flying_blade" || id === "spear" || id === "mace";
+  }
+
+  private getPriorityTargets(count: number, range: number): Enemy[] {
     return this.enemies
-      .filter((e) => e.alive && this.distToPlayer(e) <= maxDist)
-      .sort((a, b) => this.targetWeight(a) - this.targetWeight(b))
-      .slice(0, limit);
+      .filter((enemy) => enemy.alive && this.distToPlayer(enemy) <= range)
+      .sort((a, b) => this.targetScore(b) - this.targetScore(a))
+      .slice(0, count);
   }
 
-  private targetWeight(enemy: Enemy): number {
-    const d = this.dist2(enemy.pos.x, enemy.pos.y);
-    if (enemy.role === "healer" || enemy.role === "summoner") return d * 0.26;
-    if (enemy.role === "bomber") return d * 0.42;
-    if (enemy.role === "boss") return d * 0.35;
-    if (enemy.role === "elite") return d * 0.55;
-    if (enemy.role === "ranged") return d * 0.7;
-    return d;
+  private targetScore(enemy: Enemy): number {
+    const roleScore = enemy.role === "boss" ? 1000 : enemy.role === "elite" ? 420 : enemy.role === "summoner" || enemy.role === "healer" ? 340 : enemy.role === "ranged" ? 260 : enemy.role === "tank" ? 160 : 80;
+    return roleScore + enemy.hp * 0.04 - this.distToPlayer(enemy) * 0.12;
   }
 
   private distToPlayer(enemy: Enemy): number {
-    return this.dist(enemy.pos.x, enemy.pos.y, this.player.pos.x, this.player.pos.y);
-  }
-
-  private dist2(x: number, y: number): number {
-    const dx = x - this.player.pos.x;
-    const dy = y - this.player.pos.y;
-    return dx * dx + dy * dy;
+    return this.dist(this.player.pos.x, this.player.pos.y, enemy.pos.x, enemy.pos.y);
   }
 
   private dist(ax: number, ay: number, bx: number, by: number): number {
@@ -604,231 +677,53 @@ export class GameWithSound extends Game {
     return Math.max(min, Math.min(max, value));
   }
 
-  private countSpecial(special: string): number {
-    return this.appliedSkills.filter((s) => s.special === special).length;
-  }
-
-  private hasDiamondSkill(id: string): boolean {
-    return this.appliedSkills.some((s) => s.id === id && s.rarity === "diamond");
-  }
-
-  private hasDiamondSpecial(special: string): boolean {
-    return this.appliedSkills.some((s) => s.special === special && s.rarity === "diamond");
-  }
-
-  private diamondCount(): number {
-    return this.appliedSkills.filter((s) => s.rarity === "diamond").length;
-  }
-
-  private isMagicWeapon(id: string): boolean {
-    return id === "wand" || id === "staff" || id === "orb";
-  }
-
-  private isMartialWeapon(id: string): boolean {
-    return id === "flying_blade" || id === "spear";
-  }
-
-  private isTechWeapon(id: string): boolean {
-    return id === "drone_core" || id === "energy_core";
-  }
-
   private handleDifficultyClick(e: MouseEvent): void {
     if (this.phase !== "menu") return;
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
-    for (const r of this.difficultyRects) {
-      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
-        const def = setCurrentDifficulty(r.id);
-        this.sound.unlock();
-        this.sound.pickupXP();
-        this.addDifficultyToast(`难度：${def.name}`);
-        return;
+    for (const item of this.difficultyRects) {
+      if (x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h) {
+        setCurrentDifficulty(item.id);
+        this.sound.click();
+        break;
       }
     }
-  }
-
-  private addDifficultyToast(text: string): void {
-    console.log(text);
   }
 
   private renderDifficultySelector(): void {
     const ctx = this.ctx;
-    const selected = getCurrentDifficultyId();
-    const cardW = 104;
-    const cardH = 46;
+    const current = getCurrentDifficultyId();
+    const items = DIFFICULTIES;
+    const w = 86;
+    const h = 28;
     const gap = 8;
-    const totalW = DIFFICULTIES.length * cardW + (DIFFICULTIES.length - 1) * gap;
-    const startX = this.w / 2 - totalW / 2;
-    const y = Math.max(66, this.h * 0.12);
+    const total = items.length * w + (items.length - 1) * gap;
+    const x0 = this.w / 2 - total / 2;
+    const y = this.h - 58;
     this.difficultyRects = [];
 
     ctx.save();
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.48)";
     ctx.font = "bold 12px monospace";
-    ctx.fillText("选择难度", this.w / 2, y - 12);
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText("难度", this.w / 2, y - 10);
 
-    for (let i = 0; i < DIFFICULTIES.length; i++) {
-      const d = DIFFICULTIES[i];
-      const x = startX + i * (cardW + gap);
-      this.difficultyRects.push({ x, y, w: cardW, h: cardH, id: d.id });
-
-      const active = selected === d.id;
-      ctx.fillStyle = active ? `${d.color}26` : "rgba(255,255,255,0.055)";
-      ctx.strokeStyle = active ? d.color : "rgba(255,255,255,0.18)";
-      ctx.lineWidth = active ? 2.2 : 1;
-      this.roundRect(ctx, x, y, cardW, cardH, 9);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const x = x0 + i * (w + gap);
+      const selected = item.id === current;
+      this.difficultyRects.push({ x, y, w, h, id: item.id });
+      ctx.fillStyle = selected ? "rgba(255,213,79,0.18)" : "rgba(255,255,255,0.06)";
+      ctx.strokeStyle = selected ? "#ffd54f" : "rgba(255,255,255,0.18)";
+      ctx.lineWidth = selected ? 2 : 1;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 10);
       ctx.fill();
       ctx.stroke();
-
-      ctx.fillStyle = d.color;
-      ctx.font = "bold 14px monospace";
-      ctx.fillText(d.name, x + cardW / 2, y + 19);
-      ctx.fillStyle = "rgba(255,255,255,0.48)";
-      ctx.font = "9px monospace";
-      ctx.fillText(d.subtitle, x + cardW / 2, y + 35);
+      ctx.fillStyle = selected ? "#ffd54f" : "rgba(255,255,255,0.7)";
+      ctx.fillText(item.name, x + w / 2, y + 18);
     }
-
-    const current = getCurrentDifficulty();
-    ctx.fillStyle = "rgba(255,255,255,0.36)";
-    ctx.font = "10px monospace";
-    ctx.fillText(current.description, this.w / 2, y + cardH + 18);
     ctx.restore();
-  }
-
-  private snapshot(): GameSoundSnapshot {
-    return {
-      hp: this.player.hp,
-      maxHp: this.player.maxHp,
-      level: this.xp.level,
-      xp: this.xp.xp,
-      kills: this.kills,
-      bossKills: this.bossKills,
-      playerShots: this.projectiles.filter((p) => !p.fromEnemy).length,
-      bossCount: this.enemies.filter((e) => e.role === "boss").length,
-      phase: this.phase,
-    };
-  }
-
-  private updateSounds(before: GameSoundSnapshot, after: GameSoundSnapshot): void {
-    if (this.muted) return;
-
-    const enteredGameplay = before.phase !== after.phase && after.phase === "playing";
-    const inOrEnteringGameplay = after.phase === "playing" || enteredGameplay;
-
-    if (after.bossCount > before.bossCount) this.sound.bossSpawn();
-    if (after.bossKills > before.bossKills) { this.sound.bossDefeated(); return; }
-    if (after.level > before.level) this.sound.levelUp();
-    if (after.hp < before.hp) this.sound.playerHurt();
-    if (after.hp > before.hp && after.hp <= after.maxHp && after.level === before.level) this.sound.pickupHP();
-    if (after.kills > before.kills) this.sound.kill();
-    if (after.xp > before.xp && after.kills === before.kills && after.level === before.level) this.sound.pickupXP();
-    if (inOrEnteringGameplay && after.playerShots > before.playerShots) this.sound.attack();
-  }
-
-  private updateBossPatterns(dt: number): void {
-    this.updateQueuedEnemyShots(dt);
-    if (this.phase !== "playing") return;
-
-    const bosses = this.enemies.filter((e) => e.alive && e.role === "boss");
-    for (const boss of bosses) {
-      const timers = this.getBossTimers(boss);
-      const hpPressure = Math.max(0, 1 - boss.hp / Math.max(1, boss.maxHp));
-      const difficulty = getCurrentDifficulty();
-      const pattern = difficulty.bossPatternMult;
-
-      timers.fan -= dt;
-      timers.triple -= dt;
-      timers.ring -= dt;
-
-      if (timers.fan <= 0) {
-        this.fireBossFan(boss, Math.floor((7 + Math.floor(hpPressure * 4)) * pattern));
-        timers.fan = Math.max(0.62, (2.35 - hpPressure * 0.42) / pattern);
-      }
-      if (timers.triple <= 0) {
-        this.queueBossTriple(boss, pattern);
-        timers.triple = Math.max(0.48, (1.72 - hpPressure * 0.28) / pattern);
-      }
-      if (timers.ring <= 0) {
-        this.fireBossRing(boss, Math.floor((14 + Math.floor(hpPressure * 8)) * pattern));
-        timers.ring = Math.max(1.25, (5.2 - hpPressure * 0.9) / pattern);
-      }
-    }
-  }
-
-  private getBossTimers(boss: Enemy): BossPatternTimers {
-    let timers = this.bossTimers.get(boss as object);
-    if (!timers) {
-      timers = { fan: 0.75, triple: 1.25, ring: 2.8 };
-      this.bossTimers.set(boss as object, timers);
-    }
-    return timers;
-  }
-
-  private updateQueuedEnemyShots(dt: number): void {
-    if (this.queuedEnemyShots.length <= 0) return;
-    for (const shot of this.queuedEnemyShots) shot.delay -= dt;
-    const ready = this.queuedEnemyShots.filter((shot) => shot.delay <= 0);
-    this.queuedEnemyShots = this.queuedEnemyShots.filter((shot) => shot.delay > 0);
-    for (const shot of ready) this.projectiles.push(new Projectile(shot.x, shot.y, shot.vx, shot.vy, true, shot.damage, shot.kind));
-  }
-
-  private fireBossFan(boss: Enemy, count: number): void {
-    const base = this.angleToPlayer(boss);
-    const spread = 1.08;
-    const speed = 330;
-    const damage = 12 * getCurrentDifficulty().damageMult;
-    for (let i = 0; i < count; i++) {
-      const t = count <= 1 ? 0 : i / (count - 1);
-      const angle = base - spread / 2 + spread * t;
-      this.spawnEnemyShot(boss.pos.x, boss.pos.y, angle, speed, Math.floor(damage), "energy");
-    }
-  }
-
-  private queueBossTriple(boss: Enemy, patternMult: number): void {
-    const base = this.angleToPlayer(boss);
-    const speed = 380;
-    const damage = Math.floor(15 * getCurrentDifficulty().damageMult);
-    const offsets = patternMult >= 1.55 ? [-0.16, -0.08, 0.02, 0.1, 0.18] : [-0.08, 0.02, 0.1];
-    for (let i = 0; i < offsets.length; i++) {
-      const angle = base + offsets[i];
-      this.queuedEnemyShots.push({ x: boss.pos.x, y: boss.pos.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage, kind: "heavy_magic", delay: i * 0.13 });
-    }
-  }
-
-  private fireBossRing(boss: Enemy, count: number): void {
-    const speed = 245;
-    const damage = Math.floor(10 * getCurrentDifficulty().damageMult);
-    const offset = (performance.now() / 1000) % Math.PI;
-    for (let i = 0; i < count; i++) {
-      const angle = offset + (i / count) * Math.PI * 2;
-      this.spawnEnemyShot(boss.pos.x, boss.pos.y, angle, speed, damage, "energy");
-    }
-  }
-
-  private spawnEnemyShot(x: number, y: number, angle: number, speed: number, damage: number, kind: ProjectileKind): void {
-    this.projectiles.push(new Projectile(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, true, damage, kind));
-  }
-
-  private angleToPlayer(enemy: Enemy): number {
-    const dx = this.player.pos.x - enemy.pos.x;
-    const dy = this.player.pos.y - enemy.pos.y;
-    return Math.atan2(dy, dx);
-  }
-
-  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
-    ctx.closePath();
   }
 }
