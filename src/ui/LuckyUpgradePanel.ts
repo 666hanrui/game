@@ -2,6 +2,7 @@ import { Skill, SkillRarity, SkillSchool, ALL_SKILLS } from "../data/skills";
 import { getSchool } from "../data/schools";
 import { getWeapon } from "../data/weapons";
 import { getSkillSynergyHintText } from "../systems/SynergyRuntime";
+import { getSkillStageInfo } from "../systems/SkillStageRuntime";
 
 interface AssetLike {
   get(group: string, id: string | null | undefined): HTMLImageElement | null;
@@ -107,7 +108,8 @@ export class LuckyUpgradePanel {
       const cy = startY;
       const meta = this.getSkillMeta(skill);
       const level = this.ownedIds.filter((id) => id === skill.id).length;
-      const levelText = skill.maxLevel === 1 ? "唯一" : `Lv.${level + 1}/${skill.maxLevel}`;
+      const stage = getSkillStageInfo(skill, this.ownedIds);
+      const levelText = skill.maxLevel === 1 ? "唯一" : `Lv.${stage.nextLevel}/${skill.maxLevel}`;
       const sprite = assets?.get(meta.assetGroup ?? "", meta.assetId);
       const color = this.getRarityColor(skill.rarity);
       const label = this.getRarityLabel(skill.rarity);
@@ -152,7 +154,8 @@ export class LuckyUpgradePanel {
 
       ctx.fillStyle = color;
       ctx.font = "bold 12px monospace";
-      ctx.fillText(`${label} · x${RARITY_MULT[skill.rarity].toFixed(skill.rarity === "common" ? 0 : 2)}`, cx + this.cardW / 2, cy + 134);
+      const stageHint = level <= 0 ? "解锁" : level >= 2 ? "质变" : "强化";
+      ctx.fillText(`${label} · ${stageHint} · x${RARITY_MULT[skill.rarity].toFixed(skill.rarity === "common" ? 0 : 2)}`, cx + this.cardW / 2, cy + 134);
 
       const dividerY = isDiamond ? cy + 166 : cy + 148;
       if (isDiamond) {
@@ -167,9 +170,9 @@ export class LuckyUpgradePanel {
       ctx.stroke();
 
       ctx.fillStyle = isDiamond ? "#dff7ff" : "#aaa";
-      ctx.font = isDiamond ? "11px monospace" : "12px monospace";
+      ctx.font = isDiamond ? "10px monospace" : "11px monospace";
       ctx.textAlign = "left";
-      this.wrapText(ctx, skill.description, cx + 12, isDiamond ? cy + 185 : cy + 170, this.cardW - 24, isDiamond ? 16 : 17);
+      this.wrapText(ctx, skill.description, cx + 12, isDiamond ? cy + 184 : cy + 168, this.cardW - 24, isDiamond ? 15 : 16);
 
       ctx.fillStyle = isDiamond ? "rgba(179,229,252,0.85)" : "#555";
       ctx.font = "bold 20px monospace";
@@ -263,6 +266,7 @@ export class LuckyUpgradePanel {
     }
 
     const label = this.getRarityLabel(rarity);
+    const stageText = getSkillStageInfo(base, this.ownedIds).cardText;
     const diamondText = rarity === "diamond" ? "｜钻石质变：会启动当前路线的超载效果" : "";
     const synergyText = getSkillSynergyHintText(base.id, this.ownedIds);
     const synergySuffix = synergyText ? `｜${synergyText}` : "";
@@ -270,7 +274,7 @@ export class LuckyUpgradePanel {
       ...base,
       rarity,
       name: rarity === base.rarity && rarity !== "diamond" ? base.name : `${label}·${base.name}`,
-      description: `${base.description}｜本次为${label}强化，数值倍率 x${mult.toFixed(rarity === "common" ? 0 : 2)}${diamondText}${synergySuffix}`,
+      description: `${base.description}｜${stageText}｜本次为${label}强化，数值倍率 x${mult.toFixed(rarity === "common" ? 0 : 2)}${diamondText}${synergySuffix}`,
       mods,
     };
   }
@@ -507,10 +511,17 @@ export class LuckyUpgradePanel {
     const words = text.split("");
     let line = "";
     let ly = y;
+    const maxLines = 6;
+    let lines = 0;
     for (let i = 0; i < words.length; i++) {
       const test = line + words[i];
       if (ctx.measureText(test).width > maxW && line.length > 0) {
         ctx.fillText(line, x, ly);
+        lines++;
+        if (lines >= maxLines) {
+          ctx.fillText("……", x, ly + lineH);
+          return;
+        }
         line = words[i];
         ly += lineH;
       } else {
