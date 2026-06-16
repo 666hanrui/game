@@ -30,6 +30,52 @@ const CHECKS = [
     ],
   },
   {
+    file: "src/data/skills.ts",
+    includes: [
+      "tags?: string[]",
+      "spear_beam",
+      "mace_shockwave",
+      "projectile_unlock",
+      "shockwave",
+    ],
+  },
+  {
+    file: "src/data/metaTalents.ts",
+    includes: [
+      "雷纹共鸣",
+      "炎脉涌动",
+      "霜息凝痕",
+      "毒蚀蔓延",
+      "奥术星环",
+      "机巧制导",
+      "lightning",
+      "fire",
+      "ice",
+      "poison",
+      "arcane",
+      "tech",
+    ],
+  },
+  {
+    file: "src/data/synergies.ts",
+    includes: [
+      "雷羽分裂",
+      "雷贯枪芒",
+      "熔岩地裂",
+      "毒刃回旋",
+      "奥术无人机",
+      "getSynergyHintsForSkill",
+    ],
+  },
+  {
+    file: "src/systems/SynergyRuntime.ts",
+    includes: [
+      "buildActiveSynergyIdSet",
+      "getSkillSynergyHintText",
+      "MetaTalentProgress",
+    ],
+  },
+  {
     file: "src/systems/WeaponAttackRuntime.ts",
     includes: [
       "WeaponAttackProfile",
@@ -43,12 +89,22 @@ const CHECKS = [
   {
     file: "src/core/Game.ts",
     includes: [
-      "getWeaponAttackProfile",
-      "isMeleeProfile",
+      "buildActiveSynergyIdSet",
+      "releaseSpearBeam",
+      "releaseMaceQuake",
+      "releaseMaceShockwaves",
+      "applyProjectileSynergy",
+      "chainLightningFrom",
       "performMeleeAttack",
-      "meleeFlashes",
       "renderMeleeFlashes",
-      "isPointInMeleeArc",
+    ],
+  },
+  {
+    file: "src/ui/LuckyUpgradePanel.ts",
+    includes: [
+      "getSkillSynergyHintText",
+      "选择后联动",
+      "已激活联动",
     ],
   },
   {
@@ -85,8 +141,8 @@ for (const check of CHECKS) {
 }
 
 if (failed) {
-  console.error("战斗爽感检查失败：请确认投射物视觉、武器攻击形态、近战接入和重构文档没有被覆盖。 ");
+  console.error("战斗爽感检查失败：请确认攻击形态、升级派生、天赋标签、隐藏联动和升级提示没有被覆盖。 ");
   process.exit(1);
 }
 
-ok("战斗爽感第一阶段关键点检查通过。");
+ok("战斗爽感前四阶段关键点检查通过。");
