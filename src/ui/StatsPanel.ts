@@ -1,5 +1,6 @@
 import type { Skill } from "../data/skills";
 import { getCurrentDifficulty } from "../systems/DifficultySystem";
+import { buildBuildProgress } from "../systems/BuildProgressRuntime";
 
 interface PlayerLike {
   hp: number;
@@ -33,19 +34,19 @@ export interface StatsPanelData {
 
 export class StatsPanel {
   render(ctx: CanvasRenderingContext2D, data: StatsPanelData): void {
-    const w = 238;
-    const h = 258;
+    const w = 254;
+    const h = 292;
     const x = 16;
     const y = 118;
     const difficulty = getCurrentDifficulty();
     const p = data.player;
     const attacksPerSecond = 1 / Math.max(0.05, p.attackCooldown);
-    const build = this.getBuildLabel(data);
+    const build = buildBuildProgress(data.skills, data.weapon?.id);
 
     ctx.save();
     ctx.fillStyle = "rgba(8,8,18,0.58)";
-    ctx.strokeStyle = "rgba(255,255,255,0.16)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = build.hybrid ? build.color : "rgba(255,255,255,0.16)";
+    ctx.lineWidth = build.hybrid ? 2 : 1.5;
     this.roundRect(ctx, x, y, w, h, 12);
     ctx.fill();
     ctx.stroke();
@@ -67,79 +68,45 @@ export class StatsPanel {
       : data.school?.name ?? "未选体系";
 
     let cy = y + 62;
-    cy = this.row(ctx, x, cy, "种族", data.race?.name ?? "未知", data.race?.color ?? "#90caf9");
-    cy = this.row(ctx, x, cy, "路线", schoolText, data.weapon?.color ?? data.school?.color ?? "#b0bec5");
-    cy = this.row(ctx, x, cy, "流派", build.label, build.color);
+    cy = this.row(ctx, x, cy, "种族", data.race?.name ?? "未知", data.race?.color ?? "#90caf9", w);
+    cy = this.row(ctx, x, cy, "路线", schoolText, data.weapon?.color ?? data.school?.color ?? "#b0bec5", w);
+    cy = this.row(ctx, x, cy, "流派", build.label, build.color, w);
+    cy = this.row(ctx, x, cy, "阶段点数", `${build.primary.points.toFixed(1)} / 7`, build.primary.color, w);
+    cy = this.row(ctx, x, cy, "隐藏联动", `${build.activeSynergyCount}`, build.activeSynergyCount > 0 ? "#ffd54f" : "rgba(255,255,255,0.48)", w);
 
     this.drawLine(ctx, x + 14, cy + 4, w - 28);
     cy += 23;
 
-    cy = this.row(ctx, x, cy, "生命", `${Math.ceil(p.hp)} / ${p.maxHp}`, "#66bb6a");
-    cy = this.row(ctx, x, cy, "伤害", `${p.damage}`, "#ffb74d");
-    cy = this.row(ctx, x, cy, "移速", `${Math.round(p.speed)}`, "#4fc3f7");
-    cy = this.row(ctx, x, cy, "攻速", `${attacksPerSecond.toFixed(2)} 次/秒`, "#ffd54f");
-    cy = this.row(ctx, x, cy, "额外弹体", `+${p.projectileExtra}`, "#ce93d8");
-    cy = this.row(ctx, x, cy, "暴击", `${Math.round(p.critChance * 100)}% / x${p.critMultiplier.toFixed(2)}`, "#ffeb3b");
+    cy = this.row(ctx, x, cy, "生命", `${Math.ceil(p.hp)} / ${p.maxHp}`, "#66bb6a", w);
+    cy = this.row(ctx, x, cy, "伤害", `${p.damage}`, "#ffb74d", w);
+    cy = this.row(ctx, x, cy, "移速", `${Math.round(p.speed)}`, "#4fc3f7", w);
+    cy = this.row(ctx, x, cy, "攻速", `${attacksPerSecond.toFixed(2)} 次/秒`, "#ffd54f", w);
+    cy = this.row(ctx, x, cy, "额外弹体", `+${p.projectileExtra}`, "#ce93d8", w);
+    cy = this.row(ctx, x, cy, "暴击", `${Math.round(p.critChance * 100)}% / x${p.critMultiplier.toFixed(2)}`, "#ffeb3b", w);
 
     this.drawLine(ctx, x + 14, cy + 4, w - 28);
     cy += 23;
 
-    cy = this.row(ctx, x, cy, "等级/波次", `Lv.${data.level} / 第${data.wave}波`, "#90caf9");
-    cy = this.row(ctx, x, cy, "击杀/Boss", `${data.kills} / ${data.bossKills}`, "#ef9a9a");
-    cy = this.row(ctx, x, cy, "强化数量", `${data.skills.length}`, "#b39ddb");
+    cy = this.row(ctx, x, cy, "等级/波次", `Lv.${data.level} / 第${data.wave}波`, "#90caf9", w);
+    cy = this.row(ctx, x, cy, "击杀/Boss", `${data.kills} / ${data.bossKills}`, "#ef9a9a", w);
+    cy = this.row(ctx, x, cy, "强化数量", `${data.skills.length}`, "#b39ddb", w);
 
-    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    if (build.activeSynergyNames.length > 0) {
+      const names = build.activeSynergyNames.slice(0, 2).join(" · ");
+      ctx.fillStyle = "rgba(255,213,79,0.84)";
+      ctx.font = "10px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(names, x + w / 2, y + h - 28);
+    }
+
+    ctx.fillStyle = build.hybrid ? build.color : "rgba(255,255,255,0.28)";
     ctx.font = "10px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("后期爽感 = 流派成型 + 稀有强化 + 高阶特效", x + w / 2, y + h - 12);
+    ctx.fillText(build.hybrid ? build.hybrid.description : "后期爽感 = 流派成型 + 稀有强化 + 高阶特效", x + w / 2, y + h - 12);
     ctx.restore();
   }
 
-  private getBuildLabel(data: StatsPanelData): { label: string; color: string } {
-    const weaponId = data.weapon?.id;
-    const skillCount = data.skills.length;
-    const projectile = data.player.projectileExtra;
-    const damage = data.player.damage;
-    const crit = data.player.critChance;
-    const diamond = data.skills.filter((s) => s.rarity === "diamond").length;
-    const armorBreak = data.skills.filter((s) => s.special === "armor_break" || s.special === "earthquake").length;
-
-    if (!weaponId) return { label: "待成型", color: "#90a4ae" };
-
-    if (weaponId === "wand" || weaponId === "staff" || weaponId === "orb") {
-      if (skillCount >= 8 || projectile >= 5 || diamond >= 1) return { label: "魔法暴走", color: "#ce93d8" };
-      if (skillCount >= 4) return { label: "奥术成型", color: "#ba68c8" };
-      return { label: "法术起步", color: "#9575cd" };
-    }
-
-    if (weaponId === "bow") {
-      if (projectile >= 7 || diamond >= 1) return { label: "箭雨成型", color: "#81c784" };
-      if (projectile >= 3) return { label: "多重射击", color: "#aed581" };
-      return { label: "弓术起步", color: "#c5e1a5" };
-    }
-
-    if (weaponId === "mace") {
-      if (armorBreak >= 3 || diamond >= 1 || damage >= 150) return { label: "碎甲震地", color: "#bc8f5a" };
-      if (skillCount >= 5 || armorBreak >= 1) return { label: "重击成型", color: "#d7a86e" };
-      return { label: "钝器起步", color: "#e0c097" };
-    }
-
-    if (weaponId === "flying_blade" || weaponId === "spear") {
-      if (damage >= 120 || crit >= 0.35 || diamond >= 1) return { label: "剑气/枪芒", color: "#ffb74d" };
-      if (skillCount >= 5) return { label: "武技成型", color: "#ffcc80" };
-      return { label: "冷兵器起步", color: "#ffe0b2" };
-    }
-
-    if (weaponId === "drone_core" || weaponId === "energy_core") {
-      if (skillCount >= 8 || projectile >= 5 || diamond >= 1) return { label: "科技军团", color: "#4dd0e1" };
-      if (skillCount >= 4) return { label: "自动火力", color: "#80deea" };
-      return { label: "科技起步", color: "#b2ebf2" };
-    }
-
-    return { label: "成长中", color: "#eeeeee" };
-  }
-
-  private row(ctx: CanvasRenderingContext2D, x: number, y: number, label: string, value: string, color: string): number {
+  private row(ctx: CanvasRenderingContext2D, x: number, y: number, label: string, value: string, color: string, width: number): number {
     ctx.textAlign = "left";
     ctx.font = "11px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.48)";
@@ -148,7 +115,7 @@ export class StatsPanel {
     ctx.textAlign = "right";
     ctx.font = "bold 11px monospace";
     ctx.fillStyle = color;
-    ctx.fillText(value, x + 224, y);
+    ctx.fillText(value, x + width - 14, y);
     return y + 18;
   }
 
