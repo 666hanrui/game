@@ -4,6 +4,7 @@ import { HubCampPanel } from "./ui/HubCampPanel";
 import { HubSubPanelManager } from "./ui/HubSubPanelManager";
 import { getHubSubPanelId, type HubCampAction } from "./data/hubActions";
 import { RunSupplyRuntime } from "./systems/RunSupplyRuntime";
+import { CombatPerformanceRuntime } from "./systems/CombatPerformanceRuntime";
 
 installGameOpeningFlowFix();
 
@@ -20,6 +21,7 @@ function main(): void {
   const hubCamp = new HubCampPanel();
   const hubSubPanels = new HubSubPanelManager();
   const runSupply = new RunSupplyRuntime(game);
+  const combatPerformance = new CombatPerformanceRuntime();
   let showHubCamp = true;
   let lastPhase = game.phase;
 
@@ -84,7 +86,9 @@ function main(): void {
     }
 
     runSupply.beforeGameUpdate();
+    combatPerformance.beforeGameUpdate(game);
     game.update(dt);
+    combatPerformance.afterGameUpdate(game);
     runSupply.afterGameUpdate(dt);
 
     if (lastPhase === "result" && game.phase === "menu") {
