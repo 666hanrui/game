@@ -1,4 +1,5 @@
 import { getActiveSynergies, getSynergyHintsForSkill, getTalentTags, SynergyDef } from "../data/synergies";
+import type { MetaTalentDef } from "../data/metaTalents";
 import { MetaTalentProgress } from "./MetaTalentProgress";
 
 export interface SynergyRuntimeSnapshot {
@@ -15,7 +16,7 @@ export class SynergyRuntime {
   }
 }
 
-export function buildSynergySnapshot(upgradeIds: string[], equippedTalents: ReturnType<MetaTalentProgress["getEquippedTalents"]>): SynergyRuntimeSnapshot {
+export function buildSynergySnapshot(upgradeIds: string[], equippedTalents: MetaTalentDef[]): SynergyRuntimeSnapshot {
   const talentTags = getTalentTags(equippedTalents);
   const activeSynergies = getActiveSynergies(upgradeIds, talentTags);
   return {
