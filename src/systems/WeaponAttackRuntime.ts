@@ -30,104 +30,51 @@ const DEFAULT_PROFILE: WeaponAttackProfile = {
 };
 
 const PROFILE_BY_WEAPON: Record<string, Omit<WeaponAttackProfile, "weaponId" | "attackMode">> = {
-  bow: {
-    projectileKind: "arrow",
-    projectileSpeed: 600,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 1,
-    visualColor: "#ffd54f",
-  },
-  wand: {
-    projectileKind: "magic",
-    projectileSpeed: 560,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 1,
-    visualColor: "#ce93d8",
-  },
-  staff: {
-    projectileKind: "heavy_magic",
-    projectileSpeed: 500,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 1,
-    visualColor: "#ab47bc",
-  },
-  orb: {
-    projectileKind: "magic",
-    projectileSpeed: 460,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 0.75,
-    visualColor: "#90caf9",
-  },
-  energy_core: {
-    projectileKind: "energy",
-    projectileSpeed: 650,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 1,
-    visualColor: "#4dd0e1",
-  },
-  drone_core: {
-    projectileKind: "drone",
-    projectileSpeed: 620,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 1,
-    visualColor: "#42a5f5",
-  },
-  flying_blade: {
-    projectileKind: "blade",
-    projectileSpeed: 520,
-    meleeType: "none",
-    meleeRange: 0,
-    meleeWidth: 0,
-    meleeArc: 0,
-    meleeDamageMultiplier: 0.92,
-    visualColor: "#ef5350",
-  },
-  spear: {
-    projectileSpeed: 0,
-    meleeType: "thrust",
-    meleeRange: 108,
-    meleeWidth: 32,
-    meleeArc: 0.26,
-    meleeDamageMultiplier: 1.18,
-    visualColor: "#ffb74d",
-  },
-  mace: {
-    projectileSpeed: 0,
-    meleeType: "slam",
-    meleeRange: 74,
-    meleeWidth: 92,
-    meleeArc: 1.18,
-    meleeDamageMultiplier: 1.36,
-    visualColor: "#bc8f5a",
-  },
+  bow: { projectileKind: "arrow", projectileSpeed: 600, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: "#ffd54f" },
+  wand: { projectileKind: "magic", projectileSpeed: 560, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: "#ce93d8" },
+  staff: { projectileKind: "heavy_magic", projectileSpeed: 500, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: "#ab47bc" },
+  orb: { projectileKind: "magic", projectileSpeed: 460, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 0.75, visualColor: "#90caf9" },
+  energy_core: { projectileKind: "energy", projectileSpeed: 650, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: "#4dd0e1" },
+  drone_core: { projectileKind: "drone", projectileSpeed: 620, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: "#42a5f5" },
+  flying_blade: { projectileKind: "blade", projectileSpeed: 520, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 0.92, visualColor: "#ef5350" },
+  spear: { projectileSpeed: 0, meleeType: "thrust", meleeRange: 108, meleeWidth: 32, meleeArc: 0.26, meleeDamageMultiplier: 1.18, visualColor: "#ffb74d" },
+  mace: { projectileSpeed: 0, meleeType: "slam", meleeRange: 74, meleeWidth: 92, meleeArc: 1.18, meleeDamageMultiplier: 1.36, visualColor: "#bc8f5a" },
 };
 
 export function getWeaponAttackProfile(weapon: Weapon | null | undefined): WeaponAttackProfile {
   if (!weapon) return { ...DEFAULT_PROFILE };
-  const profile = PROFILE_BY_WEAPON[weapon.id] ?? DEFAULT_PROFILE;
-  return {
-    weaponId: weapon.id,
-    attackMode: weapon.attackMode,
-    ...profile,
-  };
+  const specific = PROFILE_BY_WEAPON[weapon.id];
+  const profile = specific ?? buildGenericProfile(weapon);
+  return { weaponId: weapon.id, attackMode: weapon.attackMode, ...profile };
+}
+
+function buildGenericProfile(weapon: Weapon): Omit<WeaponAttackProfile, "weaponId" | "attackMode"> {
+  const color = weapon.color;
+  if (weapon.attackMode === "melee_thrust") {
+    return { projectileSpeed: 0, meleeType: "thrust", meleeRange: 102, meleeWidth: 30, meleeArc: 0.24, meleeDamageMultiplier: 1.12, visualColor: color };
+  }
+  if (weapon.attackMode === "melee_slash") {
+    return { projectileSpeed: 0, meleeType: "slash", meleeRange: 86, meleeWidth: 76, meleeArc: 0.92, meleeDamageMultiplier: 1.08, visualColor: color };
+  }
+  if (weapon.attackMode === "melee_slam") {
+    return { projectileSpeed: 0, meleeType: "slam", meleeRange: 78, meleeWidth: 96, meleeArc: 1.12, meleeDamageMultiplier: 1.24, visualColor: color };
+  }
+  if (weapon.attackMode === "short_returning_blade") {
+    return { projectileKind: "blade", projectileSpeed: 520, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 0.92, visualColor: color };
+  }
+  if (weapon.attackMode === "orbit") {
+    return { projectileKind: weapon.school === "tech" ? "energy" : "magic", projectileSpeed: 440, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 0.78, visualColor: color };
+  }
+  if (weapon.attackMode === "summon") {
+    return { projectileKind: weapon.school === "magic" ? "magic" : "drone", projectileSpeed: 600, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 0.9, visualColor: color };
+  }
+  if (weapon.school === "magic") {
+    return { projectileKind: weapon.subCategory === "fire" || weapon.subCategory === "field" ? "heavy_magic" : "magic", projectileSpeed: weapon.subCategory === "time" ? 420 : 560, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: color };
+  }
+  if (weapon.school === "tech") {
+    return { projectileKind: weapon.subCategory === "crossbow" ? "arrow" : "energy", projectileSpeed: weapon.subCategory === "gun" ? 820 : weapon.subCategory === "shotgun" ? 560 : 660, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: color };
+  }
+  return { projectileKind: "arrow", projectileSpeed: 620, meleeType: "none", meleeRange: 0, meleeWidth: 0, meleeArc: 0, meleeDamageMultiplier: 1, visualColor: color };
 }
 
 export function isMeleeProfile(profile: WeaponAttackProfile): boolean {
