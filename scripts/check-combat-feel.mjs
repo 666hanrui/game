@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 
 const CHECKS = [
-  { file: "src/entities/Projectile.ts", includes: ["ProjectileHitShape", "ProjectileHitProfile", "hitProfile", "hitsCircle", "distToSegmentSq", "capsule", "wide_wave", "spear_beam", "shockwave", "renderSpearBeam"] },
+  { file: "src/entities/Projectile.ts", includes: ["ProjectileHitShape", "ProjectileHitProfile", "ProjectileRenderQuality", "hitProfile", "hitsCircle", "distToSegmentSq", "capsule", "wide_wave", "perf", "fullDraws", "simpleDraws", "takeSpawnToken", "takeShockVisualSlot", "renderCheap", "nextTrackAt", "cachedTargetIndex"] },
+  { file: "src/systems/SpatialHashGrid.ts", includes: ["SpatialHashGrid", "rebuild", "queryCircle", "cellSize"] },
   { file: "src/systems/CombatSystem.ts", includes: ["p.hitsCircle(e.pos, e.radius)"] },
   { file: "src/data/weapons.ts", includes: ["WeaponAttackMode", "WeaponWeightClass", "weightClass", "EXTRA_WEAPONS", "visualRole"] },
   { file: "src/data/weaponExpansion.ts", includes: ["EXTRA_WEAPONS", "EXTRA_SKILLS", "MARTIAL_WEAPON_SEEDS", "MAGIC_WEAPON_SEEDS", "TECH_WEAPON_SEEDS", "UPGRADE_TEMPLATE"] },
