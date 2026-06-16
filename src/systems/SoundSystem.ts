@@ -39,9 +39,18 @@ export class SoundSystem {
     this.ensure();
   }
 
+  click(): void {
+    if (!this.canPlay("click", 0.04)) return;
+    this.tone({ freq: 720, endFreq: 540, duration: 0.045, gain: 0.1, type: "triangle" });
+  }
+
   attack(): void {
     if (!this.canPlay("attack", 0.045)) return;
     this.tone({ freq: 520, endFreq: 260, duration: 0.07, gain: 0.18, type: "triangle" });
+  }
+
+  shoot(): void {
+    this.attack();
   }
 
   pickupXP(): void {
@@ -64,6 +73,10 @@ export class SoundSystem {
     if (!this.canPlay("kill", 0.05)) return;
     this.noise(0.075, 0.15);
     this.tone({ freq: 360, endFreq: 160, duration: 0.09, gain: 0.13, type: "sawtooth" });
+  }
+
+  enemyDeath(): void {
+    this.kill();
   }
 
   levelUp(): void {
