@@ -1,6 +1,16 @@
 import { vec2, Vec2 } from "../utils/math";
 
-export type ProjectileKind = "arrow" | "magic" | "heavy_magic" | "energy" | "blade" | "drone" | "hammer";
+export type ProjectileKind =
+  | "arrow"
+  | "magic"
+  | "heavy_magic"
+  | "energy"
+  | "blade"
+  | "drone"
+  | "hammer"
+  | "spear_beam"
+  | "sword_wave"
+  | "shockwave";
 
 export class Projectile {
   pos: Vec2;
@@ -18,12 +28,17 @@ export class Projectile {
     this.fromEnemy = fromEnemy;
     this.damage = damage;
     this.kind = kind;
-    if (kind === "hammer") this.maxLife = 1.15;
+    if (kind === "hammer" || kind === "shockwave") this.maxLife = 1.15;
+    if (kind === "blade") this.maxLife = 0.95;
+    if (kind === "spear_beam" || kind === "sword_wave") this.maxLife = 1.25;
   }
 
   get hitRadius(): number {
     switch (this.kind) {
       case "hammer": return 15;
+      case "shockwave": return 18;
+      case "spear_beam": return 8;
+      case "sword_wave": return 10;
       case "heavy_magic": return 11;
       case "energy": return 8;
       case "blade": return 9;
@@ -42,81 +57,148 @@ export class Projectile {
 
   renderAt(ctx: CanvasRenderingContext2D, sx: number, sy: number, sprite?: HTMLImageElement | null): void {
     const angle = Math.atan2(this.vel.y, this.vel.x);
-    if (sprite && this.kind !== "hammer") return this.renderSprite(ctx, sx, sy, angle, sprite);
-    if (this.kind === "magic") return this.renderOrb(ctx, sx, sy, "#ce93d8", "#f3e5f5", 6);
-    if (this.kind === "heavy_magic") return this.renderOrb(ctx, sx, sy, "#ab47bc", "#e1bee7", 9);
+
+    // 战斗辨识度优先：玩家侧投射物不再被通用资源图覆盖，避免所有攻击看起来都像圆球。
+    // 少数特殊表现仍允许资源图作为内部细节，例如 hammer 的狼牙棒本体。
+    if (this.kind === "magic") return this.renderArcaneBolt(ctx, sx, sy, angle);
+    if (this.kind === "heavy_magic") return this.renderRuneBolt(ctx, sx, sy, angle);
     if (this.kind === "energy") return this.renderEnergy(ctx, sx, sy, angle);
     if (this.kind === "blade") return this.renderBlade(ctx, sx, sy, angle);
-    if (this.kind === "drone") return this.renderOrb(ctx, sx, sy, "#42a5f5", "#e3f2fd", 5);
+    if (this.kind === "drone") return this.renderDronePulse(ctx, sx, sy, angle);
     if (this.kind === "hammer") return this.renderHammerShock(ctx, sx, sy, angle, sprite);
+    if (this.kind === "shockwave") return this.renderShockwave(ctx, sx, sy, angle);
+    if (this.kind === "spear_beam") return this.renderSpearBeam(ctx, sx, sy, angle);
+    if (this.kind === "sword_wave") return this.renderSwordWave(ctx, sx, sy, angle);
     return this.renderArrow(ctx, sx, sy, angle);
   }
 
-  private renderSprite(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number, sprite: HTMLImageElement): void {
-    const size = Math.max(16, this.hitRadius * 3.4);
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(angle);
-    if (this.fromEnemy) ctx.globalAlpha = 0.9;
-    ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
-    ctx.restore();
-  }
-
   private renderArrow(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
-    const color = this.fromEnemy ? "#ef5350" : "#ffeb3b";
-    const headColor = this.fromEnemy ? "#ff8a80" : "#fff9c4";
+    const color = this.fromEnemy ? "#ef5350" : "#ffd54f";
+    const headColor = this.fromEnemy ? "#ff8a80" : "#fffde7";
+    const shaftColor = this.fromEnemy ? "#ffcdd2" : "#f6d179";
 
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(angle);
 
-    const trail = ctx.createLinearGradient(-28, 0, 6, 0);
+    const trail = ctx.createLinearGradient(-34, 0, 4, 0);
     trail.addColorStop(0, "rgba(255,255,255,0)");
+    trail.addColorStop(0.65, color + "66");
     trail.addColorStop(1, color + "aa");
     ctx.fillStyle = trail;
     ctx.beginPath();
-    ctx.moveTo(-28, -3);
-    ctx.lineTo(4, -1.5);
-    ctx.lineTo(4, 1.5);
-    ctx.lineTo(-28, 3);
+    ctx.moveTo(-34, -3.4);
+    ctx.lineTo(3, -1.35);
+    ctx.lineTo(3, 1.35);
+    ctx.lineTo(-34, 3.4);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = color;
-    ctx.fillRect(-9, -1.5, 14, 3);
+    ctx.strokeStyle = "rgba(59,37,14,0.9)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-14, 0);
+    ctx.lineTo(9, 0);
+    ctx.stroke();
+
+    ctx.strokeStyle = shaftColor;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-12, 0);
+    ctx.lineTo(8, 0);
+    ctx.stroke();
 
     ctx.fillStyle = headColor;
+    ctx.strokeStyle = "rgba(80,55,25,0.9)";
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(7, -4);
-    ctx.lineTo(13, 0);
-    ctx.lineTo(7, 4);
+    ctx.moveTo(15, 0);
+    ctx.lineTo(6, -5);
+    ctx.lineTo(8, 0);
+    ctx.lineTo(6, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = this.fromEnemy ? "#ef9a9a" : "#fff8c6";
+    ctx.beginPath();
+    ctx.moveTo(-16, 0);
+    ctx.lineTo(-25, -5);
+    ctx.lineTo(-21, 0);
+    ctx.lineTo(-25, 5);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.fillRect(-4, -0.6, 8, 1.2);
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fillRect(-2, -0.6, 8, 1.2);
     ctx.restore();
   }
 
-  private renderOrb(ctx: CanvasRenderingContext2D, sx: number, sy: number, color: string, core: string, radius: number): void {
-    const pulse = 1 + Math.sin(this.life * 18) * 0.08;
-    const glow = ctx.createRadialGradient(sx, sy, 1, sx, sy, radius * 4);
-    glow.addColorStop(0, color + "bb");
-    glow.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = glow;
+  private renderArcaneBolt(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+
+    const trail = ctx.createLinearGradient(-26, 0, 6, 0);
+    trail.addColorStop(0, "rgba(156,39,176,0)");
+    trail.addColorStop(1, "rgba(206,147,216,0.78)");
+    ctx.fillStyle = trail;
     ctx.beginPath();
-    ctx.arc(sx, sy, radius * 4, 0, Math.PI * 2);
+    ctx.moveTo(-26, -4);
+    ctx.quadraticCurveTo(-8, -1.5, 8, -2.5);
+    ctx.lineTo(8, 2.5);
+    ctx.quadraticCurveTo(-8, 1.5, -26, 4);
+    ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = color;
+    ctx.shadowColor = "#ce93d8";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ce93d8";
     ctx.beginPath();
-    ctx.arc(sx, sy, radius * pulse, 0, Math.PI * 2);
+    ctx.ellipse(3, 0, 9, 5.5, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#f3e5f5";
+    ctx.beginPath();
+    ctx.arc(6, -1.6, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
-    ctx.fillStyle = core;
+  private renderRuneBolt(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+
+    ctx.shadowColor = "#ab47bc";
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = "rgba(225,190,231,0.72)";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(sx - radius * 0.25, sy - radius * 0.25, radius * 0.35, 0, Math.PI * 2);
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.rotate(this.life * 5);
+    ctx.fillStyle = "#ab47bc";
+    ctx.strokeStyle = "#f3e5f5";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const r = i % 2 === 0 ? 12 : 6;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
     ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   private renderEnergy(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
@@ -124,28 +206,70 @@ export class Projectile {
     ctx.translate(sx, sy);
     ctx.rotate(angle);
 
-    const trail = ctx.createLinearGradient(-24, 0, 10, 0);
+    const trail = ctx.createLinearGradient(-28, 0, 12, 0);
     trail.addColorStop(0, "rgba(77,208,225,0)");
-    trail.addColorStop(1, "rgba(77,208,225,0.9)");
+    trail.addColorStop(0.8, "rgba(77,208,225,0.66)");
+    trail.addColorStop(1, "rgba(224,247,250,0.94)");
     ctx.fillStyle = trail;
     ctx.beginPath();
-    ctx.moveTo(-24, -5);
-    ctx.lineTo(10, 0);
-    ctx.lineTo(-24, 5);
+    ctx.moveTo(-28, -5);
+    ctx.lineTo(9, 0);
+    ctx.lineTo(-28, 5);
     ctx.closePath();
     ctx.fill();
 
+    ctx.shadowColor = "#4dd0e1";
+    ctx.shadowBlur = 10;
     ctx.fillStyle = "#4dd0e1";
     ctx.beginPath();
-    ctx.moveTo(12, 0);
-    ctx.lineTo(0, -7);
-    ctx.lineTo(-10, 0);
-    ctx.lineTo(0, 7);
+    ctx.moveTo(14, 0);
+    ctx.lineTo(2, -8);
+    ctx.lineTo(-11, 0);
+    ctx.lineTo(2, 8);
     ctx.closePath();
     ctx.fill();
 
     ctx.strokeStyle = "#e0f7fa";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 0.8;
+    for (const x of [-8, -3, 2]) {
+      ctx.beginPath();
+      ctx.moveTo(x, -7);
+      ctx.lineTo(x + 7, 7);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  private renderDronePulse(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+
+    ctx.shadowColor = "#42a5f5";
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = "rgba(66,165,245,0.72)";
+    ctx.beginPath();
+    ctx.moveTo(13, 0);
+    ctx.lineTo(-8, -8);
+    ctx.lineTo(-4, 0);
+    ctx.lineTo(-8, 8);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "#e3f2fd";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = "#90caf9";
+    ctx.beginPath();
+    ctx.moveTo(-22, -5);
+    ctx.lineTo(-8, 0);
+    ctx.lineTo(-22, 5);
     ctx.stroke();
     ctx.restore();
   }
@@ -153,23 +277,95 @@ export class Projectile {
   private renderBlade(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
     ctx.save();
     ctx.translate(sx, sy);
-    ctx.rotate(angle + this.life * 16);
+    ctx.rotate(angle + this.life * 18);
 
+    ctx.shadowColor = "#cfd8dc";
+    ctx.shadowBlur = 8;
     ctx.fillStyle = "#cfd8dc";
-    ctx.strokeStyle = "#78909c";
+    ctx.strokeStyle = "#607d8b";
     ctx.lineWidth = 1.5;
+    for (let i = 0; i < 2; i++) {
+      ctx.rotate(Math.PI);
+      ctx.beginPath();
+      ctx.moveTo(0, -13);
+      ctx.quadraticCurveTo(10, -2, 2, 13);
+      ctx.lineTo(-4, 5);
+      ctx.quadraticCurveTo(2, 0, -4, -5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "#ffffff";
     ctx.beginPath();
-    ctx.moveTo(0, -10);
-    ctx.lineTo(7, 0);
-    ctx.lineTo(0, 10);
-    ctx.lineTo(-7, 0);
+    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private renderSpearBeam(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+    ctx.shadowColor = "#ffb74d";
+    ctx.shadowBlur = 12;
+
+    const alpha = Math.max(0.15, 1 - this.life / this.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(255,183,77,0.85)";
+    ctx.beginPath();
+    ctx.moveTo(28, 0);
+    ctx.lineTo(-18, -4);
+    ctx.lineTo(-8, 0);
+    ctx.lineTo(-18, 4);
     ctx.closePath();
     ctx.fill();
-    ctx.stroke();
 
-    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#fff3e0";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+    ctx.moveTo(-22, 0);
+    ctx.lineTo(30, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private renderSwordWave(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+    const alpha = Math.max(0.18, 1 - this.life / this.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = "#90caf9";
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = "#e3f2fd";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 20, -0.8, 0.8);
+    ctx.stroke();
+    ctx.strokeStyle = "#42a5f5";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, -0.75, 0.75);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private renderShockwave(ctx: CanvasRenderingContext2D, sx: number, sy: number, angle: number): void {
+    const alpha = Math.max(0, 1 - this.life / this.maxLife);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+    ctx.globalAlpha = 0.75 * alpha;
+    ctx.strokeStyle = "#bc8f5a";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18 + this.life * 58, 7 + this.life * 24, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.35 * alpha;
+    ctx.fillStyle = "#8d6e63";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 15 + this.life * 52, 5 + this.life * 18, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
